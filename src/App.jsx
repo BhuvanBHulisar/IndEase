@@ -2033,6 +2033,11 @@ www.originode.com
       <div className="glass-container">
         <div className={`login-visual ${role}-bg`}>
           <div className="visual-overlay">
+            <div className="visual-integrity-badge">
+              <div className="v-pulse"></div>
+              <span>SYSTEM INTEGRITY: SECURE</span>
+            </div>
+
             <h3>
               {view === 'forgot' ? 'Security Recovery' : (role === 'consumer' ? 'Industrial Continuity' : 'Expert Terminal')}
             </h3>
@@ -2043,6 +2048,22 @@ www.originode.com
                   ? 'Managing legacy hardware with 21st-century precision.'
                   : 'Accessing the global network for industrial support and diagnostics.')}
             </p>
+
+            <div className="visual-stats-grid">
+              <div className="v-stat">
+                <span className="v-label">{role === 'consumer' ? 'MACHINES' : 'THROUGHPUT'}</span>
+                <span className="v-value">{role === 'consumer' ? '850K+' : '4.2 TB/S'}</span>
+              </div>
+              <div className="v-stat">
+                <span className="v-label">{role === 'consumer' ? 'UPTIME' : 'EXPERTS'}</span>
+                <span className="v-value">{role === 'consumer' ? '99.9%' : '12.8K+'}</span>
+              </div>
+              <div className="v-stat">
+                <span className="v-label">{role === 'consumer' ? 'NODES' : 'RECOVERY'}</span>
+                <span className="v-value">{role === 'consumer' ? '1.2K' : '99.4%'}</span>
+              </div>
+            </div>
+
             <div className="status-indicator">
               <span className="dot"></span> {role === 'consumer' ? 'Platform Active' : 'Network Online'}
             </div>

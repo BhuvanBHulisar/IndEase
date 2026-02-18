@@ -192,9 +192,8 @@ body,
 }
 
 .producer-bg {
-  /* Tech/Data center image mixed with the expert blue gradient */
   background:
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(30, 58, 138, 0.7)),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(30, 58, 138, 0.8)),
     url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=1000') center/cover;
   position: relative;
   overflow: hidden;
@@ -204,11 +203,37 @@ body,
   content: '';
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 40px 40px;
-  mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 30px 30px;
+  mask-image: radial-gradient(circle at center, black 60%, transparent 110%);
+  opacity: 0.6;
   pointer-events: none;
+}
+
+.producer-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--amber-gold), transparent);
+  box-shadow: 0 0 15px var(--amber-gold);
+  opacity: 0.3;
+  animation: scan-line 4s linear infinite;
+  z-index: 5;
+}
+
+@keyframes scan-line {
+  0% {
+    top: -10%;
+  }
+
+  100% {
+    top: 110%;
+  }
 }
 
 .visual-overlay {
@@ -230,6 +255,87 @@ body,
   display: inline-block;
   margin-right: 8px;
   animation: pulse 2s infinite;
+}
+
+/* [NEW] LOGIN VISUAL STATS GRID */
+.visual-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin: 30px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 25px;
+}
+
+.v-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.v-stat .v-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.v-stat .v-value {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #ffffff;
+  font-family: 'Consolas', monospace;
+}
+
+.producer-theme .v-stat .v-value {
+  color: var(--amber-gold);
+}
+
+.visual-integrity-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  padding: 8px 15px;
+  border-radius: 50px;
+  width: fit-content;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.visual-integrity-badge span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: white;
+}
+
+.visual-integrity-badge .v-pulse {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulse-green 1.5s infinite;
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .login-form-area {
