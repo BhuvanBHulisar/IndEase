@@ -530,9 +530,11 @@ www.originode.com
       const isDemoAccount = email === 'admin@originode.com' && password === 'Demo@1234';
       if (isDemoAccount) {
         setView('dashboard');
+        setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
         setErrors({});
       } else if (validate()) {
         setView('dashboard');
+        setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
       }
     } else {
       if (signupStep === 1 && validate()) {
@@ -548,12 +550,14 @@ www.originode.com
         }
       } else if (signupStep === 3) {
         setView('dashboard');
+        setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
       }
     }
   };
 
   const handleSocialLogin = async (provider) => {
     setView('dashboard');
+    setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
   };
 
   const isFormValid = view === 'forgot'
@@ -602,6 +606,216 @@ www.originode.com
     );
   }
 
+  // --- SHARED UI COMPONENTS (MODALS) ---
+  const sharedModals = (
+    <>
+      {showCamera && (
+        <div className="modal-overlay">
+          <div className="camera-modal">
+            <h3>Capture Selfie</h3>
+            <video ref={videoRef} autoPlay playsInline className="camera-stream"></video>
+            <canvas ref={canvasRef} width="400" height="300" style={{ display: 'none' }}></canvas>
+            <div className="modal-actions">
+              <button className="btn btn-outline-dark" onClick={stopCamera}>Cancel</button>
+              <button className="btn btn-primary" onClick={capturePhoto}>Capture Frame</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <div className="modal-header">
+              <div className="warning-icon">!</div>
+              <h3>Permanent Identity Deletion</h3>
+            </div>
+            <p>Are you certain? This will wipe all machine nodes and historical records associated with <strong>{email || 'admin@originode.com'}</strong>.</p>
+            <div className="modal-actions">
+              <button className="btn btn-outline-dark" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={() => { setView('landing'); setShowDeleteModal(false); }}>Yes, Delete Permanently</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDiagnosisModal && (
+        <div className="modal-overlay">
+          <div className="diagnosis-modal">
+            <div className="modal-header-v2">
+              <h3>Smart Diagnosis Support</h3>
+              <button className="btn-icon-label" onClick={() => { setShowDiagnosisModal(false); setDiagnosisStep(1); setVideoFile(null); }}>Close</button>
+            </div>
+            <div className="modal-body-v2">
+              {diagnosisStep === 1 && (
+                <div className="upload-step animate-fade">
+                  <p><strong>Step 1:</strong> Upload a video of the machine fault. clearly showing the sound or visual issue.</p>
+                  <div className="upload-zone" onClick={() => document.getElementById('video-input').click()}>
+                    <div className="upload-icon">📹</div>
+                    {videoFile ? <div className="upload-text" style={{ color: 'var(--sage-green)' }}>{videoFile.name} Selected</div> : <div className="upload-text">Click to Upload Video</div>}
+                    <p className="upload-hint">MP4, MOV supported (Max 50MB)</p>
+                    <input type="file" id="video-input" hidden accept="video/*" onChange={handleVideoSelect} />
+                  </div>
+                  <div style={{ marginTop: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--navy-dark)' }}>Describe the Issue</label>
+                    <textarea className="table-search" rows="3" placeholder="e.g. Strange knocking sound coming from the main cylinder..." style={{ width: '100%', resize: 'none' }}></textarea>
+                  </div>
+                  <button className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={startDiagnosis}>Analyze & Find Experts</button>
+                </div>
+              )}
+              {diagnosisStep === 2 && (
+                <div className="scanning-container animate-fade">
+                  <div className="scanner-ring"></div>
+                  <h3 style={{ color: 'var(--navy-dark)' }}>Analyzing Fault Signature...</h3>
+                  <p style={{ color: '#64748b' }}>Matching audio/visual patterns with legacy database.</p>
+                  <div className="progress-bar-bg" style={{ background: '#e2e8f0', height: '6px', borderRadius: '4px', marginTop: '20px', overflow: 'hidden' }}>
+                    <div className="progress-fill" style={{ width: `${analysisProgress}%`, background: 'var(--navy-primary)', height: '100%', transition: '0.4s' }}></div>
+                  </div>
+                </div>
+              )}
+              {diagnosisStep === 3 && (
+                <div className="results-step animate-fade">
+                  <h3 style={{ marginBottom: '15px', color: 'var(--navy-dark)' }}>Diagnosis Complete</h3>
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>We identified the machine as a <strong>1985 Text-Matic Series</strong>. Based on the fault, here are the best available experts:</p>
+                  {diagnosisResults.map(expert => (
+                    <div key={expert.id} className="expert-result-card" onClick={() => alert("Chat Feature Comming Soon!")}>
+                      <div className="expert-avatar">{expert.avatar}</div>
+                      <div className="expert-info">
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <h4>{expert.name}</h4>
+                          <span className="match-score">{expert.match}% Match</span>
+                        </div>
+                        <p>{expert.type}</p>
+                      </div>
+                      <button className="btn-small" style={{ width: 'auto', marginTop: 0 }}>Connect</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReportModal && selectedReport && (
+        <div className="modal-overlay">
+          <div className="diagnosis-modal" style={{ width: '600px' }}>
+            <div className="modal-header-v2">
+              <h3>Service Report Details</h3>
+              <button className="btn-icon-label" onClick={() => setShowReportModal(false)}>Close</button>
+            </div>
+            <div className="modal-body-v2">
+              <div style={{ textAlign: 'center', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px dashed #e2e8f0' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '10px' }}>📄</div>
+                <h2 style={{ margin: 0, color: 'var(--navy-dark)' }}>INV-{2020 + selectedReport.id}</h2>
+                <span className={`status-badge-pill ${selectedReport.status}`} style={{ display: 'inline-block', marginTop: '10px' }}>{selectedReport.status.toUpperCase()}</span>
+              </div>
+              <div className="report-details-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>SERVICE DATE</label><strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.date}</strong></div>
+                <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>MACHINE ID</label><strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.machine}</strong></div>
+                <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>SERVICE PROVIDER</label><strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.expert}</strong></div>
+                <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>TOTAL COST</label><strong style={{ color: 'var(--navy-dark)', fontSize: '1.2rem' }}>{selectedReport.cost}</strong></div>
+              </div>
+              <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>SERVICE ACTION PERFORMED</label>
+                <p style={{ margin: 0, color: '#334155', lineHeight: '1.5' }}>{selectedReport.action}. System diagnostics were run post-service to ensure compliance with operational safety standards.</p>
+              </div>
+              <div style={{ marginTop: '25px', display: 'flex', gap: '10px' }}>
+                <button className="btn btn-outline-dark" style={{ flex: 1 }} onClick={handleDownloadReport}>Download Report</button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => alert("Report emailed to " + email)}>Email Report</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showVideoModal && (
+        <div className="modal-overlay">
+          <div className="diagnosis-modal" style={{ width: '800px', background: 'black' }}>
+            <div className="modal-header-v2" style={{ background: '#1e293b', borderBottom: '1px solid #334155' }}>
+              <h3 style={{ color: 'white' }}>Video Tutorials</h3>
+              <button className="btn-icon-label" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none' }} onClick={() => setShowVideoModal(false)}>Close</button>
+            </div>
+            <div className="modal-body-v2" style={{ padding: 0 }}>
+              <div style={{ height: '400px', background: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexDirection: 'column' }}>
+                {activeVideo ? (
+                  <>
+                    <div style={{ fontSize: '4rem', color: 'var(--sage-green)' }}>▶</div>
+                    <h2 style={{ marginTop: '20px' }}>{activeVideo.title}</h2>
+                    <p style={{ color: '#94a3b8' }}>Now Playing • {activeVideo.duration}</p>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: '4rem', opacity: 0.5 }}>▶</div>
+                    <p style={{ marginTop: '20px' }}>Select a tutorial to play</p>
+                  </>
+                )}
+              </div>
+              <div style={{ padding: '20px', background: '#0f172a' }}>
+                {tutorialVideos.map(vid => (
+                  <div key={vid.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', color: 'white', padding: '10px', borderBottom: '1px solid #334155', cursor: 'pointer', background: activeVideo?.id === vid.id ? '#1e293b' : 'transparent' }} onClick={() => setActiveVideo(vid)}>
+                    <span style={{ fontSize: '1.5rem' }}>{vid.thumbnail}</span>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: 0, color: activeVideo?.id === vid.id ? 'var(--sage-green)' : 'white' }}>{vid.title}</h4>
+                      <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{vid.duration}</span>
+                    </div>
+                    {activeVideo?.id === vid.id ? <span style={{ color: 'var(--sage-green)', fontWeight: 'bold' }}>Playing</span> : <button className="btn-small" style={{ width: 'auto', borderColor: 'white', color: 'white' }}>Play</button>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCallModal && (
+        <div className="modal-overlay">
+          <div className="diagnosis-modal" style={{ maxWidth: '450px' }}>
+            <div className="modal-header-v2">
+              <h3>Schedule Expert Call</h3>
+              <button className="btn-icon-label" onClick={() => setShowCallModal(false)}>Close</button>
+            </div>
+            <div className="modal-body-v2">
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}><div style={{ fontSize: '3rem' }}>📞</div><p style={{ color: '#64748b', marginTop: '10px' }}>Direct line to a verified industrial specialist.</p></div>
+              <div className="input-group" style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: 'var(--navy-dark)' }}>Select Machine</label>
+                <select className="std-input" style={{ width: '100%', padding: '10px', borderRadius: '8px' }}>
+                  <option>Hydraulic Press H-200</option><option>CNC Milling Center</option><option>Rotary Pump Delta-9</option>
+                </select>
+              </div>
+              <div className="input-group" style={{ marginBottom: '20px' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: 'var(--navy-dark)' }}>Preferred Time</label><input type="datetime-local" className="std-input" style={{ width: '100%', padding: '10px', borderRadius: '8px' }} /></div>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { alert("Consultation Request Sent! Expected callback within 2 hours."); setShowCallModal(false); }}>Schedule Now</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDocModal && (
+        <div className="modal-overlay">
+          <div className="diagnosis-modal" style={{ width: '650px' }}>
+            <div className="modal-header-v2">
+              <h3>Technical Resource Library</h3>
+              <button className="btn-icon-label" onClick={() => setShowDocModal(false)}>Close</button>
+            </div>
+            <div className="modal-body-v2" style={{ padding: 0 }}>
+              <div style={{ padding: '20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}><input type="text" className="table-search" placeholder="Search manuals, schematics, safety docs..." style={{ width: '100%' }} /></div>
+              <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '10px' }}>
+                {docLibrary.map(doc => (
+                  <div key={doc.id} className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', marginBottom: '10px', background: 'white' }}>
+                    <span style={{ fontSize: '2rem' }}>{doc.type === 'PDF' ? '📕' : '📘'}</span>
+                    <div style={{ flex: 1 }}><h4 style={{ margin: 0, color: 'var(--navy-dark)' }}>{doc.title}</h4><small style={{ color: '#64748b' }}>{doc.type} • {doc.size}</small></div>
+                    <button className="btn-small-text" style={{ color: 'var(--navy-primary)', fontWeight: 'bold' }} onClick={() => alert(`Downloading ${doc.title}...`)}>Download</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+
   // [NEW] VIEW 3: CONSUMER DASHBOARD
   if (view === 'dashboard' && role === 'consumer') {
     return (
@@ -625,7 +839,7 @@ www.originode.com
             <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>{t.identity}</div>
             <div className={`nav-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => setActiveTab('help')}>Help & Support</div>
             <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings</div>
-            <div className="nav-item logout-btn-item" onClick={() => setView('landing')}>{t.logout}</div>
+            <div className="nav-item logout-btn-item" onClick={() => { setView('landing'); setActiveTab('fleet'); }}>{t.logout}</div>
           </nav>
         </aside>
 
@@ -1082,369 +1296,100 @@ www.originode.com
             </div>
           ) : activeTab === 'settings' ? (
             <div className="settings-view animate-fade">
-              {/* Settings Hero */}
-              <div className="settings-hero">
-                <div className="settings-hero-content">
-                  <h1>Control Center</h1>
-                  <p>Manage your industrial terminal preferences and security protocols.</p>
+              <header className="content-header glass-header">
+                <div>
+                  <h2 className="tech-title">CONTROL CENTER</h2>
+                  <p className="tech-subtitle">Industrial Terminal Preferences & Security Protocols</p>
                 </div>
-              </div>
+              </header>
 
-              <div className="settings-grid-enhanced">
-                {/* Appearance Card */}
-                <div className="setting-card-enhanced">
-                  <div className="card-icon-header">
-                    <span className="icon-box">🎨</span>
-                    <h3>Appearance</h3>
-                  </div>
-                  <div className="setting-row">
+              <div className="glass-panel settings-section">
+                <h3 className="panel-title">Interface Configuration</h3>
+                <div className="settings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
                     <div>
-                      <h4>Interface Theme</h4>
-                      <p>Toggle between Day and Night command modes.</p>
+                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Dark Mode (Beta)</span>
+                      <small style={{ color: '#64748b' }}>Enable high-contrast dark theme for night missions.</small>
                     </div>
                     <label className="toggle-switch">
                       <input type="checkbox" checked={isDarkMode} onChange={() => setIsDarkMode(!isDarkMode)} />
                       <span className="slider round"></span>
                     </label>
                   </div>
-                  <div className="setting-row">
+                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
                     <div>
-                      <h4>System Language</h4>
-                      <p>Select your preferred dialect.</p>
+                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>System Language</span>
+                      <small style={{ color: '#64748b' }}>Select your preferred operational dialect.</small>
                     </div>
-                    <select className="custom-select-v3" value={language} onChange={(e) => setLanguage(e.target.value)}>
+                    <select className="custom-select-v3" value={language} onChange={(e) => setLanguage(e.target.value)} style={{ width: 'auto' }}>
                       <option value="English">English</option>
                       <option value="Kannada">Kannada</option>
                       <option value="Hindi">Hindi</option>
                     </select>
                   </div>
                 </div>
+              </div>
 
-                {/* Security Card */}
-                <div className="setting-card-enhanced">
-                  <div className="card-icon-header">
-                    <span className="icon-box">🛡️</span>
-                    <h3>Security Protocols</h3>
-                  </div>
-                  <div className="setting-row">
+              <div className="glass-panel settings-section" style={{ marginTop: '25px' }}>
+                <h3 className="panel-title">Security & Access</h3>
+                <div className="settings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
                     <div>
-                      <h4>Two-Factor Auth</h4>
-                      <p>Enable biological or token-based verification.</p>
+                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Two-Factor Auth</span>
+                      <small style={{ color: '#64748b' }}>Biological or token-based verification protocols.</small>
                     </div>
                     <label className="toggle-switch">
                       <input type="checkbox" checked={isTwoFactorEnabled} onChange={() => setIsTwoFactorEnabled(!isTwoFactorEnabled)} />
                       <span className="slider round"></span>
                     </label>
                   </div>
-                  <div className="setting-row">
+                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
                     <div>
-                      <h4>Network Visibility</h4>
-                      <p>Manage your node broadcast range.</p>
+                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Network Visibility</span>
+                      <small style={{ color: '#64748b' }}>Manage your industrial node broadcast range.</small>
                     </div>
-                    <div className="select-wrapper">
-                      <select className="custom-select-v3" value={profileVisibility} onChange={(e) => setProfileVisibility(e.target.value)}>
-                        <option value="Public">Public Network</option>
-                        <option value="Private">Private Mesh</option>
-                        <option value="Partners">Partners Only</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Data Card (New Placeholder) */}
-                <div className="setting-card-enhanced">
-                  <div className="card-icon-header">
-                    <span className="icon-box">💾</span>
-                    <h3>Data Management</h3>
-                  </div>
-                  <div className="setting-row">
-                    <div>
-                      <h4>Local Cache</h4>
-                      <p>Clear temporary files and diagnosis logs.</p>
-                    </div>
-                    <button className="btn-small-outline">Clear Data</button>
-                  </div>
-                  <div className="setting-row">
-                    <div style={{ color: 'var(--error-red)' }}>
-                      <h4 style={{ color: 'var(--error-red)' }}>Purge Identity</h4>
-                      <p>Permanently delete account.</p>
-                    </div>
-                    <button className="btn-small-danger" onClick={() => setShowDeleteModal(true)}>Delete</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </main>
-
-        {/* MODALS */}
-        {
-          showCamera && (
-            <div className="modal-overlay">
-              <div className="camera-modal">
-                <h3>Capture Selfie</h3>
-                <video ref={videoRef} autoPlay playsInline className="camera-stream"></video>
-                <canvas ref={canvasRef} width="400" height="300" style={{ display: 'none' }}></canvas>
-                <div className="modal-actions">
-                  <button className="btn btn-outline-dark" onClick={stopCamera}>Cancel</button>
-                  <button className="btn btn-primary" onClick={capturePhoto}>Capture Frame</button>
-                </div>
-              </div>
-            </div>
-          )
-        }
-
-        {
-          showDeleteModal && (
-            <div className="modal-overlay">
-              <div className="confirm-modal">
-                <div className="modal-header">
-                  <div className="warning-icon">!</div>
-                  <h3>Permanent Identity Deletion</h3>
-                </div>
-                <p>Are you certain? This will wipe all machine nodes and historical records associated with <strong>{email || 'admin@originode.com'}</strong>.</p>
-                <div className="modal-actions">
-                  <button className="btn btn-outline-dark" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-                  <button className="btn btn-danger" onClick={() => { setView('landing'); setShowDeleteModal(false); }}>Yes, Delete Permanently</button>
-                </div>
-              </div>
-            </div>
-          )
-        }
-
-        {/* [NEW] VIDEO DIAGNOSIS MODAL */}
-        {
-          showDiagnosisModal && (
-            <div className="modal-overlay">
-              <div className="diagnosis-modal">
-                <div className="modal-header-v2">
-                  <h3>Smart Diagnosis Support</h3>
-                  <button className="btn-icon-label" onClick={() => { setShowDiagnosisModal(false); setDiagnosisStep(1); setVideoFile(null); }}>Close</button>
-                </div>
-
-                <div className="modal-body-v2">
-                  {diagnosisStep === 1 && (
-                    <div className="upload-step animate-fade">
-                      <p><strong>Step 1:</strong> Upload a video of the machine fault. clearly showing the sound or visual issue.</p>
-                      <div className="upload-zone" onClick={() => document.getElementById('video-input').click()}>
-                        <div className="upload-icon">📹</div>
-                        {videoFile ? (
-                          <div className="upload-text" style={{ color: 'var(--sage-green)' }}>{videoFile.name} Selected</div>
-                        ) : (
-                          <div className="upload-text">Click to Upload Video</div>
-                        )}
-                        <p className="upload-hint">MP4, MOV supported (Max 50MB)</p>
-                        <input type="file" id="video-input" hidden accept="video/*" onChange={handleVideoSelect} />
-                      </div>
-
-                      <div style={{ marginTop: '20px' }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--navy-dark)' }}>Describe the Issue</label>
-                        <textarea
-                          className="table-search"
-                          rows="3"
-                          placeholder="e.g. Strange knocking sound coming from the main cylinder..."
-                          style={{ width: '100%', resize: 'none' }}
-                        ></textarea>
-                      </div>
-
-                      <button className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={startDiagnosis}>
-                        Analyze & Find Experts
-                      </button>
-                    </div>
-                  )}
-
-                  {diagnosisStep === 2 && (
-                    <div className="scanning-container animate-fade">
-                      <div className="scanner-ring"></div>
-                      <h3 style={{ color: 'var(--navy-dark)' }}>Analyzing Fault Signature...</h3>
-                      <p style={{ color: '#64748b' }}>Matching audio/visual patterns with legacy database.</p>
-                      <div className="progress-bar-bg" style={{ background: '#e2e8f0', height: '6px', borderRadius: '4px', marginTop: '20px', overflow: 'hidden' }}>
-                        <div className="progress-fill" style={{ width: `${analysisProgress}%`, background: 'var(--navy-primary)', height: '100%', transition: '0.4s' }}></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {diagnosisStep === 3 && (
-                    <div className="results-step animate-fade">
-                      <h3 style={{ marginBottom: '15px', color: 'var(--navy-dark)' }}>Diagnosis Complete</h3>
-                      <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>We identified the machine as a <strong>1985 Text-Matic Series</strong>. Based on the fault, here are the best available experts:</p>
-
-                      {diagnosisResults.map(expert => (
-                        <div key={expert.id} className="expert-result-card" onClick={() => alert("Chat Feature Comming Soon!")}>
-                          <div className="expert-avatar">{expert.avatar}</div>
-                          <div className="expert-info">
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <h4>{expert.name}</h4>
-                              <span className="match-score">{expert.match}% Match</span>
-                            </div>
-                            <p>{expert.type}</p>
-                          </div>
-                          <button className="btn-small" style={{ width: 'auto', marginTop: 0 }}>Connect</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        }
-        {/* [NEW] SERVICE REPORT MODAL */}
-        {
-          showReportModal && selectedReport && (
-            <div className="modal-overlay">
-              <div className="diagnosis-modal" style={{ width: '600px' }}>
-                <div className="modal-header-v2">
-                  <h3>Service Report Details</h3>
-                  <button className="btn-icon-label" onClick={() => setShowReportModal(false)}>Close</button>
-                </div>
-                <div className="modal-body-v2">
-                  <div style={{ textAlign: 'center', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px dashed #e2e8f0' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '10px' }}>📄</div>
-                    <h2 style={{ margin: 0, color: 'var(--navy-dark)' }}>INV-{2020 + selectedReport.id}</h2>
-                    <span className={`status-badge-pill ${selectedReport.status}`} style={{ display: 'inline-block', marginTop: '10px' }}>{selectedReport.status.toUpperCase()}</span>
-                  </div>
-                  <div className="report-details-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>SERVICE DATE</label>
-                      <strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.date}</strong>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>MACHINE ID</label>
-                      <strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.machine}</strong>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>SERVICE PROVIDER</label>
-                      <strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.expert}</strong>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>TOTAL COST</label>
-                      <strong style={{ color: 'var(--navy-dark)', fontSize: '1.2rem' }}>{selectedReport.cost}</strong>
-                    </div>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>SERVICE ACTION PERFORMED</label>
-                    <p style={{ margin: 0, color: '#334155', lineHeight: '1.5' }}>
-                      {selectedReport.action}. System diagnostics were run post-service to ensure compliance with operational safety standards.
-                    </p>
-                  </div>
-                  <div style={{ marginTop: '25px', display: 'flex', gap: '10px' }}>
-                    <button className="btn btn-outline-dark" style={{ flex: 1 }} onClick={handleDownloadReport}>Download Report</button>
-                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => alert("Report emailed to " + email)}>Email Report</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        }
-
-        {/* [NEW] VIDEO PLAYER MODAL */}
-        {
-          showVideoModal && (
-            <div className="modal-overlay">
-              <div className="diagnosis-modal" style={{ width: '800px', background: 'black' }}>
-                <div className="modal-header-v2" style={{ background: '#1e293b', borderBottom: '1px solid #334155' }}>
-                  <h3 style={{ color: 'white' }}>Video Tutorials</h3>
-                  <button className="btn-icon-label" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none' }} onClick={() => setShowVideoModal(false)}>Close</button>
-                </div>
-                <div className="modal-body-v2" style={{ padding: 0 }}>
-                  <div style={{ height: '400px', background: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexDirection: 'column' }}>
-                    {activeVideo ? (
-                      <>
-                        <div style={{ fontSize: '4rem', color: 'var(--sage-green)' }}>▶</div>
-                        <h2 style={{ marginTop: '20px' }}>{activeVideo.title}</h2>
-                        <p style={{ color: '#94a3b8' }}>Now Playing • {activeVideo.duration}</p>
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: '4rem', opacity: 0.5 }}>▶</div>
-                        <p style={{ marginTop: '20px' }}>Select a tutorial to play</p>
-                      </>
-                    )}
-                  </div>
-                  <div style={{ padding: '20px', background: '#0f172a' }}>
-                    {tutorialVideos.map(vid => (
-                      <div key={vid.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', color: 'white', padding: '10px', borderBottom: '1px solid #334155', cursor: 'pointer', background: activeVideo?.id === vid.id ? '#1e293b' : 'transparent' }} onClick={() => setActiveVideo(vid)}>
-                        <span style={{ fontSize: '1.5rem' }}>{vid.thumbnail}</span>
-                        <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: 0, color: activeVideo?.id === vid.id ? 'var(--sage-green)' : 'white' }}>{vid.title}</h4>
-                          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{vid.duration}</span>
-                        </div>
-                        {activeVideo?.id === vid.id ? <span style={{ color: 'var(--sage-green)', fontWeight: 'bold' }}>Playing</span> : <button className="btn-small" style={{ width: 'auto', borderColor: 'white', color: 'white' }}>Play</button>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-        {/* [NEW] EXPERT CALL MODAL */}
-        {
-          showCallModal && (
-            <div className="modal-overlay">
-              <div className="diagnosis-modal" style={{ maxWidth: '450px' }}>
-                <div className="modal-header-v2">
-                  <h3>Schedule Expert Call</h3>
-                  <button className="btn-icon-label" onClick={() => setShowCallModal(false)}>Close</button>
-                </div>
-                <div className="modal-body-v2">
-                  <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                    <div style={{ fontSize: '3rem' }}>📞</div>
-                    <p style={{ color: '#64748b', marginTop: '10px' }}>Direct line to a verified industrial specialist.</p>
-                  </div>
-                  <div className="input-group" style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: 'var(--navy-dark)' }}>Select Machine</label>
-                    <select className="std-input" style={{ width: '100%', padding: '10px', borderRadius: '8px' }}>
-                      <option>Hydraulic Press H-200</option>
-                      <option>CNC Milling Center</option>
-                      <option>Rotary Pump Delta-9</option>
+                    <select className="custom-select-v3" value={profileVisibility} onChange={(e) => setProfileVisibility(e.target.value)} style={{ width: 'auto' }}>
+                      <option value="Public">Public Network</option>
+                      <option value="Private">Private Mesh</option>
+                      <option value="Partners">Partners Only</option>
                     </select>
                   </div>
-                  <div className="input-group" style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: 'var(--navy-dark)' }}>Preferred Time</label>
-                    <input type="datetime-local" className="std-input" style={{ width: '100%', padding: '10px', borderRadius: '8px' }} />
-                  </div>
-                  <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { alert("Consultation Request Sent! Expected callback within 2 hours."); setShowCallModal(false); }}>Schedule Now</button>
                 </div>
               </div>
-            </div>
-          )
-        }
 
-        {/* [NEW] TECHNICAL LIBRARY MODAL */}
-        {
-          showDocModal && (
-            <div className="modal-overlay">
-              <div className="diagnosis-modal" style={{ width: '650px' }}>
-                <div className="modal-header-v2">
-                  <h3>Technical Resource Library</h3>
-                  <button className="btn-icon-label" onClick={() => setShowDocModal(false)}>Close</button>
-                </div>
-                <div className="modal-body-v2" style={{ padding: 0 }}>
-                  <div style={{ padding: '20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <input type="text" className="table-search" placeholder="Search manuals, schematics, safety docs..." style={{ width: '100%' }} />
+              <div className="glass-panel settings-section" style={{ marginTop: '25px', borderColor: '#fecaca' }}>
+                <h3 className="panel-title" style={{ color: '#dc2626', borderLeftColor: '#dc2626' }}>Storage & Identity</h3>
+                <div className="settings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
+                    <div>
+                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Local Cache</span>
+                      <small style={{ color: '#64748b' }}>Clear temporary files and diagnosis logs.</small>
+                    </div>
+                    <button className="btn-small-outline" style={{ width: 'auto' }}>Clear Data</button>
                   </div>
-                  <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '10px' }}>
-                    {docLibrary.map(doc => (
-                      <div key={doc.id} className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', marginBottom: '10px', background: 'white' }}>
-                        <span style={{ fontSize: '2rem' }}>{doc.type === 'PDF' ? '📕' : '📘'}</span>
-                        <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: 0, color: 'var(--navy-dark)' }}>{doc.title}</h4>
-                          <small style={{ color: '#64748b' }}>{doc.type} • {doc.size}</small>
-                        </div>
-                        <button className="btn-small-text" style={{ color: 'var(--navy-primary)', fontWeight: 'bold' }} onClick={() => alert(`Downloading ${doc.title}...`)}>Download</button>
-                      </div>
-                    ))}
+                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
+                    <div>
+                      <span style={{ fontWeight: '700', color: '#dc2626', display: 'block' }}>Purge Identity</span>
+                      <small style={{ color: '#64748b' }}>Permanently delete node account and history.</small>
+                    </div>
+                    <button className="btn-small-danger" onClick={() => setShowDeleteModal(true)} style={{ width: 'auto' }}>Delete</button>
                   </div>
                 </div>
               </div>
             </div>
-          )
-        }
+          ) : (
+            <div className="animate-fade" style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>
+              <h2>Section Under Development</h2>
+              <p>This module will be available in the next update.</p>
+            </div>
+          )}
+        </main>
+        {sharedModals}
       </div>
     );
   }
+
+
 
   // [NEW] VIEW 4: PRODUCER DASHBOARD (SERVICE REQUESTS)
   if (view === 'dashboard' && role === 'producer') {
@@ -1470,13 +1415,13 @@ www.originode.com
             <div className={`nav-item ${activeTab === 'fleet' || activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>Service Board <span className="nav-badge" style={{ background: 'var(--error-red)', marginLeft: 'auto' }}>3</span></div>
             <div className={`nav-item ${activeTab === 'pro-messages' ? 'active' : ''}`} onClick={() => setActiveTab('pro-messages')}>Client Messages</div>
             <div className={`nav-item ${activeTab === 'earnings' ? 'active' : ''}`} onClick={() => setActiveTab('earnings')}>Earnings Report</div>
-            <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Expert Profile</div>
+            <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Expert Profile</div>
             <div className="nav-divider" style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '10px 0' }}></div>
             <div className={`nav-item ${activeTab === 'schedule' ? 'active' : ''}`} onClick={() => setActiveTab('schedule')}>Operations Schedule</div>
             <div className={`nav-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Parts Inventory</div>
             <div className={`nav-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>Help & Support</div>
             <div className={`nav-item ${activeTab === 'platform-settings' ? 'active' : ''}`} onClick={() => setActiveTab('platform-settings')}>Platform Settings</div>
-            <div className="nav-item logout-btn-item" onClick={() => setView('landing')}>Logout</div>
+            <div className="nav-item logout-btn-item" onClick={() => { setView('landing'); setActiveTab('fleet'); }}>Logout</div>
           </nav>
         </aside>
 
@@ -2074,6 +2019,7 @@ www.originode.com
             </div>
           )}
         </main>
+        {sharedModals}
       </div>
     );
   }
@@ -2289,10 +2235,10 @@ www.originode.com
             {isLogin ? "New to the platform?" : "Already registered?"}
             <span onClick={() => { setIsLogin(!isLogin); setSignupStep(1); }}> {isLogin ? "Sign Up" : "Login"}</span>
           </p>
+          {sharedModals}
         </div>
       </div>
-    </div >
-
+    </div>
   );
 }
 
