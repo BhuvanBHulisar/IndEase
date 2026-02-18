@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.DS_Store
+*.local
+.vscode
+.github
+lint_output.txt
+devlop a app.txt
+fix_css.py
+SystemArchitecture.png

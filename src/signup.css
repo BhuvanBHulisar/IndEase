@@ -1,0 +1,211 @@
+/* === ENHANCED SIGNUP FLOW === */
+
+.signup-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    position: relative;
+    padding: 0 5px;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+    z-index: 2;
+}
+
+.step-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-input);
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border: 2px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.step-item.active .step-circle {
+    background: var(--navy-primary);
+    color: white;
+    border-color: var(--navy-primary);
+    box-shadow: 0 4px 10px rgba(30, 90, 153, 0.2);
+}
+
+.producer-theme .step-item.active .step-circle {
+    background: var(--amber-gold);
+    color: var(--navy-dark);
+    border-color: var(--amber-gold);
+}
+
+.step-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    transition: color 0.3s;
+}
+
+.step-item.active .step-label {
+    color: var(--navy-dark);
+}
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: #e2e8f0;
+    margin: 0 10px;
+    margin-bottom: 20px;
+    /* Align with circle center approximately */
+    position: relative;
+    top: -10px;
+    z-index: 1;
+}
+
+.step-line.filled {
+    background: var(--navy-primary);
+}
+
+.producer-theme .step-line.filled {
+    background: var(--amber-gold);
+}
+
+/* Modern Input Fields */
+.signup-form-step {
+    animation: fadeIn 0.4s ease-out;
+}
+
+.input-field-modern {
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.input-field-modern label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.input-field-modern input,
+.input-field-modern select {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 0.95rem;
+    color: #1e293b;
+    transition: all 0.2s;
+}
+
+.input-field-modern input:focus {
+    background: white;
+    border-color: var(--navy-primary);
+    box-shadow: 0 0 0 3px rgba(30, 90, 153, 0.1);
+    outline: none;
+}
+
+.producer-theme .input-field-modern input:focus {
+    border-color: var(--amber-gold);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+}
+
+/* Icons inside inputs */
+.input-icon-wrapper {
+    position: relative;
+}
+
+/* OTP Specifics */
+.otp-visual-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    animation: bounceSubtle 2s infinite;
+}
+
+.otp-desc {
+    color: #64748b;
+    margin-bottom: 25px;
+}
+
+.otp-input-wrapper {
+    margin-bottom: 20px;
+}
+
+.otp-input-box-enhanced {
+    width: 200px;
+    letter-spacing: 12px;
+    font-size: 1.5rem;
+    text-align: center;
+    padding: 15px;
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    font-weight: 700;
+    color: var(--navy-primary);
+}
+
+.producer-theme .otp-input-box-enhanced {
+    color: var(--amber-gold);
+}
+
+.otp-input-box-enhanced:focus {
+    border-color: var(--navy-primary);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    outline: none;
+}
+
+.input-prefix-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.1rem;
+    z-index: 10;
+    color: #94a3b8;
+}
+
+.btn-text-only {
+    background: none;
+    border: none;
+    color: var(--navy-primary);
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 5px;
+}
+
+.resend-container {
+    min-height: 24px;
+}
+
+.timer-text {
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.timer-text span {
+    font-weight: 700;
+    color: #475569;
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes bounceSubtle {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
