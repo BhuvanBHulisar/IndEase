@@ -1,27 +1,49 @@
-# origiNode
+# origiNode 🛡️
+**Tracing the source to keep your business moving.**
 
-A React frontend application built with Vite.
+origiNode is a specialized industrial platform designed to provide continuity for legacy machinery. It connects consumers with experts to diagnose, maintain, and source parts for aging industrial assets.
 
-**Tagline:** racing the source to keep your business moving
+## 🚀 Features
 
-## Getting Started
+- **Expert Terminal**: A dedicated dashboard for industrial specialists to manage service requests, track earnings, and communicate with clients.
+- **Consumer Control Center**: Manage your industrial fleet, track machine health, and access historical maintenance logs.
+- **Smart Video Diagnosis**: Upload footage of machine faults for AI-assisted pattern matching and expert evaluation.
+- **Legacy Lookup**: Trace original manufacturers and modern successors for equipment dating back decades.
+- **Technical Library**: Access a curated repository of industrial manuals, schematics, and safety standards.
+- **Secure Payments**: Integrated invoicing and service verification protocols.
 
-1. Ensure Node.js is installed on your system.
+## 🛠️ Technology Stack
 
-2. Install dependencies: `npm install`
+- **Frontend**: React.js with Vite
+- **Styling**: Premium Vanilla CSS with Industrial Design Language
+- **Icons**: Emoji-based industrial iconography for weightless performance
+- **Deployment**: Ready for edge deployment as a lightweight industrial node
 
-3. Start the development server: `npm run dev`
+## 📦 Getting Started
 
-4. Open your browser to `http://localhost:5173` to view the app.
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/BhuvanBHulisar/OrigiNode.git
+   ```
 
-## Features
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-- Basic React setup with Vite
-- Temporary logo placeholder (text-based)
-- Responsive design
+3. **Run development server**:
+   ```bash
+   npm run dev
+   ```
 
-Future features will be added incrementally.
+4. **Build for production**:
+   ```bash
+   npm run build
+   ```
 
-## system Architecture
+## 🏗️ System Architecture
 
-<img src="SystemArchitecture.png" alt="System Architecture" />
+![System Architecture](SystemArchitecture.png)
+
+---
+*Built for the next generation of industrial maintenance.*
