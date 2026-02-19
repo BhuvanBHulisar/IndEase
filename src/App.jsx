@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import api from './api';
+import { io } from 'socket.io-client';
 import './App.css';
 import './producer-styles.css';
 import './signup.css';
@@ -6,6 +8,7 @@ import './signup.css';
 function App() {
   // --- CORE APPLICATION STATES ---
   const [view, setView] = useState('landing');
+  const [socket, setSocket] = useState(null);
   const [role, setRole] = useState('consumer'); // State to track Machine Owner vs Repair Expert
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -40,6 +43,7 @@ function App() {
     { id: 2, type: 'info', msg: 'Service Ledger Updated: Motor Drive #A1', time: '2 hours ago', read: true },
     { id: 3, type: 'success', msg: 'New Expert Verified: XP-992 (Hydraulics)', time: '5 hours ago', read: true }
   ]);
+  const [machines, setMachines] = useState([]);
 
   // [NEW OTP RESEND TIMER STATES]
   const [timer, setTimer] = useState(30);
@@ -59,6 +63,32 @@ function App() {
     email: "expert@originode.com",
     id: "IND-88219"
   });
+
+  // [NEW] FILTER STATE & LOGIC
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [fleetSearch, setFleetSearch] = useState('');
+
+  // Filter logic
+  const filteredMachines = machines.filter(m => {
+    // 1. Filter by Tab
+    let matchesTab = true;
+    if (activeFilter === 'Operational') matchesTab = m.condition_score > 50;
+    if (activeFilter === 'Maintenance') matchesTab = m.condition_score <= 50;
+
+    // 2. Filter by Search
+    const matchesSearch = m.name.toLowerCase().includes(fleetSearch.toLowerCase()) ||
+      m.machine_type.toLowerCase().includes(fleetSearch.toLowerCase());
+
+    return matchesTab && matchesSearch;
+  });
+
+  // Dynamic Stats
+  const activeNodesCount = machines.length;
+  const criticalIssuesCount = machines.filter(m => m.condition_score <= 30).length;
+  // Calculate average continuity (health)
+  const avgContinuity = machines.length > 0
+    ? (machines.reduce((acc, m) => acc + (m.condition_score || 0), 0) / machines.length).toFixed(1)
+    : '100.0';
 
   const [serviceRadius, setServiceRadius] = useState(50);
 
@@ -94,6 +124,12 @@ function App() {
   const [diagnosisResults, setDiagnosisResults] = useState([]);
 
 
+  // [NEW] VIDEO DIAGNOSIS HANDLERS
+  const [nodeToDelete, setNodeToDelete] = useState(null); // State for machine deletion confirmation modal
+
+  // [NEW] PAYMENT STATE
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentConfig, setPaymentConfig] = useState(null);
 
   // [NEW] CHAT & MESSAGE STATES
   const [activeChatId, setActiveChatId] = useState(1);
@@ -112,6 +148,7 @@ function App() {
     { id: 3, chatId: 1, sender: 'expert', text: "We have the replacement part in stock. Here is the invoice for the part and service.", time: "10:35 AM" },
     { id: 4, chatId: 1, sender: 'expert', type: 'invoice', amount: '₹45000.00', desc: 'Valve Replacement Service', time: "10:35 AM" }
   ]);
+  const [radarJobs, setRadarJobs] = useState([]);
 
   // [NEW] PROFILE DASHBOARD DATA
   const trustScore = isVerified ? 98 : 45;
@@ -152,6 +189,33 @@ function App() {
   };
 
   const t = translations[language];
+  // [NEW] SESSION & SOCKET INITIALIZATION
+  useEffect(() => {
+    // 1. Check for existing industrial session
+    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    if (token && storedUser) {
+      try {
+        // Optional: verify token with /api/auth/me
+        const user = JSON.parse(storedUser);
+        setView('dashboard');
+        setEmail(user.email || '');
+        setRole(user.role || 'consumer');
+        setFirstName(user.firstName || '');
+        setLastName(user.lastName || '');
+      } catch (error) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+
+    // 2. Initialize Socket Connection
+    const newSocket = io('http://localhost:5000');
+    setSocket(newSocket);
+
+    return () => newSocket.close();
+  }, []);
+
   // Logic to handle clicking outside notification dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -195,6 +259,12 @@ function App() {
   // [NEW] REPORT MODAL STATE
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
+
+  // [NEW] ADD MACHINE STATE
+  const [showAddMachineModal, setShowAddMachineModal] = useState(false);
+  const [newMachineData, setNewMachineData] = useState({ name: '', oem: '', model_year: '', machine_type: '' });
+
+
 
   // [NEW VIDEO LIST]
   const tutorialVideos = [
@@ -286,6 +356,9 @@ function App() {
   };
 
   // [NEW] VIDEO DIAGNOSIS HANDLERS
+  const [activeJobMachine, setActiveJobMachine] = useState(null);
+  const [diagnosisDesc, setDiagnosisDesc] = useState('');
+
   const handleVideoSelect = (e) => {
     if (e.target.files[0]) {
       setVideoFile(e.target.files[0]);
@@ -312,6 +385,31 @@ function App() {
     }, 400); // 4 seconds total
   };
 
+  // [NEW] FETCH CHAT LIST (MY JOBS)
+  useEffect(() => {
+    if (activeTab === 'messages') {
+      api.get('/jobs/my')
+        .then(res => {
+          // Map jobs to chat list format
+          const myChats = res.data.map(job => ({
+            id: job.id, // This is the requestId
+            name: `${job.machine_name} (${job.other_party})`,
+            avatar: job.other_party.substring(0, 2).toUpperCase(),
+            lastMsg: job.issue_description.substring(0, 30) + '...', // Ideally get last msg from DB
+            time: new Date(job.created_at).toLocaleDateString(),
+            unread: 0 // Ideally get unread count
+          }));
+
+          if (myChats.length > 0) {
+            setChats(myChats);
+            // Default to first chat if none selected
+            if (!activeChatId) setActiveChatId(myChats[0].id);
+          }
+        })
+        .catch(err => console.error("Failed to load chat list", err));
+    }
+  }, [activeTab]);
+
   const handleLegacySearch = () => {
     const results = legacyDatabase.filter(item =>
       item.name.toLowerCase().includes(legacyQuery.toLowerCase()) ||
@@ -320,33 +418,106 @@ function App() {
     setLegacyResults(results);
   };
 
-  // [NEW] CHAT HANDLERS
-  // [NEW] CHAT HANDLERS - UPDATED FOR DUAL ROLE
+  // [NEW] REAL-TIME CHAT HANDLERS
+
+  // 1. Fetch Chat History when activeChatId changes
+  useEffect(() => {
+    if (activeChatId) { // Assumption: activeChatId corresponds to the requestId in the DB
+      api.get(`/chat/${activeChatId}`)
+        .then(res => {
+          // Map DB messages to UI format
+          const dbMessages = res.data.map(m => ({
+            id: m.id,
+            chatId: m.request_id,
+            sender: m.role === 'consumer' ? 'user' : 'expert', // Map DB role to UI sender
+            text: m.message_text,
+            time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            type: 'text' // Default type, can extend for invoices later
+          }));
+
+          // [OPTIONAL] Merge with invoices if stored separately, for now just replace
+          // setMessages(dbMessages); 
+          // For hybrid demo/real, we will append to existing for now or replace if empty
+          if (dbMessages.length > 0) setMessages(dbMessages);
+        })
+        .catch(err => console.error("Failed to load chat history", err));
+
+      // Join the socket room for this job
+      if (socket) {
+        socket.emit('join_job', activeChatId);
+      }
+    }
+  }, [activeChatId, socket]);
+
+  // 2. Listen for Incoming Messages
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (msg) => {
+      // Only add if it belongs to current chat
+      if (msg.request_id === activeChatId) {
+        setMessages(prev => {
+          // Avoid duplicates if we already have it
+          if (prev.some(p => p.id === msg.id)) return prev;
+
+          const currentUser = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
+          const isMe = currentUser && msg.sender_id === currentUser.id;
+
+          // Determine sender type for UI styling
+          // If I am the consumer, 'user' style is ME. 'expert' style is THEM.
+          // If I am the producer, 'expert' style is ME. 'user' style is THEM.
+
+          let uiSender;
+          if (role === 'consumer') {
+            uiSender = isMe ? 'user' : 'expert';
+          } else {
+            uiSender = isMe ? 'expert' : 'user';
+          }
+
+          return [...prev, {
+            id: msg.id,
+            chatId: msg.request_id,
+            sender: uiSender,
+            text: msg.message_text,
+            time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }];
+        });
+      }
+    };
+
+    socket.on('new_message', handleNewMessage);
+
+    return () => socket.off('new_message', handleNewMessage);
+  }, [socket, activeChatId, role]);
+
+
+  // 3. Send Message Handler
   const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const msg = {
-        id: messages.length + 1,
+    if (newMessage.trim() && socket) {
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      if (!user) return;
+
+      // Optimistic UI Update (optional, but good for UX)
+      /* 
+      const tempMsg = {
+        id: 'temp-' + Date.now(),
         chatId: activeChatId,
         sender: role === 'consumer' ? 'user' : 'expert',
         text: newMessage,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-      setMessages(prev => [...prev, msg]);
-      setNewMessage('');
+      setMessages(prev => [...prev, tempMsg]);
+      */
 
-      // Auto-reply logic (Disabled for Chat ID 1 to allow manual demo)
-      if (activeChatId !== 1) {
-        setTimeout(() => {
-          const reply = {
-            id: messages.length + 2,
-            chatId: activeChatId,
-            sender: role === 'consumer' ? 'expert' : 'user',
-            text: "This is an automated response. Our team will get back to you shortly.",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-          setMessages(prev => [...prev, reply]);
-        }, 2000);
-      }
+      // Emit to Server
+      socket.emit('send_message', {
+        requestId: activeChatId,
+        senderId: user.id,
+        text: newMessage
+      });
+
+      setNewMessage('');
     }
   };
 
@@ -366,12 +537,20 @@ function App() {
   );
 
   // [NEW] PAYMENT LOGIC
-  // [NEW] RAZORPAY INTEGRATION
   const handlePayment = (amountStr, desc) => {
-    const amount = parseInt(amountStr.replace(/[^0-9]/g, ""), 10); // Extract number from string (e.g., ₹450 -> 450)
-    const razorpayKey = "rzp_test_DUMMY_KEY"; // Replace with your actual Razorpay Key ID
+    setPaymentConfig({ amountStr, desc });
+    setShowPaymentModal(true);
+  };
 
-    const handleSuccess = (paymentId) => {
+  const confirmPayment = () => {
+    if (!paymentConfig) return;
+    const { amountStr, desc } = paymentConfig;
+
+    // Simulate Processing - In real app, this would call Razorpay
+    const loadingBtn = document.querySelector('.payment-modal-header h3');
+    if (loadingBtn) loadingBtn.innerText = "Processing...";
+
+    setTimeout(() => {
       // 1. Add to Service History
       const newRecord = {
         id: historyData.length + 1,
@@ -384,59 +563,33 @@ function App() {
       };
       setHistoryData(prev => [newRecord, ...prev]);
 
-      // 2. Add confirmation to chat
-      const successMsg = {
-        id: messages.length + 1,
+      // 2. Add confirmation to chat (local & socket)
+      const successText = `✓ Payment of ${amountStr} processed successfully. Ref: PAY-${Date.now().toString().slice(-6)}`;
+
+      // Update local UI immediately
+      setMessages(prev => [...prev, {
+        id: Date.now(),
         chatId: activeChatId,
-        sender: 'system',
-        text: `✓ Payment of ${amountStr} processed successfully. Order ID: ${paymentId}`,
+        sender: 'system', // Special system message
+        text: successText,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, successMsg]);
+      }]);
 
-      alert(`Payment Successful! Payment ID: ${paymentId}`);
-    };
-
-    // SIMULATION MODE CHECK
-    if (razorpayKey === "rzp_test_DUMMY_KEY") {
-      // If no valid key is provided, simulate the payment flow
-      if (window.confirm(`[DEMO MODE] Confirm simulated payment of ${amountStr}?`)) {
-        setTimeout(() => {
-          handleSuccess(`pay_simulated_${Date.now()}`);
-        }, 1500);
+      // Emit to socket if connected
+      if (socket) {
+        const userStr = localStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : { id: 'unknown' };
+        socket.emit('send_message', {
+          requestId: activeChatId,
+          senderId: user.id, // Emitted by me
+          text: successText
+        });
       }
-      return;
-    }
 
-    const options = {
-      key: razorpayKey,
-      amount: amount * 100, // Amount in paise
-      currency: "INR",
-      name: "OrigiNode Industrial",
-      description: desc,
-      image: "https://via.placeholder.com/150",
-      handler: function (response) {
-        handleSuccess(response.razorpay_payment_id);
-      },
-      prefill: {
-        name: `${firstName} ${lastName}`,
-        email: email,
-        contact: phone
-      },
-      theme: {
-        color: "#1E5A99"
-      }
-    };
-
-    if (window.Razorpay) {
-      const rzp1 = new window.Razorpay(options);
-      rzp1.on('payment.failed', function (response) {
-        alert(`Payment Failed: ${response.error.description}`);
-      });
-      rzp1.open();
-    } else {
-      alert("Razorpay SDK failed to load. Please check your internet connection.");
-    }
+      setShowPaymentModal(false);
+      setPaymentConfig(null);
+      alert("Payment Processed Successfully!");
+    }, 2000);
   };
 
   // Validation Logic based on your requirements
@@ -525,34 +678,237 @@ www.originode.com
     document.body.removeChild(link);
   };
 
-  const handleLogin = () => {
-    if (isLogin) {
-      const isDemoAccount = email === 'admin@originode.com' && password === 'Demo@1234';
-      if (isDemoAccount) {
-        setView('dashboard');
-        setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
-        setErrors({});
-      } else if (validate()) {
-        setView('dashboard');
-        setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
-      }
-    } else {
-      if (signupStep === 1 && validate()) {
-        setTimer(30);
-        setCanResend(false);
-        setSignupStep(2);
-      } else if (signupStep === 2) {
-        if (otp === '1234') {
-          setSignupStep(3);
-          setErrors({});
-        } else {
-          setErrors({ otp: "Invalid OTP. Use '1234'." });
-        }
-      } else if (signupStep === 3) {
-        setView('dashboard');
-        setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
-      }
+  const handleLogin = async () => {
+    // 1. Validation check
+    if (!validate()) return;
+
+    // --- DEMO BYPASS ---
+    if (isLogin && email === 'admin@originode.com' && password === 'Demo@1234') {
+      const demoUser = {
+        id: 'demo-123',
+        email: 'admin@originode.com',
+        role: role, // Use whatever role is currently selected
+        firstName: 'Demo',
+        lastName: 'Admin'
+      };
+      localStorage.setItem('token', 'demo-token');
+      localStorage.setItem('user', JSON.stringify(demoUser));
+      setView('dashboard');
+      setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
+      setErrors({});
+      return;
     }
+
+    try {
+      if (isLogin) {
+        // --- REAL LOGIN FLOW ---
+        const response = await api.post('/auth/login', { email, password });
+        const { token, user } = response.data;
+
+        // Persist session
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+
+        // Update UI state
+        setRole(user.role);
+        setFirstName(user.firstName);
+        setLastName(user.lastName);
+        setView('dashboard');
+        setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
+        setErrors({});
+
+      } else {
+        // --- MULTI-STEP SIGNUP FLOW ---
+        if (signupStep === 1) {
+          // Validate step 1 locally first
+          setTimer(30);
+          setCanResend(false);
+          setSignupStep(2);
+        } else if (signupStep === 2) {
+          // Simulate OTP for now (or call an API if we added one)
+          if (otp === '1234') {
+            setSignupStep(3);
+            setErrors({});
+          } else {
+            setErrors({ otp: "Invalid OTP. Use '1234'." });
+          }
+        } else if (signupStep === 3) {
+          // --- REAL SIGNUP FINALIZATION ---
+          const signupData = {
+            email,
+            password,
+            firstName,
+            lastName,
+            role // 'consumer' or 'producer'
+          };
+
+          const response = await api.post('/auth/signup', signupData);
+          const { token, user } = response.data;
+
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(user));
+
+          setView('dashboard');
+          setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
+        }
+      }
+    } catch (err) {
+      console.error('[Auth] Operational failure:', err);
+      const msg = err.response?.data?.message || 'Connection to network failed. Check if server is running.';
+      setErrors({ server: msg });
+      alert(msg);
+    }
+  };
+
+  const fetchMachines = async () => {
+    try {
+      const response = await api.get('/machines');
+      setMachines(response.data);
+    } catch (err) {
+      console.error('[Fleet] Signal lost:', err);
+    }
+  };
+
+  const handleAddMachine = async () => {
+    if (!newMachineData.name || !newMachineData.machine_type) return alert("Name and Type are required");
+
+    // [DEMO MODE BYPASS]
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+
+    if (user && user.id === 'demo-123') {
+      // Optimistically add to UI for instant feedback
+      const mockMachine = {
+        id: 'demo-new-' + Date.now(),
+        name: newMachineData.name,
+        machine_type: newMachineData.machine_type,
+        oem: newMachineData.oem || 'Generic OEM',
+        model_year: newMachineData.model_year || '2024',
+        condition_score: 100
+      };
+      setMachines(prev => [mockMachine, ...prev]);
+      setShowAddMachineModal(false);
+      setNewMachineData({ name: '', oem: '', model_year: '', machine_type: '' });
+      return;
+    }
+
+    try {
+      await api.post('/machines', newMachineData);
+      setShowAddMachineModal(false);
+      setNewMachineData({ name: '', oem: '', model_year: '', machine_type: '' });
+      fetchMachines(); // Refresh the fleet
+    } catch (err) {
+      console.error(err);
+      alert("Failed to register node. Ensure server is running.");
+    }
+  };
+
+  const handleDeleteMachine = (id, e) => {
+    // Prevent event bubbling if triggered from a deeper element (like a menu)
+    if (e) e.stopPropagation();
+    const machine = machines.find(m => m.id === id);
+    if (machine) {
+      setNodeToDelete(machine);
+    }
+  };
+
+  const confirmNodeDeletion = async () => {
+    if (!nodeToDelete) return;
+    const id = nodeToDelete.id;
+
+    try {
+      // [DEMO CHECK]
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+
+      if (user && user.id === 'demo-123') {
+        setMachines(prev => prev.filter(m => m.id !== id));
+        setNodeToDelete(null);
+        return;
+      }
+
+      await api.delete(`/machines/${id}`);
+      // Optimistic update
+      setMachines(prev => prev.filter(m => m.id !== id));
+      setNodeToDelete(null);
+    } catch (err) {
+      alert("Failed to delete node: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // [NEW] SERVICE REQUEST BROADCAST HANDLER
+  const handleBroadcastJob = async () => {
+    if (!activeJobMachine) return alert("No machine selected");
+
+    // 1. Simulate Analysis/Broadcasting UI
+    setDiagnosisStep(2);
+
+    try {
+      // 2. Post to Backend
+      const payload = {
+        machineId: activeJobMachine.id,
+        issueDescription: diagnosisDesc || "Routine maintenance check", // Ensure you add diagnosisDesc state
+        priority: 'high',
+        videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' // Mock video for now
+      };
+
+      await api.post('/jobs/broadcast', payload);
+
+      // 3. Show Success UI
+      setTimeout(() => {
+        setDiagnosisStep(3);
+      }, 1500);
+
+    } catch (err) {
+      console.error(err);
+      alert("Failed to broadcast request. Check connection.");
+      setDiagnosisStep(1);
+    }
+  };
+
+  const fetchRadarJobs = async () => {
+    try {
+      const res = await api.get('/jobs/radar');
+      setRadarJobs(res.data);
+    } catch (err) {
+      console.error("Radar offline:", err);
+      setRadarJobs([]);
+    }
+  };
+
+  const handleAcceptJob = async (jobId) => {
+    try {
+      await api.patch(`/jobs/${jobId}/accept`);
+      alert("Job Accepted! Redirecting to workspace...");
+      fetchRadarJobs();
+    } catch (err) {
+      alert("Failed to accept job: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  useEffect(() => {
+    if (view === 'dashboard' && role === 'consumer' && activeTab === 'fleet') {
+      fetchMachines();
+    }
+  }, [view, role, activeTab]);
+
+  useEffect(() => {
+    if (view === 'dashboard' && role === 'producer') {
+      fetchRadarJobs();
+      const interval = setInterval(fetchRadarJobs, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [view, role]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setView('landing');
+    setEmail('');
+    setPassword('');
+    setFirstName('');
+    setLastName('');
+    setActiveTab('fleet');
   };
 
   const handleSocialLogin = async (provider) => {
@@ -609,6 +965,54 @@ www.originode.com
   // --- SHARED UI COMPONENTS (MODALS) ---
   const sharedModals = (
     <>
+      {showAddMachineModal && (
+        <div className="modal-overlay">
+          <div className="diagnosis-modal" style={{ maxWidth: '500px' }}>
+            <div className="modal-header-v2">
+              <h3>Register Industrial Node</h3>
+              <button className="btn-icon-label" onClick={() => setShowAddMachineModal(false)}>Close</button>
+            </div>
+            <div className="modal-body-v2">
+              <div className="input-group" style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Machine Name / ID</label>
+                <input type="text" className="std-input" placeholder="e.g. Hydraulic Press #99"
+                  value={newMachineData.name}
+                  onChange={(e) => setNewMachineData({ ...newMachineData, name: e.target.value })}
+                  style={{ width: '100%', padding: '10px' }} />
+              </div>
+              <div className="input-group" style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Machine Type</label>
+                <select className="std-input"
+                  value={newMachineData.machine_type}
+                  onChange={(e) => setNewMachineData({ ...newMachineData, machine_type: e.target.value })}
+                  style={{ width: '100%', padding: '10px' }}>
+                  <option value="">Select Type</option>
+                  <option value="Hydraulic Press">Hydraulic Press</option>
+                  <option value="CNC Concentric">CNC Concentric</option>
+                  <option value="Industrial Loom">Industrial Loom</option>
+                  <option value="Generator">Generator</option>
+                </select>
+              </div>
+              <div className="input-group" style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Original Maker (OEM)</label>
+                <input type="text" className="std-input" placeholder="e.g. Hydra-Tech Germany"
+                  value={newMachineData.oem}
+                  onChange={(e) => setNewMachineData({ ...newMachineData, oem: e.target.value })}
+                  style={{ width: '100%', padding: '10px' }} />
+              </div>
+              <div className="input-group" style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Model Year</label>
+                <input type="number" className="std-input" placeholder="e.g. 1985"
+                  value={newMachineData.model_year}
+                  onChange={(e) => setNewMachineData({ ...newMachineData, model_year: e.target.value })}
+                  style={{ width: '100%', padding: '10px' }} />
+              </div>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleAddMachine}>Register Node</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCamera && (
         <div className="modal-overlay">
           <div className="camera-modal">
@@ -639,6 +1043,22 @@ www.originode.com
         </div>
       )}
 
+      {nodeToDelete && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <div className="modal-header">
+              <div className="warning-icon">!</div>
+              <h3>Decommission Node?</h3>
+            </div>
+            <p>Are you sure you want to remove <strong>{nodeToDelete.name}</strong> from your industrial fleet? This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button className="btn btn-outline-dark" onClick={() => setNodeToDelete(null)}>Cancel</button>
+              <button className="btn btn-danger" onClick={confirmNodeDeletion}>Yes, Decommission</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDiagnosisModal && (
         <div className="modal-overlay">
           <div className="diagnosis-modal">
@@ -658,16 +1078,20 @@ www.originode.com
                   </div>
                   <div style={{ marginTop: '20px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--navy-dark)' }}>Describe the Issue</label>
-                    <textarea className="table-search" rows="3" placeholder="e.g. Strange knocking sound coming from the main cylinder..." style={{ width: '100%', resize: 'none' }}></textarea>
+                    <textarea className="table-search" rows="3"
+                      placeholder={`Describe the issue with ${activeJobMachine?.name}...`}
+                      value={diagnosisDesc}
+                      onChange={(e) => setDiagnosisDesc(e.target.value)}
+                      style={{ width: '100%', resize: 'none' }}></textarea>
                   </div>
-                  <button className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={startDiagnosis}>Analyze & Find Experts</button>
+                  <button className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={handleBroadcastJob}>Broadcast to Network</button>
                 </div>
               )}
               {diagnosisStep === 2 && (
                 <div className="scanning-container animate-fade">
                   <div className="scanner-ring"></div>
-                  <h3 style={{ color: 'var(--navy-dark)' }}>Analyzing Fault Signature...</h3>
-                  <p style={{ color: '#64748b' }}>Matching audio/visual patterns with legacy database.</p>
+                  <h3 style={{ color: 'var(--navy-dark)' }}>Broadcasting Signal...</h3>
+                  <p style={{ color: '#64748b' }}>Notifying verified experts in your vicinity.</p>
                   <div className="progress-bar-bg" style={{ background: '#e2e8f0', height: '6px', borderRadius: '4px', marginTop: '20px', overflow: 'hidden' }}>
                     <div className="progress-fill" style={{ width: `${analysisProgress}%`, background: 'var(--navy-primary)', height: '100%', transition: '0.4s' }}></div>
                   </div>
@@ -675,21 +1099,14 @@ www.originode.com
               )}
               {diagnosisStep === 3 && (
                 <div className="results-step animate-fade">
-                  <h3 style={{ marginBottom: '15px', color: 'var(--navy-dark)' }}>Diagnosis Complete</h3>
-                  <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>We identified the machine as a <strong>1985 Text-Matic Series</strong>. Based on the fault, here are the best available experts:</p>
-                  {diagnosisResults.map(expert => (
-                    <div key={expert.id} className="expert-result-card" onClick={() => alert("Chat Feature Comming Soon!")}>
-                      <div className="expert-avatar">{expert.avatar}</div>
-                      <div className="expert-info">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <h4>{expert.name}</h4>
-                          <span className="match-score">{expert.match}% Match</span>
-                        </div>
-                        <p>{expert.type}</p>
-                      </div>
-                      <button className="btn-small" style={{ width: 'auto', marginTop: 0 }}>Connect</button>
-                    </div>
-                  ))}
+                  <h3 style={{ marginBottom: '15px', color: 'var(--navy-dark)' }}>Signal Broadcasted!</h3>
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>Your request for <strong>{activeJobMachine?.name}</strong> is now live on the industrial radar. Experts will review and bid shortly.</p>
+
+                  <div style={{ background: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                    <span style={{ fontSize: '2rem' }}>📡</span>
+                    <h4 style={{ color: '#166534', margin: '10px 0' }}>Live on Radar</h4>
+                    <button className="btn btn-primary" onClick={() => setShowDiagnosisModal(false)}>Return to Dashboard</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -839,7 +1256,7 @@ www.originode.com
             <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>{t.identity}</div>
             <div className={`nav-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => setActiveTab('help')}>Help & Support</div>
             <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings</div>
-            <div className="nav-item logout-btn-item" onClick={() => { setView('landing'); setActiveTab('fleet'); }}>{t.logout}</div>
+            <div className="nav-item logout-btn-item" onClick={handleLogout}>{t.logout}</div>
           </nav>
         </aside>
 
@@ -878,6 +1295,8 @@ www.originode.com
           </header>
 
           {activeTab === 'fleet' ? (
+
+
             <React.Fragment>
               <header className="content-header">
                 <div>
@@ -887,9 +1306,9 @@ www.originode.com
                 <div className="header-actions">
                   <div className="continuity-badge">
                     <span className="pulse-dot"></span>
-                    <span>System Continuity: <strong>98.4%</strong></span>
+                    <span>System Continuity: <strong>{avgContinuity}%</strong></span>
                   </div>
-                  <button className="btn btn-primary">+ Add Machine Node</button>
+                  <button className="btn btn-primary" onClick={() => setShowAddMachineModal(true)}>+ Add Machine Node</button>
                 </div>
               </header>
 
@@ -900,8 +1319,8 @@ www.originode.com
                   </div>
                   <div className="stat-info">
                     <h4>Active Nodes</h4>
-                    <p className="stat-value">24</p>
-                    <span className="stat-trend positive">↑ 2 New this month</span>
+                    <p className="stat-value">{activeNodesCount}</p>
+                    <span className="stat-trend positive">↑ Connected</span>
                   </div>
                 </div>
                 <div className="stat-card critical">
@@ -910,7 +1329,7 @@ www.originode.com
                   </div>
                   <div className="stat-info">
                     <h4>Critical Issues</h4>
-                    <p className="stat-value">2</p>
+                    <p className="stat-value">{criticalIssuesCount}</p>
                     <span className="stat-trend negative">Attention Required</span>
                   </div>
                 </div>
@@ -920,91 +1339,92 @@ www.originode.com
                   </div>
                   <div className="stat-info">
                     <h4>Experts Online</h4>
-                    <p className="stat-value">156</p>
+                    <p className="stat-value">142</p>
                     <span className="stat-trend neutral">Avg response: 5m</span>
                   </div>
                 </div>
               </div>
 
               <section className="node-gallery">
-                <div className="section-header">
-                  <h3>My Machines</h3>
+                <div className="section-header" style={{ alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1 }}>
+                    <h3>My Machines</h3>
+                    <div style={{ marginTop: '10px', position: 'relative', maxWidth: '300px' }}>
+                      <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                      <input
+                        type="text"
+                        placeholder="Search fleet..."
+                        className="table-search"
+                        style={{ width: '100%', paddingLeft: '32px' }}
+                        value={fleetSearch}
+                        onChange={(e) => setFleetSearch(e.target.value)}
+                      />
+                    </div>
+                  </div>
                   <div className="filter-tabs">
-                    <span className="filter-tab active">All</span>
-                    <span className="filter-tab">Operational</span>
-                    <span className="filter-tab">Maintenance</span>
+                    <span className={`filter-tab ${activeFilter === 'All' ? 'active' : ''}`} onClick={() => setActiveFilter('All')}>All</span>
+                    <span className={`filter-tab ${activeFilter === 'Operational' ? 'active' : ''}`} onClick={() => setActiveFilter('Operational')}>Operational</span>
+                    <span className={`filter-tab ${activeFilter === 'Maintenance' ? 'active' : ''}`} onClick={() => setActiveFilter('Maintenance')}>Maintenance</span>
                   </div>
                 </div>
 
                 <div className="node-grid">
-                  <div className="node-card">
-                    <div className="node-image-placeholder active">
-                      <span className="node-emoji">⚙️</span>
-                      <div className="status-overlay operational">Running</div>
-                    </div>
-                    <div className="node-content">
-                      <div className="node-header">
-                        <h4>Hydraulic Press #08</h4>
-                        <span className="menu-dots">⋮</span>
-                      </div>
-                      <p className="node-model">Model: HP-200 (Legacy)</p>
-                      <div className="node-metrics">
-                        <div className="metric">
-                          <span className="label">Temp</span>
-                          <span className="value">65°C</span>
-                        </div>
-                        <div className="metric">
-                          <span className="label">Uptime</span>
-                          <span className="value">99%</span>
+                  {filteredMachines.length > 0 ? filteredMachines.map(machine => (
+                    <div key={machine.id} className="node-card">
+                      <div className="node-image-placeholder active">
+                        <span className="node-emoji">⚙️</span>
+                        <div className={`status-overlay ${machine.condition_score > 50 ? 'operational' : 'maintenance'}`}>
+                          {machine.condition_score > 50 ? 'Online' : 'Maintenance'}
                         </div>
                       </div>
-                      <button className="btn-small">View Live Telemetry</button>
-                    </div>
-                  </div>
-
-                  <div className="node-card down">
-                    <div className="node-image-placeholder issue">
-                      <span className="node-emoji">🧶</span>
-                      <div className="status-overlay critical">Stopped</div>
-                    </div>
-                    <div className="node-content">
-                      <div className="node-header">
-                        <h4>Industrial Loom #22</h4>
-                        <span className="menu-dots">⋮</span>
-                      </div>
-                      <p className="node-model">Model: TEXT-40 (Original Maker: Unknown)</p>
-                      <div className="issue-banner">
-                        <span>⚠ Motor Synchronization Error</span>
-                      </div>
-                      <button className="btn-small btn-alert" onClick={() => setShowDiagnosisModal(true)}>Connect with Expert</button>
-                    </div>
-                  </div>
-
-                  {/* Added a third card for variety */}
-                  <div className="node-card">
-                    <div className="node-image-placeholder active">
-                      <span className="node-emoji">🔋</span>
-                      <div className="status-overlay operational">Running</div>
-                    </div>
-                    <div className="node-content">
-                      <div className="node-header">
-                        <h4>Generator Unit A1</h4>
-                        <span className="menu-dots">⋮</span>
-                      </div>
-                      <p className="node-model">Model: GEN-X500</p>
-                      <div className="node-metrics">
-                        <div className="metric">
-                          <span className="label">Output</span>
-                          <span className="value">480V</span>
+                      <div className="node-content">
+                        <div className="node-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <h4 style={{ margin: 0 }}>{machine.name}</h4>
+                          <button
+                            className="btn-icon-label"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteMachine(machine.id); }}
+                            style={{
+                              color: '#ef4444',
+                              background: 'transparent',
+                              border: 'none',
+                              fontSize: '1.2rem',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              borderRadius: '4px'
+                            }}
+                            title="Decommission Node"
+                            onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                          >
+                            🗑️
+                          </button>
                         </div>
-                        <div className="metric">
-                          <span className="label">Load</span>
-                          <span className="value">82%</span>
+                        <p className="node-model">{machine.machine_type} • {machine.oem || 'Unknown OEM'}</p>
+                        <div className="node-metrics">
+                          <div className="metric">
+                            <span className="label">Year</span>
+                            <span className="value">{machine.model_year}</span>
+                          </div>
+                          <div className="metric">
+                            <span className="label">Condition</span>
+                            <span className="value">{machine.condition_score}%</span>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: '10px' }}>
+                          <button className="btn-small btn-alert" style={{ width: '100%' }}
+                            onClick={() => { setActiveJobMachine(machine); setDiagnosisStep(1); setShowDiagnosisModal(true); }}>
+                            Request Service
+                          </button>
                         </div>
                       </div>
-                      <button className="btn-small">View Live Telemetry</button>
                     </div>
-                  </div>
+                  )) : (
+                    <div className="empty-state-machine" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#64748b', background: '#f8fafc', borderRadius: '12px' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🏭</div>
+                      <h3>No Machines Registered</h3>
+                      <p>Add your first industrial node to begin monitoring.</p>
+                    </div>
+                  )}
                 </div>
               </section>
             </React.Fragment>
@@ -1049,7 +1469,9 @@ www.originode.com
                           <div className="invoice-body">
                             <div className="invoice-row"><span>Service:</span> <strong>{msg.desc}</strong></div>
                             <div className="invoice-total"><span>Total:</span> <span>{msg.amount}</span></div>
-                            <button className="btn-pay-now" onClick={() => handlePayment(msg.amount, msg.desc)}>PAY {msg.amount}</button>
+                            {role === 'consumer' && (
+                              <button type="button" className="btn-pay-now" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('Processing Request...'); handlePayment(msg.amount, msg.desc); }}>PAY {msg.amount}</button>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -1393,12 +1815,6 @@ www.originode.com
 
   // [NEW] VIEW 4: PRODUCER DASHBOARD (SERVICE REQUESTS)
   if (view === 'dashboard' && role === 'producer') {
-    const requests = [
-      { id: 101, client: "Apex Heavy Industries", machine: "Hydraulic Press H-200", issue: "Main seal leakage detected during operation.", priority: "critical", time: "2h ago", avatar: "AH", value: "₹25,000", distance: "12km", tags: ["Hydraulics", "Urgent"] },
-      { id: 102, client: "Solaris Power", machine: "Turbine Generator GEN-X", issue: "Vibration metrics exceeding safety thresholds.", priority: "high", time: "4h ago", avatar: "SP", value: "₹45,000", distance: "34km", tags: ["Power/Elect", "Analysis"] },
-      { id: 103, client: "Constructo Inc", machine: "Excavator Arm", issue: "Routine maintenance schedule check.", priority: "normal", time: "1d ago", avatar: "CI", value: "₹8,500", distance: "5km", tags: ["Mechanical", "Routine"] }
-    ];
-
     return (
       <div className="dashboard-wrapper producer-theme">
         <aside className="side-nav">
@@ -1421,7 +1837,7 @@ www.originode.com
             <div className={`nav-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Parts Inventory</div>
             <div className={`nav-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>Help & Support</div>
             <div className={`nav-item ${activeTab === 'platform-settings' ? 'active' : ''}`} onClick={() => setActiveTab('platform-settings')}>Platform Settings</div>
-            <div className="nav-item logout-btn-item" onClick={() => { setView('landing'); setActiveTab('fleet'); }}>Logout</div>
+            <div className="nav-item logout-btn-item" onClick={handleLogout}>Logout</div>
           </nav>
         </aside>
 
@@ -1433,7 +1849,7 @@ www.originode.com
               <div className="status-badge-pill operational">● Available for Work</div>
               <div className="notif-bell-container" onClick={() => setShowNotifDropdown(!showNotifDropdown)}>
                 <span className="bell-icon">🔔</span>
-                {notifications.some(n => !n.read) && <span className="notif-ping"></span>}
+                {(notifications || []).some(n => !n.read) && <span className="notif-ping"></span>}
               </div>
 
               {/* NOTIFICATION DROP DOWN */}
@@ -1444,7 +1860,7 @@ www.originode.com
                     <button className="btn-small-text" onClick={handleClearNotifs}>Clear History</button>
                   </div>
                   <div className="dropdown-body">
-                    {notifications.length > 0 ? notifications.map(n => (
+                    {(notifications || []).length > 0 ? notifications.map(n => (
                       <div key={n.id} className={`notif-drop-item ${!n.read ? 'unread' : ''}`}>
                         <div className={`notif-indicator ${n.type}`}></div>
                         <div className="notif-drop-content">
@@ -1476,7 +1892,7 @@ www.originode.com
                     <div className="tech-stat-divider"></div>
                     <div className="tech-stat-item">
                       <span className="label">QUEUE LOAD</span>
-                      <span className="value">3 REQUESTS</span>
+                      <span className="value">{(radarJobs || []).length} REQUESTS</span>
                     </div>
                     <div className="tech-stat-divider"></div>
                     <div className="tech-stat-item">
@@ -1487,36 +1903,40 @@ www.originode.com
                 </div>
               </header>
               <div className="service-board-grid">
-                {requests.map(req => (
-                  <div key={req.id} className={`job-card ${req.priority}`}>
+                {Array.isArray(radarJobs) && radarJobs.length > 0 ? radarJobs.map(req => (
+                  <div key={req.id} className={`job-card ${req.priority || 'normal'}`}>
                     <div className="job-card-header">
                       <div className="client-badge">
-                        <div className="client-avatar">{req.avatar}</div>
+                        <div className="client-avatar">
+                          {req.client_name ? (req.client_name[0] || 'C') + (req.client_name[1] || '') : 'C'}
+                        </div>
                         <div className="client-meta">
-                          <h4>{req.client}</h4>
-                          <span>Ticket #{req.id * 83} • {req.time}</span>
+                          <h4>{req.client_name || "Unknown Client"}</h4>
+                          <span>Ticket #{req.id * 83} • {req.created_at ? new Date(req.created_at).toLocaleTimeString() : 'Just now'}</span>
                         </div>
                       </div>
-                      <div className="job-value">{req.value}</div>
+                      <div className="job-value">₹{Math.floor(Math.random() * 20000) + 5000}</div>
                     </div>
                     <div className="job-card-body">
                       {req.priority === 'critical' && <div className="priority-banner">⚠️ IMMEDIATE ATTENTION REQUIRED</div>}
                       <div className="machine-spec">
                         <span className="icon">⚙️</span>
-                        <span className="name">{req.machine}</span>
+                        <span className="name">{req.machine_name || 'Unknown Machine'}</span>
                       </div>
-                      <p className="issue-desc">"{req.issue}"</p>
+                      <p className="issue-desc">"{req.issue_description || 'No description provided'}"</p>
                       <div className="job-tags">
-                        {req.tags.map(tag => <span key={tag} className="job-tag">{tag}</span>)}
-                        <span className="job-dist">📍 {req.distance}</span>
+                        <span className="job-tag">{req.priority || 'Normal'}</span>
+                        <span className="job-tag">Repair</span>
+                        {req.video_url && <span className="job-tag">Has Video</span>}
+                        <span className="job-dist">📍 {Math.floor(Math.random() * 50)}km</span>
                       </div>
                     </div>
                     <div className="job-card-footer">
                       <button className="btn-job-action decline">DECLINE</button>
-                      <button className="btn-job-action accept" onClick={() => alert("Job Accepted! Redirecting to Diagnosis workspace...")}>ACCEPT ASSIGNMENT</button>
+                      <button className="btn-job-action accept" onClick={() => handleAcceptJob(req.id)}>ACCEPT ASSIGNMENT</button>
                     </div>
                   </div>
-                ))}
+                )) : <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#94a3b8', padding: '40px' }}>No active signals in your sector.</p>}
                 <div className="radar-card">
                   <div className="radar-circle">
                     <div className="radar-sweep"></div>
@@ -2019,6 +2439,43 @@ www.originode.com
             </div>
           )}
         </main>
+        {showPaymentModal && (
+          <div className="modal-overlay">
+            <div className="confirm-modal" style={{ width: '400px', padding: '0', overflow: 'hidden' }}>
+              <div className="payment-modal-header" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, color: 'var(--navy-dark)', fontSize: '1.1rem' }}>Secure Payment</h3>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>🔒 SSL Encrypted</span>
+                </div>
+              </div>
+              <div style={{ padding: '20px' }}>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', letterSpacing: '0.5px' }}>PAYING TO</label>
+                  <div style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>OrigiNode Escrow Secure</div>
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', letterSpacing: '0.5px' }}>AMOUNT</label>
+                  <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--sage-green)' }}>{paymentConfig?.amountStr}</div>
+                  <small style={{ color: '#64748b' }}>{paymentConfig?.desc}</small>
+                </div>
+                <div style={{ background: '#f1f5f9', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '700', marginBottom: '10px', color: '#475569' }}>PAYMENT METHOD</div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>💳 Card</div>
+                    <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>🏦 NetBanking</div>
+                    <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>📱 UPI</div>
+                  </div>
+                </div>
+                <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={confirmPayment}>
+                  Pay {paymentConfig?.amountStr} Now
+                </button>
+                <button className="btn-small-text" style={{ width: '100%', marginTop: '15px', textAlign: 'center', color: '#94a3b8' }} onClick={() => setShowPaymentModal(false)}>
+                  Cancel Transaction
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {sharedModals}
       </div>
     );
