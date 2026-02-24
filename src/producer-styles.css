@@ -993,3 +993,134 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     backdrop-filter: blur(8px);
 }
+
+/* --- AI SCHEDULER PREMIUM STYLES --- */
+.btn-ai-assistant {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-ai-assistant:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(168, 85, 247, 0.5);
+}
+
+.btn-ai-assistant.loading {
+    filter: grayscale(0.5);
+    cursor: wait;
+}
+
+.schedule-card.suggested {
+    background: rgba(245, 243, 255, 0.9);
+    border: 2px dashed #a855f7;
+    border-left: 8px solid #a855f7;
+    z-index: 10;
+}
+
+.ai-badge {
+    position: absolute;
+    top: -10px;
+    right: 10px;
+    background: #a855f7;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+}
+
+.suggested-actions {
+    margin-top: 10px;
+}
+
+.btn-confirm-mini {
+    background: #a855f7;
+    color: white;
+    border: none;
+    font-size: 0.7rem;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.ai-suggestion-footer {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    background: #1e1e2e;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.ai-insight {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+}
+
+.ai-insight .icon {
+    font-size: 1.5rem;
+}
+
+.btn-primary-tech {
+    background: white;
+    color: #1e1e2e;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-secondary-dark {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+@keyframes pulse-subtle {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.animate-pulse-subtle {
+    animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+@keyframes slide-up {
+    from { transform: translate(-50%, 50px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}

@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const { Pool } = require('pg');
 
 const pool = new Pool({
@@ -22,8 +23,26 @@ async function initSchema() {
                 role VARCHAR(50) NOT NULL,
                 first_name VARCHAR(100),
                 last_name VARCHAR(100),
+                phone VARCHAR(20),
+                dob DATE,
+                photo_url TEXT,
+                organization VARCHAR(255),
+                location VARCHAR(255),
+                tax_id VARCHAR(50),
+                is_verified BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+        `);
+
+        // Users Migration (For existing tables)
+        await pool.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS dob DATE;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS organization VARCHAR(255);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS tax_id VARCHAR(50);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
         `);
 
         // Machines Table
@@ -54,6 +73,73 @@ async function initSchema() {
                 status VARCHAR(50) DEFAULT 'broadcast', -- broadcast, accepted, completed
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Producer Profiles Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS producer_profiles (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                skills TEXT[],
+                certifications JSONB,
+                service_radius INTEGER DEFAULT 50,
+                rating DECIMAL(2,1) DEFAULT 5.0,
+                status VARCHAR(20) DEFAULT 'available',
+                location VARCHAR(255),
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Transactions Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS transactions (
+                id SERIAL PRIMARY KEY,
+                request_id INTEGER REFERENCES service_requests(id),
+                transaction_ref VARCHAR(255),
+                amount DECIMAL(10,2),
+                status VARCHAR(50) DEFAULT 'pending', -- pending, paid, failed
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Expert Schedules Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS expert_schedules (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                request_id INTEGER REFERENCES service_requests(id) ON DELETE SET NULL,
+                day_of_week VARCHAR(10), -- Mon, Tue, etc.
+                start_time TIME,
+                end_time TIME,
+                slot_type VARCHAR(20) DEFAULT 'job', -- job, break, unavailable
+                title VARCHAR(255),
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Legacy Manufacturers Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS legacy_manufacturers (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                operating_years VARCHAR(100),
+                status VARCHAR(50),
+                replacement VARCHAR(255),
+                category VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Support Tickets Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS support_tickets (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                subject VARCHAR(255),
+                description TEXT,
+                status VARCHAR(20) DEFAULT 'open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
 

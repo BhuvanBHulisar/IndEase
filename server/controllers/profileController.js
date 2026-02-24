@@ -1,0 +1,172 @@
+const db = require('../db');
+
+// @desc    Get expert profile metadata
+// @route   GET /api/profile
+exports.getProfile = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const role = req.user.role;
+
+        // 1. Get basic user info
+        const userResult = await db.query(
+            'SELECT id, email, first_name, last_name, phone, dob, photo_url, organization, location, tax_id, is_verified, role FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (userResult.rows.length === 0) {
+            // Check for demo user bypass or failed DB fallback
+            if (userId === 'demo-123' || (req.user && req.user.email === 'admin@originode.com')) {
+                return res.json({
+                    id: 'demo-123',
+                    email: 'admin@originode.com',
+                    first_name: 'Bhuvan',
+                    last_name: 'B H',
+                    role: role || 'consumer',
+                    phone: '+91 98765 24210',
+                    dob: '2000-01-17',
+                    organization: 'Doe Industrial Manufacturing Ltd.',
+                    location: 'Mumbai, Maharashtra',
+                    tax_id: '27AAACN0000Z1Z0',
+                    is_verified: true,
+                    skills: role === 'producer' ? ['Hydraulics', 'PLC Logic'] : []
+                });
+            }
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const user = userResult.rows[0];
+
+        // 2. If expert, get specialized metadata
+        let profile = {};
+        if (role === 'producer') {
+            const profileResult = await db.query(
+                'SELECT * FROM producer_profiles WHERE user_id = $1',
+                [userId]
+            );
+
+            // If profile doesn't exist yet, create a default one
+            if (profileResult.rows.length === 0) {
+                const newProfile = await db.query(
+                    'INSERT INTO producer_profiles (user_id) VALUES ($1) RETURNING *',
+                    [userId]
+                );
+                profile = newProfile.rows[0];
+            } else {
+                profile = profileResult.rows[0];
+            }
+        }
+
+        res.json({
+            ...user,
+            ...profile
+        });
+    } catch (err) {
+        console.error('[Profile] Fetch failure:', err);
+        res.status(500).json({ message: 'Could not retrieve profile data' });
+    }
+};
+
+// @desc    Update expert profile
+// @route   PATCH /api/profile
+exports.updateProfile = async (req, res) => {
+    const { first_name, last_name, phone, dob, photo_url, organization, location, tax_id, skills, service_radius, status } = req.body;
+    const userId = req.user.id;
+    const role = req.user.role;
+
+    try {
+        // 1. Update basic user table (Including consumer fields)
+        await db.query(
+            `UPDATE users 
+             SET first_name = COALESCE($1, first_name), 
+                 last_name = COALESCE($2, last_name),
+                 phone = COALESCE($3, phone),
+                 dob = COALESCE($4, dob),
+                 photo_url = COALESCE($5, photo_url),
+                 organization = COALESCE($6, organization),
+                 location = COALESCE($7, location),
+                 tax_id = COALESCE($8, tax_id)
+             WHERE id = $9`,
+            [first_name, last_name, phone, dob, photo_url, organization, location, tax_id, userId]
+        );
+
+        // 2. Update producer_profiles if role is producer
+        if (role === 'producer') {
+            // Check if profile exists
+            const profileCheck = await db.query('SELECT * FROM producer_profiles WHERE user_id = $1', [userId]);
+
+            if (profileCheck.rows.length === 0) {
+                // Create if missing
+                await db.query(
+                    'INSERT INTO producer_profiles (user_id, skills, service_radius, status) VALUES ($1, $2, $3, $4)',
+                    [userId, skills || [], service_radius || 50, status || 'available']
+                );
+            } else {
+                // Update existing
+                await db.query(
+                    `UPDATE producer_profiles 
+                     SET skills = COALESCE($1, skills), 
+                         service_radius = COALESCE($2, service_radius), 
+                         status = COALESCE($3, status),
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE user_id = $4`,
+                    [skills, service_radius, status, userId]
+                );
+            }
+        }
+
+        res.json({ message: 'Profile updated successfully' });
+    } catch (err) {
+        console.error('[Profile] Update failure:', err);
+        res.status(500).json({ message: 'Failed to synchronize profile' });
+    }
+};
+
+// @desc    Request Industrial Verification
+// @route   PATCH /api/profile/verify
+exports.verifyProfile = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        // In a real app, we'd handle file upload here.
+        // For now, we update the status or a verified flag.
+        await db.query('UPDATE users SET is_verified = TRUE WHERE id = $1', [userId]);
+        console.log(`[Verification] User ${userId} industrial identity verified.`);
+        res.json({ message: 'Verification successful. Your industrial identity is now public.' });
+    } catch (err) {
+        res.status(500).json({ message: 'Verification gateway failure' });
+    }
+};
+// @desc    Add a skill to expert profile
+// @route   POST /api/profile/skills
+exports.addSkill = async (req, res) => {
+    const { skill } = req.body;
+    const userId = req.user.id;
+
+    try {
+        await db.query(
+            'UPDATE producer_profiles SET skills = array_append(skills, $1) WHERE user_id = $2 AND NOT ($1 = ANY(skills))',
+            [skill, userId]
+        );
+        res.json({ message: 'Skill added to arsenal' });
+    } catch (err) {
+        console.error('[Profile] Skill addition failure:', err);
+        res.status(500).json({ message: 'Failed to update skill set' });
+    }
+};
+
+// @desc    Remove a skill from expert profile
+// @route   DELETE /api/profile/skills/:skill
+exports.removeSkill = async (req, res) => {
+    const { skill } = req.params;
+    const userId = req.user.id;
+
+    try {
+        await db.query(
+            'UPDATE producer_profiles SET skills = array_remove(skills, $1) WHERE user_id = $2',
+            [skill, userId]
+        );
+        res.json({ message: 'Skill decommissioned' });
+    } catch (err) {
+        console.error('[Profile] Skill removal failure:', err);
+        res.status(500).json({ message: 'Failed to update skill set' });
+    }
+};

@@ -37,12 +37,113 @@ body.dark-mode {
   --input-bg: #334155;
   --shadow-color: rgba(0, 0, 0, 0.5);
   --navy-primary: #38bdf8;
-  /* Brighter blue for dark mode visibility */
   --navy-dark: #bae6fd;
-  /* Lighter accent for headers */
   --bg-input: #334155;
-  color: var(--text-main);
-  background-color: var(--bg-body);
+  color: var(--text-main) !important;
+  background-color: var(--bg-body) !important;
+}
+
+body.dark-mode,
+body.dark-mode * {
+  color: var(--text-main) !important;
+  background-color: var(--bg-body) !important;
+  box-shadow: none;
+}
+
+body.dark-mode .dashboard-wrapper,
+body.dark-mode .dashboard-content,
+body.dark-mode .identity-settings-list,
+body.dark-mode .profile-hero-banner,
+body.dark-mode .danger-row,
+body.dark-mode .glass-panel,
+body.dark-mode .full-screen-profile,
+body.dark-mode .settings-view,
+body.dark-mode .history-timeline-container,
+body.dark-mode .timeline-content-card,
+body.dark-mode .stat-card,
+body.dark-mode .node-card,
+body.dark-mode .section-header,
+body.dark-mode .search-interface-card,
+body.dark-mode .result-card,
+body.dark-mode .empty-search,
+body.dark-mode .modal-overlay,
+body.dark-mode .confirm-modal,
+body.dark-mode .camera-modal {
+  background: var(--bg-card) !important;
+  color: var(--text-main) !important;
+}
+
+body.dark-mode .side-nav {
+  background: var(--bg-sidebar) !important;
+  color: var(--text-main) !important;
+}
+
+body.dark-mode .nav-item,
+body.dark-mode .nav-logo,
+body.dark-mode .nav-name,
+body.dark-mode .nav-email-small {
+  color: var(--text-main) !important;
+}
+
+body.dark-mode .btn,
+body.dark-mode .btn-primary,
+body.dark-mode .btn-secondary,
+body.dark-mode .btn-outline,
+body.dark-mode .btn-icon-label,
+body.dark-mode .btn-small,
+body.dark-mode .btn-text-action {
+  color: var(--text-main) !important;
+  background: #334155 !important;
+  border-color: #64748b !important;
+}
+
+body.dark-mode .btn-primary {
+  background: var(--sage-green) !important;
+  color: #fff !important;
+}
+
+body.dark-mode .table-search,
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select {
+  background: var(--input-bg) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .timeline-content-card,
+body.dark-mode .stat-card,
+body.dark-mode .node-card,
+body.dark-mode .result-card {
+  background: #1e293b !important;
+  color: var(--text-main) !important;
+  border-color: #334155 !important;
+}
+
+body.dark-mode .status-overlay {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: var(--sage-green) !important;
+}
+
+body.dark-mode .empty-search {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+body.dark-mode .modal-overlay {
+  background: rgba(15, 23, 42, 0.95) !important;
+}
+
+body.dark-mode .confirm-modal,
+body.dark-mode .camera-modal {
+  background: #1e293b !important;
+  color: var(--text-main) !important;
+}
+
+body.dark-mode .profile-main-img,
+body.dark-mode .large-avatar-placeholder {
+  background: var(--sage-green) !important;
+  color: #fff !important;
 }
 
 body.dark-mode .settings-hero-content p {
@@ -1206,28 +1307,28 @@ body,
   z-index: 2;
 }
 
-.search-input-group input {
+.search-input-group .legacy-input {
   flex: 1;
   padding: 18px 25px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.1);
   font-size: 1.1rem;
   color: #ffffff !important;
   font-weight: 500;
-  background: #0f172a;
-  /* Solid dark navy background */
+  background: #0f172a !important;
+  /* Ensure dark background */
   transition: all 0.3s ease;
 }
 
-.search-input-group input::placeholder {
-  color: #94a3b8;
+.search-input-group .legacy-input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+  /* Higher contrast on dark bg */
 }
 
-.search-input-group input:focus {
-  background: #111827;
-  /* Slightly darker or solid on focus */
+.search-input-group .legacy-input:focus {
+  background: #020617 !important;
   border-color: var(--accent-blue);
-  box-shadow: 0 0 0 4px rgba(167, 214, 241, 0.1);
+  box-shadow: 0 0 0 4px rgba(167, 214, 241, 0.2);
   outline: none;
 }
 
@@ -1428,29 +1529,52 @@ body,
 
 .photo-controls {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.photo-controls .btn-icon-label {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.8rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.photo-controls .btn-icon-label:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
 .btn-icon-label {
   background: white;
   color: var(--navy-dark);
-  border: none;
+  border: 1px solid var(--slate-200);
   padding: 10px 20px;
   border-radius: 8px;
   font-weight: 700;
   cursor: pointer;
   font-size: 0.85rem;
-  transition: 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-icon-label:hover {
-  background: var(--accent-blue);
+  background: var(--slate-50);
+  border-color: var(--slate-300);
 }
 
 .btn-remove {
-  background: var(--error-red);
-  color: white;
+  background: var(--error-red) !important;
+  color: white !important;
+  border: none !important;
 }
 
 .full-user-name {
@@ -3864,18 +3988,20 @@ textarea:focus {
   outline: none;
 }
 
-/* iOS Toggle Switch */
+/* iOS Toggle Switch — clean pill design */
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 50px;
+  width: 52px;
   height: 28px;
+  flex-shrink: 0;
 }
 
 .toggle-switch input {
   opacity: 0;
   width: 0;
   height: 0;
+  position: absolute;
 }
 
 .slider {
@@ -3885,29 +4011,55 @@ textarea:focus {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
-  transition: .4s;
-  border-radius: 34px;
+  background-color: #94a3b8;
+  transition: background-color 0.3s ease;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  box-sizing: border-box;
 }
 
 .slider:before {
-  position: absolute;
   content: "";
-  height: 20px;
-  width: 20px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
+  height: 24px;
+  width: 24px;
+  background-color: #ffffff;
+  transition: transform 0.3s ease;
   border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+  flex-shrink: 0;
 }
 
 input:checked+.slider {
-  background-color: var(--sage-green);
+  background-color: #16A34A;
 }
 
 input:checked+.slider:before {
-  transform: translateX(22px);
+  transform: translateX(24px);
+}
+
+/* Dark Mode Toggle Fix */
+/* The global body.dark-mode * rule forces background-color on every element,
+   so we override specifically here to keep the toggle looking correct. */
+body.dark-mode .toggle-switch {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+body.dark-mode .toggle-switch .slider {
+  background-color: #475569 !important;
+  box-shadow: none !important;
+}
+
+body.dark-mode .toggle-switch input:checked+.slider {
+  background-color: #16A34A !important;
+}
+
+body.dark-mode .toggle-switch .slider:before {
+  background-color: #f8fafc !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* BUTTONS */

@@ -20,6 +20,10 @@ router.get('/radar', auth, roleCheck(['producer']), jobController.getRadarJobs);
 // @desc    Expert accepts the assignment
 router.patch('/:id/accept', auth, roleCheck(['producer']), jobController.acceptJob);
 
+// @route   POST api/jobs/:id/invoice
+// @desc    Expert sends an invoice/bill
+router.post('/:id/invoice', auth, roleCheck(['producer']), jobController.createInvoice);
+
 // @route   GET api/jobs/my
 // @desc    Get my active jobs (Chat List)
 router.get('/my', auth, jobController.getMyJobs);

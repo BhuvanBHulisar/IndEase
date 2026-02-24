@@ -15,4 +15,16 @@ router.post('/pay-order', auth, financeController.createOrder);
 // @desc    Secure verification of transaction signature
 router.post('/verify', auth, financeController.verifyPayment);
 
+// @route   GET api/finance/stats
+// @desc    Get dashboard financial stats
+router.get('/stats', auth, financeController.getStats);
+
+// @route   GET api/finance/history
+// @desc    Get recent transactions
+router.get('/history', auth, financeController.getHistory);
+
+// @route   GET api/finance/chart-data
+// @desc    Get data for charts
+router.get('/chart-data', auth, financeController.getChartData);
+
 module.exports = router;

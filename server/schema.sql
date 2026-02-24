@@ -1,5 +1,5 @@
 -- ORIGINODE INDUSTRIAL DATABASE SCHEMA
--- Version: 1.0.0
+-- Version: 1.0.1
 -- Platform: PostgreSQL
 
 -- 1. USERS & IDENTITY
@@ -10,6 +10,12 @@ CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(100),
     last_name VARCHAR(100),
     role VARCHAR(20) CHECK (role IN ('consumer', 'producer')) NOT NULL,
+    phone VARCHAR(20),
+    dob DATE,
+    photo_url TEXT,
+    organization VARCHAR(255),
+    location VARCHAR(255),
+    tax_id VARCHAR(50),
     is_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -70,5 +76,52 @@ CREATE TABLE IF NOT EXISTS transactions (
     amount DECIMAL(12,2) NOT NULL,
     currency VARCHAR(10) DEFAULT 'INR',
     status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. FEEDBACK & REPUTATION
+CREATE TABLE IF NOT EXISTS reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_id UUID REFERENCES service_requests(id) UNIQUE,
+    consumer_id UUID REFERENCES users(id),
+    producer_id UUID REFERENCES users(id),
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. EXPERT SCHEDULING
+CREATE TABLE IF NOT EXISTS expert_schedules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    day_of_week VARCHAR(10),
+    start_time TIME,
+    end_time TIME,
+    slot_type VARCHAR(20) DEFAULT 'job', -- 'job', 'break', 'unavailable', 'suggested'
+    title VARCHAR(255),
+    description TEXT,
+    request_id UUID REFERENCES service_requests(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. PERSISTENT NOTIFICATIONS
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50), -- 'job_update', 'payment', 'chat', 'system'
+    is_read BOOLEAN DEFAULT FALSE,
+    link VARCHAR(255), -- Deep link to a specific job/screen
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 10. SUPPORT TICKETS
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    subject VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'open',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

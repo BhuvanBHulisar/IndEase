@@ -1,16 +1,95 @@
 import React, { useState, useEffect, useRef } from 'react';
+// Simple popup modal for feedback
+function PopupModal({ message, onClose }) {
+  return (
+    <div className="modal-overlay" style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(1px)' }}>
+      <div className="confirm-modal animate-fade" style={{ width: '350px', textAlign: 'center', padding: '35px', background: 'white', borderRadius: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+        <div style={{ width: '70px', height: '70px', background: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <span style={{ fontSize: '2.5rem', color: '#10b981' }}>✓</span>
+        </div>
+        <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.3rem', fontWeight: '800' }}>Support Ticket Submitted</h3>
+        <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>{message}</p>
+        <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: '700', borderRadius: '10px' }} onClick={onClose}>OK</button>
+      </div>
+    </div>
+  );
+}
 import api from './api';
 import { io } from 'socket.io-client';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import './App.css';
 import './producer-styles.css';
 import './signup.css';
+
+// [NEW] FALLBACK MOCK DATA
+const MOCK_MACHINES = [
+  { id: 'local-1', name: 'Hydraulic Press #08', machine_type: 'Hydraulic Press', oem: 'Hydra-Tech Germany', model_year: 1998, condition_score: 45 },
+  { id: 'local-2', name: 'CNC Mill X-200', machine_type: 'CNC Concentric', oem: 'Siemens Industrial', model_year: 2015, condition_score: 92 },
+  { id: 'local-3', name: 'Backup Generator G-5', machine_type: 'Generator', oem: 'Caterpillar', model_year: 2020, condition_score: 98 }
+];
+
+// [NEW] INDIAN INDUSTRIAL CITIES & STATES
+const INDIAN_LOCATIONS = [
+  { state: "Maharashtra", cities: ["Mumbai", "Pune", "Nagpur", "Nasik", "Aurangabad", "Thane"] },
+  { state: "Karnataka", cities: ["Bagalkot", "Ballari", "Belagavi", "Bengaluru Rural", "Bengaluru Urban", "Bidar", "Chamarajanagar", "Chikballapur", "Chikkamagaluru", "Chitradurga", "Dakshina Kannada", "Davanagere", "Dharwad", "Gadag", "Hassan", "Haveri", "Kalaburagi", "Kodagu", "Kolar", "Koppal", "Mandya", "Mysuru", "Raichur", "Ramanagara", "Shivamogga", "Tumakuru", "Udupi", "Uttara Kannada", "Vijayapura", "Yadgir", "Vijayanagara"] },
+  { state: "Tamil Nadu", cities: ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Erode"] },
+  { state: "Gujarat", cities: ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", "Jamnagar"] },
+  { state: "Delhi", cities: ["New Delhi", "North Delhi", "South Delhi", "West Delhi", "East Delhi"] },
+  { state: "Telangana", cities: ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Ramagundam"] },
+  { state: "West Bengal", cities: ["Kolkata", "Howrah", "Durgapur", "Asansol", "Siliguri"] },
+  { state: "Uttar Pradesh", cities: ["Noida", "Kanpur", "Lucknow", "Ghaziabad", "Agra", "Varanasi"] },
+  { state: "Punjab", cities: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda"] },
+  { state: "Haryana", cities: ["Gurugram", "Faridabad", "Panipat", "Ambala", "Karnal"] },
+  { state: "Rajasthan", cities: ["Jaipur", "Jodhpur", "Kota", "Bikaner", "Ajmer"] },
+  { state: "Kerala", cities: ["Kochi", "Thiruvananthapuram", "Kozhikode", "Thrissur", "Kollam"] }
+];
+
+const MOCK_MESSAGES = [
+  { id: 101, chatId: 1, sender: 'expert', text: "Systems check complete. We are seeing some pressure variance.", time: "10:04 AM" },
+  { id: 102, chatId: 1, sender: 'user', text: "Noted. Is it critical?", time: "10:12 AM" },
+  { id: 103, chatId: 1, sender: 'expert', text: "Not yet, but we recommend scheduling a valve seal replacement.", time: "10:15 AM" }
+];
+
+// Helper to parse special message types (Invoices)
+const parseMessageBody = (text) => {
+  if (text && text.startsWith('[INVOICE]:')) {
+    try {
+      const payload = JSON.parse(text.substring(10));
+      return { type: 'invoice', amount: payload.amount, desc: payload.desc };
+    } catch (e) {
+      return { type: 'text', text: text };
+    }
+  }
+  return { type: 'text', text: text };
+};
 
 function App() {
   // --- CORE APPLICATION STATES ---
   const [view, setView] = useState('landing');
   const [socket, setSocket] = useState(null);
+  // Popup for booking expert
+  const [showBookExpertModal, setShowBookExpertModal] = useState(false);
+    // Real-time chart update listener
+    useEffect(() => {
+      if (!socket) return;
+      const handleChartUpdate = async () => {
+        try {
+          const chartRes = await api.get('/finance/chart-data');
+          setChartData(chartRes.data);
+        } catch (err) {
+          console.error('Failed to update chart data in real time', err);
+        }
+      };
+      socket.on('finance_chart_update', handleChartUpdate);
+      return () => socket.off('finance_chart_update', handleChartUpdate);
+    }, [socket]);
   const [role, setRole] = useState('consumer'); // State to track Machine Owner vs Repair Expert
   const [isLogin, setIsLogin] = useState(true);
+  // Handler to simulate booking expert (call this where booking happens)
+  const handleBookExpert = () => {
+    setShowBookExpertModal(true);
+    // ...any other booking logic...
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
@@ -28,6 +107,10 @@ function App() {
   const [phone, setPhone] = useState('+91 98765 24210'); // Added Phone Number
   const [confirmPassword, setConfirmPassword] = useState(''); // Added Confirm Password
   const [dob, setDob] = useState('2000-01-17');
+  const [location, setLocation] = useState('Mumbai, Maharashtra');
+  const [selectedState, setSelectedState] = useState('Maharashtra');
+  const [selectedCity, setSelectedCity] = useState('Mumbai');
+  const [taxId, setTaxId] = useState('27AAACN0000Z1Z0');
   const [otp, setOtp] = useState('');
   const [extraInfo, setExtraInfo] = useState('Doe Industrial Manufacturing Ltd.'); // Company for Consumer, Skill for Producer
 
@@ -35,7 +118,10 @@ function App() {
   const [userPhoto, setUserPhoto] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [language, setLanguage] = useState('English');
+  // Language selection removed as per request
+  const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
+  const [showNoChangesModal, setShowNoChangesModal] = useState(false);
+  const [originalData, setOriginalData] = useState({});
 
   // [NEW NOTIFICATION STATE]
   const [notifications, setNotifications] = useState([
@@ -43,7 +129,7 @@ function App() {
     { id: 2, type: 'info', msg: 'Service Ledger Updated: Motor Drive #A1', time: '2 hours ago', read: true },
     { id: 3, type: 'success', msg: 'New Expert Verified: XP-992 (Hydraulics)', time: '5 hours ago', read: true }
   ]);
-  const [machines, setMachines] = useState([]);
+  const [machines, setMachines] = useState(MOCK_MACHINES); // [FIX] Init with mock data
 
   // [NEW OTP RESEND TIMER STATES]
   const [timer, setTimer] = useState(30);
@@ -61,36 +147,46 @@ function App() {
     location: "Mumbai, India",
     phone: "+91 98765 43210",
     email: "expert@originode.com",
-    id: "IND-88219"
+    id: "IND-88219",
+    skills: []
   });
 
   // [NEW] FILTER STATE & LOGIC
   const [activeFilter, setActiveFilter] = useState('All');
   const [fleetSearch, setFleetSearch] = useState('');
 
+  const firstInitial = (firstName || '').charAt(0).toUpperCase();
+  const lastInitial = (lastName || '').charAt(0).toUpperCase();
+
   // Filter logic
-  const filteredMachines = machines.filter(m => {
+  // [FIX] Add safety check (machines || []) to prevent crash if state is momentarily null
+  const filteredMachines = (machines || []).filter(m => {
     // 1. Filter by Tab
     let matchesTab = true;
-    if (activeFilter === 'Operational') matchesTab = m.condition_score > 50;
-    if (activeFilter === 'Maintenance') matchesTab = m.condition_score <= 50;
+    const score = Number(m?.condition_score ?? 0);
+    if (activeFilter === 'Operational') matchesTab = score > 50;
+    if (activeFilter === 'Maintenance') matchesTab = score <= 50;
 
     // 2. Filter by Search
-    const matchesSearch = m.name.toLowerCase().includes(fleetSearch.toLowerCase()) ||
-      m.machine_type.toLowerCase().includes(fleetSearch.toLowerCase());
+    const machineName = (m?.name || '').toLowerCase();
+    const machineType = (m?.machine_type || '').toLowerCase();
+    const search = (fleetSearch || '').toLowerCase();
+    const matchesSearch = machineName.includes(search) || machineType.includes(search);
 
     return matchesTab && matchesSearch;
   });
 
   // Dynamic Stats
-  const activeNodesCount = machines.length;
-  const criticalIssuesCount = machines.filter(m => m.condition_score <= 30).length;
+  const activeNodesCount = (machines || []).length;
+  const criticalIssuesCount = (machines || []).filter(m => m.condition_score <= 30).length;
   // Calculate average continuity (health)
-  const avgContinuity = machines.length > 0
-    ? (machines.reduce((acc, m) => acc + (m.condition_score || 0), 0) / machines.length).toFixed(1)
+  const avgContinuity = (machines || []).length > 0
+    ? ((machines || []).reduce((acc, m) => acc + (m.condition_score || 0), 0) / (machines || []).length).toFixed(1)
     : '100.0';
 
   const [serviceRadius, setServiceRadius] = useState(50);
+
+
 
   // Load Razorpay Script
   useEffect(() => {
@@ -111,6 +207,7 @@ function App() {
 
 
   // [NEW] SETTINGS PREFERENCES
+  // Start in light mode by default
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isTwoFactorEnabled, setIsTwoFactorEnabled] = useState(false);
   const [profileVisibility, setProfileVisibility] = useState('Public');
@@ -130,6 +227,24 @@ function App() {
   // [NEW] PAYMENT STATE
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState(null);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
+  const [showPaymentReceived, setShowPaymentReceived] = useState(false);
+  const [completedJobId, setCompletedJobId] = useState(null);
+
+  const [showExpertProfileModal, setShowExpertProfileModal] = useState(false);
+  const [selectedExpert, setSelectedExpert] = useState(null);
+  const [showInvoiceCreator, setShowInvoiceCreator] = useState(false);
+  const [invoiceData, setInvoiceData] = useState({ amount: '', desc: '' });
+  const [supportTicket, setSupportTicket] = useState({ subject: 'Machine Diagnosis Error', description: '' });
+  const [myTickets, setMyTickets] = useState([]);
+  const [callRequest, setCallRequest] = useState({ machineId: '', preferredTime: '' });
+
+  // Popup state for support ticket
+  const [showSupportPopup, setShowSupportPopup] = useState(false);
+  const [supportPopupMsg, setSupportPopupMsg] = useState("");
 
   // [NEW] CHAT & MESSAGE STATES
   const [activeChatId, setActiveChatId] = useState(1);
@@ -142,79 +257,369 @@ function App() {
     { id: 1, name: "Bhuvan B H (Consumer)", avatar: "BH", lastMsg: "Payment confirmed.", time: "1m ago", unread: 1 },
     { id: 2, name: "Solaris Power", avatar: "SP", lastMsg: "Invoice received, thanks.", time: "2h ago", unread: 0 }
   ]);
-  const [messages, setMessages] = useState([
-    { id: 1, chatId: 1, sender: 'expert', text: "Hello Bhuvan! We reviewed your video. The knocking sound is definitely the main piston valve.", time: "10:30 AM" },
-    { id: 2, chatId: 1, sender: 'user', text: "That makes sense. It started after the last power surge.", time: "10:32 AM" },
-    { id: 3, chatId: 1, sender: 'expert', text: "We have the replacement part in stock. Here is the invoice for the part and service.", time: "10:35 AM" },
-    { id: 4, chatId: 1, sender: 'expert', type: 'invoice', amount: '₹45000.00', desc: 'Valve Replacement Service', time: "10:35 AM" }
-  ]);
+  const [messages, setMessages] = useState(MOCK_MESSAGES); // [FIX] Init with mock data
+
   const [radarJobs, setRadarJobs] = useState([]);
+
+  // [NEW] DASHBOARD STATS
+  const [earningsStats, setEarningsStats] = useState({ totalRevenue: 0, pendingPayout: 0, avgTicket: 0 });
+  const [transactionHistory, setTransactionHistory] = useState([]);
+  const [chartData, setChartData] = useState([]);
+  const [weeklySchedule, setWeeklySchedule] = useState([]);
+  const [suggestedSlots, setSuggestedSlots] = useState([]);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+
+  // [NEW] FETCH FINANCIAL STATS
+  useEffect(() => {
+    if (activeTab === 'earnings' || activeTab === 'history' || (activeTab === 'fleet' && role === 'consumer')) {
+      const fetchFinanceData = async () => {
+        try {
+          const statsRes = await api.get('/finance/stats');
+          setEarningsStats(statsRes.data);
+
+          const historyRes = await api.get('/finance/history');
+          setTransactionHistory(historyRes.data);
+
+          const chartRes = await api.get('/finance/chart-data');
+          setChartData(chartRes.data);
+        } catch (err) {
+          console.error("Failed to load financial data", err);
+        }
+      };
+
+      fetchFinanceData();
+    }
+  }, [activeTab]);
+
+  // [NEW] FETCH SUPPORT TICKETS
+  useEffect(() => {
+    if (activeTab === 'help' || activeTab === 'support') {
+      const fetchTickets = async () => {
+        try {
+          const res = await api.get('/support/tickets');
+          setMyTickets(res.data);
+        } catch (err) {
+          console.error("Failed to fetch support tickets", err);
+        }
+      };
+      fetchTickets();
+    }
+  }, [activeTab]);
+
+  // [NEW] FETCH EXPERT SCHEDULE
+  useEffect(() => {
+    if (activeTab === 'schedule' && role === 'producer') {
+      const fetchSchedule = async () => {
+        try {
+          const res = await api.get('/schedule');
+          setWeeklySchedule(res.data);
+        } catch (err) {
+          console.error("Failed to load schedule", err);
+        }
+      };
+      fetchSchedule();
+    }
+  }, [activeTab]);
+
+  const handleOptimizeSchedule = async () => {
+    setIsOptimizing(true);
+    setSuggestedSlots([]);
+    try {
+      // Simulate "AI Processing" latency for UX
+      await new Promise(r => setTimeout(r, 2000));
+      const res = await api.get('/schedule/optimize');
+      setSuggestedSlots(res.data);
+    } catch (err) {
+      alert("AI Engine is currently overloaded. Please try again later.");
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  const handleConfirmAISchedule = async () => {
+    try {
+      // Batch save suggested slots
+      for (const slot of suggestedSlots) {
+        await api.post('/schedule', slot);
+      }
+      setWeeklySchedule([...weeklySchedule, ...suggestedSlots]);
+      setSuggestedSlots([]);
+      alert("AI Suggestions synchronized with your operations log!");
+    } catch (err) {
+      alert("Failed to synchronize suggestions.");
+    }
+  };
+
+  // [NEW] FETCH PROFILE DATA
+  useEffect(() => {
+    if (view === 'dashboard' && (activeTab === 'profile' || activeTab === 'settings')) {
+      const fetchProfile = async () => {
+        try {
+          const res = await api.get('/profile');
+          const data = res.data;
+          setProfileData({
+            name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || "Expert Technician",
+            role: data.role === 'producer' ? 'Industrial Automation Specialist' : 'Business Owner',
+            location: data.location || "Not Set",
+            phone: data.phone || phone,
+            email: data.email,
+            id: String(data.id || 'IND-88219').slice(0, 8).toUpperCase(),
+            skills: data.skills || []
+          });
+          setFirstName(data.first_name || '');
+          setLastName(data.last_name || '');
+          setPhone(data.phone || '');
+          setDob(data.dob || '');
+          setExtraInfo(data.organization || '');
+          setLocation(data.location || '');
+          if (data.location && data.location.includes(', ')) {
+            const [city, state] = data.location.split(', ');
+            setSelectedCity(city);
+            setSelectedState(state);
+          }
+          setTaxId(data.tax_id || '');
+          setUserPhoto(data.photo_url || null);
+          setIsVerified(data.is_verified || false);
+          if (data.service_radius) setServiceRadius(data.service_radius);
+          setOriginalData(data);
+        } catch (err) {
+          console.error("Failed to load profile", err);
+          // Potential reason: missing table columns in DB, check schema.sql
+        }
+      };
+      fetchProfile();
+    }
+  }, [activeTab, view]);
+
+  const handleSaveConsumerProfile = async () => {
+    const hasChanged =
+      firstName !== (originalData.first_name || '') ||
+      lastName !== (originalData.last_name || '') ||
+      phone !== (originalData.phone || '') ||
+      dob !== (originalData.dob || '') ||
+      extraInfo !== (originalData.organization || '') ||
+      location !== (originalData.location || '') ||
+      taxId !== (originalData.tax_id || '') ||
+      userPhoto !== (originalData.photo_url || null);
+
+    if (!hasChanged) {
+      setShowNoChangesModal(true);
+      setIsEditingProfile(false);
+      return;
+    }
+
+    try {
+      await api.patch('/profile', {
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        dob,
+        organization: extraInfo,
+        location,
+        tax_id: taxId,
+        photo_url: userPhoto
+      });
+      setShowSaveSuccessModal(true);
+      setIsEditingProfile(false);
+      // Update baseline after successful save
+      setOriginalData({
+        ...originalData,
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        dob,
+        organization: extraInfo,
+        location,
+        tax_id: taxId,
+        photo_url: userPhoto
+      });
+    } catch (err) {
+      alert("Failed to sync profile changes.");
+    }
+  };
+
+  const handleSaveExpertProfile = async () => {
+    if (isEditingProfile) {
+      const [fName, ...lNames] = profileData.name.split(' ');
+      const hasChanged =
+        fName !== (originalData.first_name || '') ||
+        lNames.join(' ') !== (originalData.last_name || '') ||
+        String(serviceRadius) !== String(originalData.service_radius || '') ||
+        profileData.location !== (originalData.location || '') ||
+        profileData.phone !== (originalData.phone || '') ||
+        JSON.stringify(profileData.skills) !== JSON.stringify(originalData.skills || []);
+
+      if (!hasChanged) {
+        setShowNoChangesModal(true);
+        setIsEditingProfile(false);
+        return;
+      }
+
+      try {
+        const payload = {
+          first_name: fName,
+          last_name: lNames.join(' '),
+          service_radius: serviceRadius,
+          skills: profileData.skills,
+          location: profileData.location,
+          phone: profileData.phone
+        };
+
+        await api.patch('/profile', payload);
+        fName && setFirstName(fName);
+        lNames.length > 0 && setLastName(lNames.join(' '));
+        setPhone(profileData.phone);
+        setLocation(profileData.location);
+        setIsEditingProfile(false);
+        setShowSaveSuccessModal(true);
+        setOriginalData({
+          ...originalData,
+          ...payload
+        });
+      } catch (err) {
+        console.error("Save failure:", err);
+        alert("Failed to synchronize profile.");
+      }
+    } else {
+      setIsEditingProfile(true);
+    }
+  };
+
+  const handleAddSkill = async (newSkill) => {
+    if (newSkill && !profileData.skills.includes(newSkill)) {
+      try {
+        await api.post('/profile/skills', { skill: newSkill });
+        setProfileData({ ...profileData, skills: [...profileData.skills, newSkill] });
+      } catch (err) {
+        alert("Failed to update arsenal.");
+      }
+    }
+  };
+
+  const handleRemoveSkill = async (skillToRemove) => {
+    try {
+      await api.delete(`/profile/skills/${encodeURIComponent(skillToRemove)}`);
+      setProfileData({
+        ...profileData,
+        skills: profileData.skills.filter(s => s !== skillToRemove)
+      });
+    } catch (err) {
+      alert("Failed to decommission skill.");
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (transactionHistory.length === 0) return alert("No industrial records to export");
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    const header = role === 'producer' ? "Date,Client,Service,Status,Amount" : "Date,Machine,Expert,Action,Status";
+    csvContent += header + "\n";
+
+    transactionHistory.forEach(tx => {
+      if (role === 'producer') {
+        csvContent += `${tx.date},${tx.client},${tx.service},${tx.status},${tx.amount}\n`;
+      } else {
+        // Consumer context (Ledger)
+        csvContent += `${tx.date},${tx.machine || tx.client},${tx.expert || tx.service},${tx.action || tx.service},${tx.status}\n`;
+      }
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const fileName = role === 'producer' ? `origiNode_earnings_${new Date().toLocaleDateString()}.csv` : `origiNode_ledger_${new Date().toLocaleDateString()}.csv`;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getExpertInitials = () => {
+    const parts = (profileData.name || "").split(" ");
+    if (parts.length >= 2) return parts[0][0] + parts[1][0];
+    return (profileData.name || "X")[0];
+  };
+
+  // Placeholder for consolidated handlers removed to avoid duplicates
+
 
   // [NEW] PROFILE DASHBOARD DATA
   const trustScore = isVerified ? 98 : 45;
   const totalNodes = 24;
 
-  // --- TRANSLATIONS DICTIONARY ---
-  const translations = {
-    Kannada: {
-      identity: "ಕೈಗಾರಿಕಾ ಗುರುತು",
-      fleet: "ಯಂತ್ರಗಳ ಸಮೂಹ",
-      logout: "ಹೊರಹೋಗಿ",
-      name: "ಹೆಸರು",
-      phone: "ಮೊಬೈಲ್ ಸಂಖ್ಯೆ",
-      purge: "ಗುರುತನ್ನು ಅಳಿಸಿ",
-      settings: "ವೇದಿಕೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
-      notif_history: "ಅಧಿಸೂಚನೆ ಇತಿಹಾಸ"
-    },
-    English: {
-      identity: "Industrial Identity",
-      fleet: "Fleet Overview",
-      logout: "Logout System",
-      name: "Display Name",
-      phone: "Mobile Number",
-      purge: "Purge Identity",
-      settings: "Platform Settings",
-      notif_history: "Notification History"
-    },
-    Hindi: {
-      identity: "औद्योगिक पहचान",
-      fleet: "फ्लीट अवलोकन",
-      logout: "लॉगआउट",
-      name: "नाम",
-      phone: "मोबाइल नंबर",
-      purge: "पहचान मिटाएं",
-      settings: "प्लेटफार्म सेटिंग्स",
-      notif_history: "अधिसूचना इतिहास"
-    }
-  };
+  // Language translation dictionary removed as per request
 
-  const t = translations[language];
+  // Translation proxy removed as language selection is not available
   // [NEW] SESSION & SOCKET INITIALIZATION
   useEffect(() => {
     // 1. Check for existing industrial session
     const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    if (token && storedUser) {
-      try {
-        // Optional: verify token with /api/auth/me
-        const user = JSON.parse(storedUser);
-        setView('dashboard');
-        setEmail(user.email || '');
-        setRole(user.role || 'consumer');
-        setFirstName(user.firstName || '');
-        setLastName(user.lastName || '');
-      } catch (error) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
+    if (token) {
+      // Actually verify with the backend now that we have the endpoint
+      api.get('/auth/me')
+        .then(res => {
+          const user = res.data;
+          setView('dashboard');
+          setEmail(user.email || '');
+          setRole(user.role || 'consumer');
+          setFirstName(user.firstName || user.first_name || '');
+          setLastName(user.lastName || user.last_name || '');
+
+          // Update local storage in case it was stale
+          localStorage.setItem('user', JSON.stringify(user));
+
+          // Initial notification fetch
+          fetchNotifications();
+        })
+        .catch(err => {
+          console.warn('[Auth] Session invalid or expired');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setView('landing');
+        });
     }
 
     // 2. Initialize Socket Connection
     const newSocket = io('http://localhost:5000');
+
+    // Identify user for targeted events
+    if (token) {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user && user.id) {
+          newSocket.emit('identify', user.id);
+        }
+      } catch (e) { }
+    }
+
+    newSocket.on('notification', (notif) => {
+      setNotifications(prev => [notif, ...prev]);
+      // Optional: Play sound or show toast
+    });
+
     setSocket(newSocket);
 
     return () => newSocket.close();
   }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/notifications');
+      if (Array.isArray(res.data)) {
+        // Map backend to frontend schema
+        const mapped = res.data.map(n => ({
+          id: n.id,
+          type: n.type || 'info',
+          msg: n.message || n.title,
+          time: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          read: n.is_read
+        }));
+        setNotifications(mapped);
+      }
+    } catch (err) {
+      console.warn('Notification retrieval offline.');
+    }
+  };
 
   // Logic to handle clicking outside notification dropdown to close it
   useEffect(() => {
@@ -263,6 +668,41 @@ function App() {
   // [NEW] ADD MACHINE STATE
   const [showAddMachineModal, setShowAddMachineModal] = useState(false);
   const [newMachineData, setNewMachineData] = useState({ name: '', oem: '', model_year: '', machine_type: '' });
+
+  // Handlers and states moved to consolidated sections
+
+
+  const handleSendInvoice = async () => {
+    if (!invoiceData.amount || !invoiceData.desc) return alert("Please fill details");
+
+    try {
+      // 1. Call Backend API to Create Invoice & Update State
+      await api.post(`/jobs/${activeChatId}/invoice`, {
+        amount: invoiceData.amount
+      });
+
+      // 2. Send Chat Message for Record
+      const invoicePayload = JSON.stringify({ amount: invoiceData.amount, desc: invoiceData.desc });
+      const formattedMsg = `[INVOICE]:${invoicePayload}`;
+
+      if (socket) {
+        const user = JSON.parse(localStorage.getItem('user'));
+        socket.emit('send_message', {
+          requestId: activeChatId,
+          senderId: user.id || user.user_id, // Ensure ID is present
+          text: formattedMsg
+        });
+      }
+
+      alert("Invoice Sent Successfully!");
+      setShowInvoiceCreator(false);
+      setInvoiceData({ amount: '', desc: '' });
+
+    } catch (err) {
+      console.error("Failed to create invoice", err);
+      alert("Failed to send invoice. Please try again.");
+    }
+  };
 
 
 
@@ -348,10 +788,16 @@ function App() {
     stopCamera();
   };
 
-  const handleDocVerify = (e) => {
+  const handleDocVerify = async (e) => {
     if (e.target.files[0]) {
-      alert("Document uploaded. Verifying industrial identity...");
-      setTimeout(() => setIsVerified(true), 2000);
+      try {
+        await api.patch('/profile/verify');
+        alert("Document received. Verifying your industrial identity...");
+        // Fast mock for UX
+        setTimeout(() => setIsVerified(true), 1500);
+      } catch (err) {
+        alert("Verification server unavailable. Try again later.");
+      }
     }
   };
 
@@ -391,11 +837,11 @@ function App() {
       api.get('/jobs/my')
         .then(res => {
           // Map jobs to chat list format
-          const myChats = res.data.map(job => ({
+          const myChats = (Array.isArray(res.data) ? res.data : []).map(job => ({
             id: job.id, // This is the requestId
-            name: `${job.machine_name} (${job.other_party})`,
-            avatar: job.other_party.substring(0, 2).toUpperCase(),
-            lastMsg: job.issue_description.substring(0, 30) + '...', // Ideally get last msg from DB
+            name: `${job.machine_name || 'Machine'} (${job.other_party || 'User'})`,
+            avatar: (job.other_party || 'US').substring(0, 2).toUpperCase(),
+            lastMsg: ((job.issue_description || 'Service request created').substring(0, 30)) + '...', // Ideally get last msg from DB
             time: new Date(job.created_at).toLocaleDateString(),
             unread: 0 // Ideally get unread count
           }));
@@ -410,37 +856,108 @@ function App() {
     }
   }, [activeTab]);
 
-  const handleLegacySearch = () => {
-    const results = legacyDatabase.filter(item =>
-      item.name.toLowerCase().includes(legacyQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(legacyQuery.toLowerCase())
-    );
-    setLegacyResults(results);
+  const handleLegacySearch = async () => {
+    if (!legacyQuery) return setLegacyResults([]);
+    try {
+      const res = await api.get(`/legacy/search?q=${encodeURIComponent(legacyQuery)}`);
+      setLegacyResults(res.data);
+    } catch (err) {
+      console.warn("Legacy search offline, using local cache.");
+      const results = legacyDatabase.filter(item =>
+        item.name.toLowerCase().includes(legacyQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(legacyQuery.toLowerCase())
+      );
+      setLegacyResults(results);
+    }
+  };
+
+  const handleRequestSpecs = (item) => {
+    // Add to local notifications for instant feedback
+    const newNotif = {
+      id: Date.now(),
+      type: 'info',
+      msg: `Spec-Sheet request logged for ${item.name}. Successor (${item.replacement}) notified.`,
+      time: 'Just now',
+      read: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    setShowNotifDropdown(true); // Show the dropdown to confirm the action
+  };
+
+  const handleSubmitSupportTicket = async () => {
+    if (!supportTicket.description) {
+      setSupportPopupMsg("Please provide details in the description before submitting your ticket.");
+      setShowSupportPopup(true);
+      return;
+    }
+    try {
+      const res = await api.post('/support/tickets', supportTicket);
+      setSupportPopupMsg(res.data.message || "Ticket successfully logged!");
+      setShowSupportPopup(true);
+      setSupportTicket({ ...supportTicket, description: '' });
+      const fetchRes = await api.get('/support/tickets');
+      setMyTickets(fetchRes.data);
+    } catch (err) {
+      setSupportPopupMsg("Failed to sync ticket with industrial server.");
+      setShowSupportPopup(true);
+    }
+  };
+
+  const handleScheduleCall = async () => {
+    if (!callRequest.machineId || !callRequest.preferredTime) return alert("Select machine and time.");
+    try {
+      // We can reuse the schedule endpoint or create a request.
+      // For now, let's just log it as a notification for the system/user feedback.
+      // In a real app, this would create a 'consultation' record.
+      await api.post('/schedule', {
+        day_of_week: new Date(callRequest.preferredTime).toLocaleDateString('en-US', { weekday: 'short' }),
+        start_time: new Date(callRequest.preferredTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        end_time: '...', // calculate based on duration
+        slot_type: 'job',
+        title: `Consultation: ${machines.find(m => m.id == callRequest.machineId)?.name || 'Machine'}`,
+        description: 'Machine owner requested a technical call.'
+      });
+      setShowCallModal(false);
+      setShowBookExpertModal(true);
+    } catch (err) {
+      alert("Scheduling system currently maintenance. Please call support.");
+    }
   };
 
   // [NEW] REAL-TIME CHAT HANDLERS
 
+  // [NEW] FALLBACK MOCK DATA
+
+
+
+
+  // ... (handleDeleteMachines, etc remain same)
+
   // 1. Fetch Chat History when activeChatId changes
   useEffect(() => {
-    if (activeChatId) { // Assumption: activeChatId corresponds to the requestId in the DB
+    if (activeChatId) {
+      // API Call with robust fallback
       api.get(`/chat/${activeChatId}`)
         .then(res => {
-          // Map DB messages to UI format
-          const dbMessages = res.data.map(m => ({
-            id: m.id,
-            chatId: m.request_id,
-            sender: m.role === 'consumer' ? 'user' : 'expert', // Map DB role to UI sender
-            text: m.message_text,
-            time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            type: 'text' // Default type, can extend for invoices later
-          }));
-
-          // [OPTIONAL] Merge with invoices if stored separately, for now just replace
-          // setMessages(dbMessages); 
-          // For hybrid demo/real, we will append to existing for now or replace if empty
-          if (dbMessages.length > 0) setMessages(dbMessages);
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            const dbMessages = res.data.map(m => ({
+              id: m.id,
+              chatId: m.request_id,
+              sender: m.role === 'consumer' ? 'user' : 'expert',
+              text: m.message_text,
+              time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              ...parseMessageBody(m.message_text)
+            }));
+            setMessages(dbMessages);
+          }
+          // If empty array or error, we keep the initial MOCK_MESSAGES state
         })
-        .catch(err => console.error("Failed to load chat history", err));
+        .catch(err => {
+          console.warn("Failed to load chat history (DB Offline?), keeping demo chat.", err);
+          // Keep existing state (MOCK_MESSAGES)
+        });
+
+
 
       // Join the socket room for this job
       if (socket) {
@@ -455,7 +972,8 @@ function App() {
 
     const handleNewMessage = (msg) => {
       // Only add if it belongs to current chat
-      if (msg.request_id === activeChatId) {
+      // [FIX] Use loose equality for potential string/number mismatch
+      if (msg.request_id == activeChatId) {
         setMessages(prev => {
           // Avoid duplicates if we already have it
           if (prev.some(p => p.id === msg.id)) return prev;
@@ -474,12 +992,23 @@ function App() {
             uiSender = isMe ? 'expert' : 'user';
           }
 
+          // [FIX] Parse incoming message for type (invoice/text)
+          const parsedContent = parseMessageBody(msg.message_text);
+
+
+          // [NEW] Check for payment confirmation for Producer
+          const messageText = msg?.message_text || '';
+          if (role === 'producer' && messageText.includes('processed successfully') && messageText.includes('Payment of')) {
+            setShowPaymentReceived(true);
+          }
+
           return [...prev, {
             id: msg.id,
             chatId: msg.request_id,
             sender: uiSender,
             text: msg.message_text,
-            time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            ...parsedContent
           }];
         });
       }
@@ -489,6 +1018,8 @@ function App() {
 
     return () => socket.off('new_message', handleNewMessage);
   }, [socket, activeChatId, role]);
+
+
 
 
   // 3. Send Message Handler
@@ -530,7 +1061,18 @@ function App() {
   ]);
 
   // [MODIFIED] Helper to get filtered history
-  const filteredHistory = historyData.filter(item =>
+  const filteredHistory = [
+    ...(Array.isArray(transactionHistory) ? transactionHistory.map(th => ({
+      id: th.id,
+      date: new Date(th.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+      machine: th.machine_name || 'Industrial System',
+      expert: th.other_party || 'Verified Expert',
+      action: 'Service Transaction',
+      cost: `₹${th.amount}`,
+      status: th.status === 'paid' ? 'verified' : 'pending'
+    })) : []),
+    ...historyData
+  ].filter(item =>
     item.machine.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.expert.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.action.toLowerCase().includes(searchQuery.toLowerCase())
@@ -542,54 +1084,95 @@ function App() {
     setShowPaymentModal(true);
   };
 
-  const confirmPayment = () => {
+  const confirmPayment = async () => {
     if (!paymentConfig) return;
-    const { amountStr, desc } = paymentConfig;
+    const { amountStr, desc, requestId } = paymentConfig;
 
-    // Simulate Processing - In real app, this would call Razorpay
-    const loadingBtn = document.querySelector('.payment-modal-header h3');
-    if (loadingBtn) loadingBtn.innerText = "Processing...";
+    setIsPaymentProcessing(true);
 
-    setTimeout(() => {
-      // 1. Add to Service History
-      const newRecord = {
-        id: historyData.length + 1,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-        machine: "Hydraulic Press #08",
-        expert: "Berlin Industrial Corp",
-        action: desc,
-        cost: amountStr,
-        status: 'verified'
-      };
-      setHistoryData(prev => [newRecord, ...prev]);
+    try {
+      // 1. Create Order on Backend
+      const amountFinal = parseInt(String(amountStr).replace(/[^0-9]/g, '')) || 5000;
+      const orderRes = await api.post('/finance/pay-order', {
+        requestId: requestId || activeChatId,
+        amount: amountFinal
+      });
 
-      // 2. Add confirmation to chat (local & socket)
-      const successText = `✓ Payment of ${amountStr} processed successfully. Ref: PAY-${Date.now().toString().slice(-6)}`;
+      const orderData = orderRes.data;
 
-      // Update local UI immediately
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        chatId: activeChatId,
-        sender: 'system', // Special system message
-        text: successText,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }]);
+      // [INTEGRATION] We would normally call Razorpay here.
+      // For this implementation, we simulate the success response.
+      setTimeout(async () => {
+        try {
+          // 2. Verify Payment on Backend (Using Mock Signatures for Demo)
+          await api.post('/finance/verify', {
+            razorpay_order_id: orderData.id,
+            razorpay_payment_id: 'pay_mock_' + Date.now().toString().slice(-6),
+            razorpay_signature: 'mock_signature' // Backend needs to handle mock sigs if in demo mode
+          });
 
-      // Emit to socket if connected
-      if (socket) {
-        const userStr = localStorage.getItem('user');
-        const user = userStr ? JSON.parse(userStr) : { id: 'unknown' };
-        socket.emit('send_message', {
-          requestId: activeChatId,
-          senderId: user.id, // Emitted by me
-          text: successText
-        });
-      }
+          // 3. Update local history and UI
+          const successText = `✓ Payment of ${amountStr} processed successfully. Ref: PAY-${Date.now().toString().slice(-6)}`;
 
-      setShowPaymentModal(false);
-      setPaymentConfig(null);
-      alert("Payment Processed Successfully!");
-    }, 2000);
+          setMessages(prev => [...prev, {
+            id: Date.now(),
+            chatId: activeChatId,
+            sender: 'system',
+            text: successText,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]);
+
+          if (socket) {
+            const userStr = localStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : { id: 'unknown' };
+            socket.emit('send_message', {
+              requestId: activeChatId,
+              senderId: user.id || user.user_id,
+              text: successText
+            });
+          }
+
+          setIsPaymentProcessing(false);
+          setShowPaymentModal(false);
+          setPaymentConfig(null);
+          setShowPaymentSuccess(true);
+          setCompletedJobId(activeChatId);
+
+        } catch (innerErr) {
+          console.error("Verification failed", innerErr);
+          alert("Payment verification failed. Please contact support.");
+          setIsPaymentProcessing(false);
+        }
+      }, 2000);
+
+    } catch (err) {
+      console.error("Order creation failed", err);
+      alert("Failed to initiate secure portal. Check connection.");
+      setIsPaymentProcessing(false);
+    }
+  };
+
+  // [NEW] SUBMIT REVIEW HANDLER
+  const handleSubmitReview = async () => {
+    if (!completedJobId) return;
+
+    // Optimistic UI Update
+    setShowReviewModal(false);
+    alert("Review Submitted! Thank you for your feedback.");
+
+    try {
+      await api.post('/reviews', {
+        requestId: completedJobId,
+        rating: reviewData.rating,
+        comment: reviewData.comment
+      });
+      // Reset State
+      setReviewData({ rating: 5, comment: '' });
+      setCompletedJobId(null);
+    } catch (err) {
+      console.error("Failed to submit review", err);
+      // Optional: Handle error silently or notify user
+    }
   };
 
   // Validation Logic based on your requirements
@@ -693,9 +1276,14 @@ www.originode.com
       };
       localStorage.setItem('token', 'demo-token');
       localStorage.setItem('user', JSON.stringify(demoUser));
+
+      // Identify socket
+      if (socket) socket.emit('identify', demoUser.id);
+
       setView('dashboard');
       setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
       setErrors({});
+      fetchNotifications();
       return;
     }
 
@@ -709,13 +1297,17 @@ www.originode.com
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
 
+        // Identify socket
+        if (socket) socket.emit('identify', user.id || user.user_id);
+
         // Update UI state
-        setRole(user.role);
-        setFirstName(user.firstName);
-        setLastName(user.lastName);
+        setRole(user.role || 'consumer');
+        setFirstName(user.firstName || user.first_name || '');
+        setLastName(user.lastName || user.last_name || '');
         setView('dashboard');
         setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
         setErrors({});
+        fetchNotifications();
 
       } else {
         // --- MULTI-STEP SIGNUP FLOW ---
@@ -763,9 +1355,14 @@ www.originode.com
   const fetchMachines = async () => {
     try {
       const response = await api.get('/machines');
-      setMachines(response.data);
+      if (Array.isArray(response.data)) {
+        setMachines(response.data);
+      } else {
+        throw new Error("Invalid response format");
+      }
     } catch (err) {
-      console.error('[Fleet] Signal lost:', err);
+      console.warn('[Fleet] Offline mode active (DB disconnected). Using local backup.');
+      setMachines(MOCK_MACHINES);
     }
   };
 
@@ -844,10 +1441,27 @@ www.originode.com
     setDiagnosisStep(2);
 
     try {
+      // [DEMO MODE BYPASS]
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      if (user && (user.id === 'demo-123' || String(activeJobMachine.id).startsWith('local'))) {
+        setAnalysisProgress(0);
+        let prog = 0;
+        const interval = setInterval(() => {
+          prog += 20;
+          setAnalysisProgress(prog);
+          if (prog >= 100) {
+            clearInterval(interval);
+            setDiagnosisStep(3);
+          }
+        }, 300);
+        return;
+      }
+
       // 2. Post to Backend
       const payload = {
         machineId: activeJobMachine.id,
-        issueDescription: diagnosisDesc || "Routine maintenance check", // Ensure you add diagnosisDesc state
+        issueDescription: diagnosisDesc || "Routine maintenance check",
         priority: 'high',
         videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' // Mock video for now
       };
@@ -855,9 +1469,16 @@ www.originode.com
       await api.post('/jobs/broadcast', payload);
 
       // 3. Show Success UI
-      setTimeout(() => {
-        setDiagnosisStep(3);
-      }, 1500);
+      setAnalysisProgress(0);
+      let p = 0;
+      const inter = setInterval(() => {
+        p += 25;
+        setAnalysisProgress(p);
+        if (p >= 100) {
+          clearInterval(inter);
+          setDiagnosisStep(3);
+        }
+      }, 400);
 
     } catch (err) {
       console.error(err);
@@ -865,6 +1486,37 @@ www.originode.com
       setDiagnosisStep(1);
     }
   };
+
+  // [NEW] LISTEN FOR JOB UPDATES (INVOICES)
+  useEffect(() => {
+    if (socket && view === 'dashboard') {
+      const handleStatusUpdate = (data) => {
+        console.log("Job Status Update Received:", data);
+        if (data.status === 'payment_pending' && role === 'consumer') {
+          // Show payment modal for consumer
+          setPaymentConfig({
+            requestId: activeChatId,
+            amountStr: `₹${data.amount}`,
+            desc: data.message
+          });
+          setShowPaymentModal(true);
+        }
+
+        if (data.status === 'completed' && role === 'producer') {
+          setShowPaymentReceived(true);
+        }
+      };
+
+      // Since the event name is dynamic status_update_${jobId}, 
+      // but we might not know the jobId immediately, 
+      // the backend should ideally emit a general 'job_update' or we subscribe to rooms.
+      // For now, let's use the dynamic one if we have an active chat.
+      if (activeChatId) {
+        socket.on(`status_update_${activeChatId}`, handleStatusUpdate);
+        return () => socket.off(`status_update_${activeChatId}`, handleStatusUpdate);
+      }
+    }
+  }, [socket, view, activeChatId, role]);
 
   const fetchRadarJobs = async () => {
     try {
@@ -899,6 +1551,25 @@ www.originode.com
       return () => clearInterval(interval);
     }
   }, [view, role]);
+
+  // [NEW] FETCH FINANCIAL STATS
+  useEffect(() => {
+    if (activeTab === 'earnings' || activeTab === 'history') {
+      const fetchFinanceData = async () => {
+        try {
+          const statsRes = await api.get('/finance/stats');
+          setEarningsStats(statsRes.data);
+
+          const historyRes = await api.get('/finance/history');
+          setTransactionHistory(historyRes.data);
+        } catch (err) {
+          console.error("Failed to load financial data", err);
+        }
+      };
+
+      fetchFinanceData();
+    }
+  }, [activeTab]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -1196,12 +1867,24 @@ www.originode.com
               <div style={{ textAlign: 'center', marginBottom: '20px' }}><div style={{ fontSize: '3rem' }}>📞</div><p style={{ color: '#64748b', marginTop: '10px' }}>Direct line to a verified industrial specialist.</p></div>
               <div className="input-group" style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: 'var(--navy-dark)' }}>Select Machine</label>
-                <select className="std-input" style={{ width: '100%', padding: '10px', borderRadius: '8px' }}>
-                  <option>Hydraulic Press H-200</option><option>CNC Milling Center</option><option>Rotary Pump Delta-9</option>
+                <select className="std-input"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px' }}
+                  value={callRequest.machineId}
+                  onChange={(e) => setCallRequest({ ...callRequest, machineId: e.target.value })}
+                >
+                  <option value="">Choose a Node...</option>
+                  {(machines || []).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </div>
-              <div className="input-group" style={{ marginBottom: '20px' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: 'var(--navy-dark)' }}>Preferred Time</label><input type="datetime-local" className="std-input" style={{ width: '100%', padding: '10px', borderRadius: '8px' }} /></div>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { alert("Consultation Request Sent! Expected callback within 2 hours."); setShowCallModal(false); }}>Schedule Now</button>
+              <div className="input-group" style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: 'var(--navy-dark)' }}>Preferred Time</label>
+                <input type="datetime-local" className="std-input"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px' }}
+                  value={callRequest.preferredTime}
+                  onChange={(e) => setCallRequest({ ...callRequest, preferredTime: e.target.value })}
+                />
+              </div>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleScheduleCall}>Schedule Now</button>
             </div>
           </div>
         </div>
@@ -1240,7 +1923,7 @@ www.originode.com
         <aside className="side-nav">
 
           <div className="profile-sidebar-summary" onClick={() => setActiveTab('profile')}>
-            {userPhoto ? <img src={userPhoto} className="nav-avatar-img" alt="User" /> : <div className="nav-avatar-circle">{firstName[0]}{lastName[0]}</div>}
+            {userPhoto ? <img src={userPhoto} className="nav-avatar-img" alt="User" /> : <div className="nav-avatar-circle">{firstInitial}{lastInitial}</div>}
             <div className="nav-user-details">
               <span className="nav-name">{firstName} {lastName} {isVerified && "✓"}</span>
               <span className="nav-email-small">{email || 'admin@originode.com'}</span>
@@ -1248,15 +1931,15 @@ www.originode.com
           </div>
 
           <nav className="nav-links">
-            <div className={`nav-item ${activeTab === 'fleet' ? 'active' : ''}`} onClick={() => setActiveTab('fleet')}>{t.fleet}</div>
+            <div className={`nav-item ${activeTab === 'fleet' ? 'active' : ''}`} onClick={() => setActiveTab('fleet')}>Fleet</div>
             <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>Messages {chats.some(c => c.unread > 0) && <span className="nav-badge" style={{ background: 'var(--error-red)', padding: '2px 6px', borderRadius: '10px', fontSize: '0.7rem' }}>1</span>}</div>
             <div className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Service History</div>
             <div className={`nav-item ${activeTab === 'legacy' ? 'active' : ''}`} onClick={() => setActiveTab('legacy')}>Legacy Search</div>
             <div className="nav-divider"></div>
-            <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>{t.identity}</div>
+            <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>Profile</div>
             <div className={`nav-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => setActiveTab('help')}>Help & Support</div>
             <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings</div>
-            <div className="nav-item logout-btn-item" onClick={handleLogout}>{t.logout}</div>
+            <div className="nav-item logout-btn-item" onClick={handleLogout}>Logout</div>
           </nav>
         </aside>
 
@@ -1335,13 +2018,32 @@ www.originode.com
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon-bg success">
-                    <span className="icon">👨‍🔧</span>
+                    <span className="icon">💰</span>
                   </div>
                   <div className="stat-info">
-                    <h4>Experts Online</h4>
-                    <p className="stat-value">142</p>
-                    <span className="stat-trend neutral">Avg response: 5m</span>
+                    <h4>Total Investment</h4>
+                    <p className="stat-value">₹{Number(earningsStats.totalSpent || 0).toLocaleString()}</p>
+                    <span className="stat-trend neutral">Managed via Escrow</span>
                   </div>
+                </div>
+              </div>
+
+              {/* [NEW] FLEET SPENDING TREND */}
+              <div className="glass-panel spending-trend-container" style={{ margin: '20px 0', padding: '20px', background: 'white' }}>
+                <h4 className="section-title" style={{ marginBottom: '15px', color: 'var(--navy-dark)', fontSize: '1.1rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Maintenance Spending Trend</h4>
+                <div style={{ width: '100%', height: 260 }}>
+                  <ResponsiveContainer>
+                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={v => `₹${v}`} width={60} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', background: '#fff', color: '#0f172a' }}
+                        formatter={(value) => [`₹${value}`, 'Spent']}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="#16A34A" strokeWidth={3} fillOpacity={0.25} fill="#16A34A" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
@@ -1410,7 +2112,17 @@ www.originode.com
                             <span className="value">{machine.condition_score}%</span>
                           </div>
                         </div>
-                        <div style={{ marginTop: '10px' }}>
+                        {/* [NEW] DYNAMIC HEALTH BAR */}
+                        <div className="health-bar-container" style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', marginTop: '10px' }}>
+                          <div className="health-bar-fill" style={{
+                            width: `${machine.condition_score}%`,
+                            height: '100%',
+                            background: machine.condition_score > 70 ? 'var(--sage-green)' : (machine.condition_score > 30 ? '#f59e0b' : '#ef4444'),
+                            borderRadius: '2px',
+                            transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                          }}></div>
+                        </div>
+                        <div style={{ marginTop: '15px' }}>
                           <button className="btn-small btn-alert" style={{ width: '100%' }}
                             onClick={() => { setActiveJobMachine(machine); setDiagnosisStep(1); setShowDiagnosisModal(true); }}>
                             Request Service
@@ -1454,10 +2166,19 @@ www.originode.com
               <main className="chat-window">
                 <header className="chat-header">
                   <div className="chat-partner-info">
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--navy-dark)' }}>{chats.find(c => c.id === activeChatId)?.name}</h3>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--navy-dark)' }}>{chats.find(c => c.id == activeChatId)?.name}</h3>
                     <span style={{ fontSize: '0.75rem', color: 'var(--sage-green)', fontWeight: '600' }}>● Online</span>
                   </div>
-                  <button className="btn-icon-label" style={{ fontSize: '0.8rem' }}>View Profile</button>
+                  <button className="btn-icon-label" style={{ fontSize: '0.8rem' }} onClick={() => {
+                    const chat = chats.find(c => c.id == activeChatId);
+                    if (chat) {
+                      console.log('Opening profile for:', chat);
+                      setSelectedExpert({ name: chat.name, avatar: chat.avatar });
+                      setShowExpertProfileModal(true);
+                    } else {
+                      console.error('Chat not found for ID:', activeChatId);
+                    }
+                  }}>View Profile</button>
                 </header>
 
                 <div className="chat-body">
@@ -1470,7 +2191,7 @@ www.originode.com
                             <div className="invoice-row"><span>Service:</span> <strong>{msg.desc}</strong></div>
                             <div className="invoice-total"><span>Total:</span> <span>{msg.amount}</span></div>
                             {role === 'consumer' && (
-                              <button type="button" className="btn-pay-now" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('Processing Request...'); handlePayment(msg.amount, msg.desc); }}>PAY {msg.amount}</button>
+                              <button type="button" className="btn-pay-now" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePayment(msg.amount, msg.desc); }}>PAY {msg.amount}</button>
                             )}
                           </div>
                         </div>
@@ -1497,15 +2218,20 @@ www.originode.com
             </div>
           ) : activeTab === 'history' ? (
             <div className="history-view">
-              <header className="content-header">
-                <h2>Service Ledger <small>Historical Maintenance Records</small></h2>
-                <div className="search-bar-container">
-                  <input
-                    type="text"
-                    placeholder="Search by Machine, Expert, or Action..."
-                    className="table-search"
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+              <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2>Service Ledger <small>Historical Maintenance Records</small></h2>
+                </div>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                  <div className="search-bar-container">
+                    <input
+                      type="text"
+                      placeholder="Search Ledger..."
+                      className="table-search"
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <button className="btn-icon-label" onClick={handleExportCSV}>Export CSV</button>
                 </div>
               </header>
 
@@ -1575,6 +2301,7 @@ www.originode.com
                 <div className="search-input-group">
                   <input
                     type="text"
+                    className="legacy-input"
                     placeholder="e.g. Hydra-Tech or TEXT-40..."
                     onChange={(e) => setLegacyQuery(e.target.value)}
                   />
@@ -1588,7 +2315,7 @@ www.originode.com
                     <h3>{item.name}</h3>
                     <p><strong>Operating Years:</strong> {item.years}</p>
                     <p><strong>Current Support:</strong> {item.replacement}</p>
-                    <button className="btn-small">Request Specialist Specs</button>
+                    <button className="btn-small" onClick={() => handleRequestSpecs(item)}>Request Specialist Specs</button>
                   </div>
                 )) : (
                   <div className="empty-search">
@@ -1602,7 +2329,7 @@ www.originode.com
               <div className="profile-hero-banner">
                 <div className="profile-photo-section">
                   <div className="large-avatar-container">
-                    {userPhoto ? <img src={userPhoto} className="profile-main-img" alt="Profile" /> : <div className="large-avatar-placeholder">{firstName[0]}{lastName[0]}</div>}
+                    {userPhoto ? <img src={userPhoto} className="profile-main-img" alt="Profile" /> : <div className="large-avatar-placeholder">{firstInitial}{lastInitial}</div>}
                     <div className="photo-controls">
                       <button className="btn-icon-label" onClick={() => fileInputRef.current.click()}>Upload Photo</button>
                       <button className="btn-icon-label" onClick={startCamera}>Take Selfie</button>
@@ -1611,24 +2338,119 @@ www.originode.com
                     </div>
                   </div>
                   <div className="profile-header-text">
-                    <h2 className="full-user-name">{firstName} {lastName} {isVerified && <span className="verified-badge">✓</span>}</h2>
-                    <p className="full-user-org">{extraInfo}</p>
+                    <h2 className="full-user-name">{(firstName || lastName) ? `${firstName} ${lastName}` : "Industrial Account User"} {isVerified && <span className="verified-badge">✓</span>}</h2>
+                    <p className="full-user-org">{extraInfo || "No Organization Linked"}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="identity-settings-list">
+              <div className="identity-settings-list" style={{ position: 'relative' }}>
+                {!isEditingProfile && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
+                    <button className="btn-text-action" onClick={() => setIsEditingProfile(true)}>Edit Profile</button>
+                  </div>
+                )}
                 <div className="setting-row">
-                  <div className="setting-info"><h4>{t.name}</h4><p>{firstName} {lastName}</p></div>
-                  <button className="btn-text-action">Edit Name</button>
+                  <div className="setting-info">
+                    <h4>Name</h4>
+                    {!isEditingProfile ? (
+                      <p>{(firstName || lastName) ? `${firstName} ${lastName}` : "Not Set"}</p>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                        <input className="std-input" value={firstName} onChange={e => setFirstName(e.target.value)} />
+                        <input className="std-input" value={lastName} onChange={e => setLastName(e.target.value)} />
+                      </div>
+                    )}
+                  </div>
                 </div>
+
                 <div className="setting-row">
-                  <div className="setting-info"><h4>{t.phone}</h4><p>{phone}</p></div>
-                  <button className="btn-text-action">Change Phone</button>
+                  <div className="setting-info">
+                    <h4>Organization</h4>
+                    {!isEditingProfile ? (
+                      <p>{extraInfo || "Not Set"}</p>
+                    ) : (
+                      <input className="std-input" style={{ width: '100%', marginTop: '5px' }} value={extraInfo} onChange={e => setExtraInfo(e.target.value)} />
+                    )}
+                  </div>
                 </div>
+
                 <div className="setting-row">
-                  <div className="setting-info"><h4>Date of Birth</h4><p>{dob}</p></div>
-                  <button className="btn-text-action">Edit DOB</button>
+                  <div className="setting-info">
+                    <h4>Phone</h4>
+                    {!isEditingProfile ? (
+                      <p>{phone || "Not Set"}</p>
+                    ) : (
+                      <input className="std-input" style={{ width: '100%', marginTop: '5px' }} value={phone} onChange={e => setPhone(e.target.value)} />
+                    )}
+                  </div>
+                </div>
+
+                <div className="setting-row">
+                  <div className="setting-info">
+                    <h4>Location</h4>
+                    {!isEditingProfile ? (
+                      <p>{location || "Not Set"}</p>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                        <select
+                          className="std-input"
+                          style={{ flex: 1, background: 'white' }}
+                          value={selectedState}
+                          onChange={e => {
+                            const newState = e.target.value;
+                            setSelectedState(newState);
+                            const firstCity = INDIAN_LOCATIONS.find(l => l.state === newState)?.cities[0] || '';
+                            setSelectedCity(firstCity);
+                            setLocation(`${firstCity}, ${newState}`);
+                          }}
+                        >
+                          <option value="">Select State</option>
+                          {INDIAN_LOCATIONS.map(loc => (
+                            <option key={loc.state} value={loc.state}>{loc.state}</option>
+                          ))}
+                        </select>
+                        <select
+                          className="std-input"
+                          style={{ flex: 1, background: 'white' }}
+                          value={selectedCity}
+                          onChange={e => {
+                            const newCity = e.target.value;
+                            setSelectedCity(newCity);
+                            setLocation(`${newCity}, ${selectedState}`);
+                          }}
+                          disabled={!selectedState}
+                        >
+                          <option value="">Select City / District</option>
+                          {INDIAN_LOCATIONS.find(l => l.state === selectedState)?.cities.map(city => (
+                            <option key={city} value={city}>{city}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="setting-row">
+                  <div className="setting-info">
+                    <h4>Tax ID</h4>
+                    {!isEditingProfile ? (
+                      <p>{taxId || "Not Set"}</p>
+                    ) : (
+                      <input className="std-input" style={{ width: '100%', marginTop: '5px' }} value={taxId} onChange={e => setTaxId(e.target.value)} />
+                    )}
+                  </div>
+                </div>
+
+                <div className="setting-row">
+                  <div className="setting-info">
+                    <h4>Date of Birth</h4>
+                    {!isEditingProfile ? (
+                      <p>{dob || "Not Set"}</p>
+                    ) : (
+                      <input type="date" className="std-input" style={{ width: '100%', marginTop: '5px' }} value={dob} onChange={e => setDob(e.target.value)} />
+                    )}
+                  </div>
                 </div>
 
                 <div className="document-upload-card">
@@ -1639,8 +2461,14 @@ www.originode.com
                   <input type="file" ref={docInputRef} onChange={handleDocVerify} hidden accept=".pdf,image/*" />
                 </div>
 
+                {isEditingProfile && (
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '30px 0' }}>
+                    <button className="btn btn-primary" style={{ padding: '12px 60px', fontSize: '1rem', background: 'var(--sage-green)' }} onClick={handleSaveConsumerProfile}>Save Industrial Changes</button>
+                  </div>
+                )}
+
                 <div className="setting-row danger-row">
-                  <div className="setting-info"><h4 className="danger-text">{t.purge}</h4><p>Wipe all industrial nodes and historical records.</p></div>
+                  <div className="setting-info"><h4 className="danger-text">Purge Data</h4><p>Wipe all industrial nodes and historical records.</p></div>
                   <button className="btn btn-danger" onClick={() => setShowDeleteModal(true)}>Delete Account</button>
                 </div>
               </div>
@@ -1671,7 +2499,11 @@ www.originode.com
 
                   <div className="input-group" style={{ marginBottom: '15px' }}>
                     <label className="field-label" style={{ display: 'block', marginBottom: '5px', fontWeight: '700', color: '#64748b' }}>Subject</label>
-                    <select className="std-input" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <select className="std-input"
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                      value={supportTicket.subject}
+                      onChange={(e) => setSupportTicket({ ...supportTicket, subject: e.target.value })}
+                    >
                       <option>Machine Diagnosis Error</option>
                       <option>Expert Connection Issue</option>
                       <option>Billing / Invoice Dispute</option>
@@ -1682,10 +2514,18 @@ www.originode.com
 
                   <div className="input-group" style={{ marginBottom: '15px' }}>
                     <label className="field-label" style={{ display: 'block', marginBottom: '5px', fontWeight: '700', color: '#64748b' }}>Description</label>
-                    <textarea className="std-input" rows="5" placeholder="Please provide details..." style={{ width: '100%', resize: 'none', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}></textarea>
+                    <textarea className="std-input" rows="5"
+                      placeholder="Please provide details..."
+                      style={{ width: '100%', resize: 'none', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                      value={supportTicket.description}
+                      onChange={(e) => setSupportTicket({ ...supportTicket, description: e.target.value })}
+                    ></textarea>
                   </div>
 
-                  <button className="btn-primary" onClick={() => alert("Ticket #CONSUMER-102 Created! Support team will contact you shortly.")}>Submit Ticket</button>
+                  <button className="btn-primary" onClick={handleSubmitSupportTicket}>Submit Ticket</button>
+                  {showSupportPopup && (
+                    <PopupModal message={supportPopupMsg} onClose={() => setShowSupportPopup(false)} />
+                  )}
                 </div>
 
                 {/* Right Column: FAQs & Direct Contact */}
@@ -1715,6 +2555,35 @@ www.originode.com
                   </div>
                 </div>
               </div>
+
+              {/* [NEW] MY TICKETS SECTION */}
+              <div className="support-history glass-panel" style={{ marginTop: '30px' }}>
+                <h3 className="panel-title" style={{ borderLeft: '4px solid var(--sage-green)', color: 'var(--navy-dark)' }}>My Recent Tickets</h3>
+                {myTickets.length > 0 ? (
+                  <table className="data-table" style={{ width: '100%', marginTop: '15px' }}>
+                    <thead>
+                      <tr>
+                        <th>Ticket ID</th>
+                        <th>Subject</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {myTickets.map(t => (
+                        <tr key={t.id}>
+                          <td style={{ fontFamily: 'monospace', color: '#64748b' }}>#{String(t.id).substring(0, 8)}</td>
+                          <td style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>{t.subject}</td>
+                          <td><span className={`status-pill ${t.status === 'open' ? 'pending' : 'completed'}`}>{t.status || 'open'}</span></td>
+                          <td>{new Date(t.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p style={{ color: '#64748b', padding: '20px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', marginTop: '15px' }}>No previous tickets found.</p>
+                )}
+              </div>
             </div>
           ) : activeTab === 'settings' ? (
             <div className="settings-view animate-fade">
@@ -1738,17 +2607,7 @@ www.originode.com
                       <span className="slider round"></span>
                     </label>
                   </div>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>System Language</span>
-                      <small style={{ color: '#64748b' }}>Select your preferred operational dialect.</small>
-                    </div>
-                    <select className="custom-select-v3" value={language} onChange={(e) => setLanguage(e.target.value)} style={{ width: 'auto' }}>
-                      <option value="English">English</option>
-                      <option value="Kannada">Kannada</option>
-                      <option value="Hindi">Hindi</option>
-                    </select>
-                  </div>
+                  {/* System Language option removed as per request */}
                 </div>
               </div>
 
@@ -1806,6 +2665,169 @@ www.originode.com
             </div>
           )}
         </main>
+        {showPaymentModal && (
+          <div className="modal-overlay">
+            <div className="confirm-modal" style={{ width: '400px', padding: '0', overflow: 'hidden' }}>
+              {isPaymentProcessing ? (
+                <div style={{ padding: '60px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div className="spinner-loader" style={{
+                    width: '50px',
+                    height: '50px',
+                    border: '5px solid #f3f3f3',
+                    borderTop: '5px solid var(--sage-green)',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                  <h3 style={{ marginTop: '25px', color: 'var(--navy-dark)' }}>Processing Secure Payment...</h3>
+                  <p style={{ color: '#64748b' }}>Please do not close this window.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="payment-modal-header" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ margin: 0, color: 'var(--navy-dark)', fontSize: '1.1rem' }}>Secure Payment</h3>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>🔒 SSL Encrypted</span>
+                    </div>
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', letterSpacing: '0.5px' }}>PAYING TO</label>
+                      <div style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>OrigiNode Escrow Secure</div>
+                    </div>
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', letterSpacing: '0.5px' }}>AMOUNT</label>
+                      <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--sage-green)' }}>{paymentConfig?.amountStr}</div>
+                      <small style={{ color: '#64748b' }}>{paymentConfig?.desc}</small>
+                    </div>
+                    <div style={{ background: '#f1f5f9', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '700', marginBottom: '10px', color: '#475569' }}>PAYMENT METHOD</div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>💳 Card</div>
+                        <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>🏦 NetBanking</div>
+                        <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>📱 UPI</div>
+                      </div>
+                    </div>
+                    <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={confirmPayment}>
+                      Pay {paymentConfig?.amountStr} Now
+                    </button>
+                    <button className="btn-small-text" style={{ width: '100%', marginTop: '15px', textAlign: 'center', color: '#94a3b8' }} onClick={() => setShowPaymentModal(false)}>
+                      Cancel Transaction
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        {showPaymentSuccess && (
+          <div className="modal-overlay">
+            <div className="confirm-modal" style={{ width: '350px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '15px', color: 'var(--sage-green)' }}>✅</div>
+              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.4rem' }}>Payment Successful</h3>
+              <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.5' }}>Your transaction has been securely processed. A receipt has been sent to your email.</p>
+              <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={() => { setShowPaymentSuccess(false); setShowReviewModal(true); }}>Done</button>
+            </div>
+          </div>
+        )}
+
+        {showSaveSuccessModal && (
+          <div className="modal-overlay">
+            <div className="confirm-modal animate-fade" style={{ width: '380px', textAlign: 'center', padding: '35px', background: 'white', borderRadius: '15px', boxShadow: '0 15px 35px rgba(0,0,0,0.2)' }}>
+              <div style={{ width: '70px', height: '70px', background: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                <span style={{ fontSize: '2.5rem', color: '#10b981' }}>✓</span>
+              </div>
+              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.5rem', fontWeight: '800' }}>IDENTITY SAVED</h3>
+              <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>Your professional industrial profile has been successfully synchronized with the origiNode network.</p>
+              <button className="btn btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: '700', borderRadius: '10px', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)' }} onClick={() => setShowSaveSuccessModal(false)}>Acknowledge & Close</button>
+            </div>
+          </div>
+        )}
+
+        {showNoChangesModal && (
+          <div className="modal-overlay">
+            <div className="confirm-modal animate-fade" style={{ width: '380px', textAlign: 'center', padding: '35px', background: 'white', borderRadius: '15px', boxShadow: '0 15px 35px rgba(0,0,0,0.2)' }}>
+              <div style={{ width: '70px', height: '70px', background: '#fefce8', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                <span style={{ fontSize: '2.5rem', color: '#eab308' }}>ℹ️</span>
+              </div>
+              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.5rem', fontWeight: '800' }}>NO CHANGES</h3>
+              <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>The current profile information is already synchronized. No new updates were detected.</p>
+              <button className="btn btn-secondary" style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: '700', borderRadius: '10px' }} onClick={() => setShowNoChangesModal(false)}>Back to Profile</button>
+            </div>
+          </div>
+        )}
+
+        {/* [NEW] REVIEW MODAL */}
+        {showReviewModal && (
+          <div className="modal-overlay">
+            <div className="confirm-modal" style={{ width: '400px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>⭐</div>
+              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '5px', fontSize: '1.4rem' }}>Rate Your Experience</h3>
+              <p style={{ color: '#64748b', marginBottom: '20px' }}>How was the service provided by the expert?</p>
+
+              <div className="rating-stars" style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px', fontSize: '2rem', cursor: 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <span
+                    key={star}
+                    style={{ color: star <= reviewData.rating ? 'var(--amber-gold)' : '#e2e8f0', transition: 'color 0.2s' }}
+                    onClick={() => setReviewData({ ...reviewData, rating: star })}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+
+              <textarea
+                className="std-input"
+                rows="3"
+                placeholder="Share your feedback (optional)..."
+                value={reviewData.comment}
+                onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
+                style={{ width: '100%', marginBottom: '20px', resize: 'none' }}
+              ></textarea>
+
+              <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={handleSubmitReview}>Submit Review</button>
+              <button className="btn-small-text" style={{ marginTop: '15px', color: '#94a3b8' }} onClick={() => setShowReviewModal(false)}>Skip Feedback</button>
+            </div>
+          </div>
+        )}
+
+        {/* [NEW] EXPERT PROFILE MODAL */}
+        {showExpertProfileModal && selectedExpert && (
+          <div className="modal-overlay">
+            <div className="confirm-modal" style={{ width: '400px', padding: '0', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--navy-dark)', padding: '30px 20px', textAlign: 'center', color: 'white' }}>
+                <div style={{ width: '80px', height: '80px', background: 'var(--amber-gold)', borderRadius: '50%', color: 'black', fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px', fontWeight: 'bold' }}>
+                  {selectedExpert.avatar}
+                </div>
+                <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{selectedExpert.name}</h2>
+                <p style={{ margin: '5px 0 0', opacity: 0.8 }}>Certified Industry Specialist</p>
+              </div>
+              <div style={{ padding: '25px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
+                  <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--navy-dark)' }}>4.9/5</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Rating</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--sage-green)' }}>98%</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Job Success</div>
+                  </div>
+                </div>
+
+                <h4 style={{ fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', marginBottom: '10px' }}>Specializations</h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
+                  {['Hydraulics', 'Pneumatics', 'PLC Systems', 'Safety Audits'].map(s => (
+                    <span key={s} style={{ background: '#e2e8f0', color: '#475569', padding: '5px 10px', borderRadius: '15px', fontSize: '0.8rem' }}>{s}</span>
+                  ))}
+                </div>
+
+                <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowExpertProfileModal(false)}>Close Profile</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {sharedModals}
       </div>
     );
@@ -1820,9 +2842,9 @@ www.originode.com
         <aside className="side-nav">
 
           <div className="profile-sidebar-summary" style={{ background: 'var(--navy-dark)' }}>
-            <div className="nav-avatar-circle" style={{ background: 'var(--amber-gold)', color: 'black' }}>PR</div>
+            <div className="nav-avatar-circle" style={{ background: 'var(--amber-gold)', color: 'black' }}>{getExpertInitials()}</div>
             <div className="nav-user-details">
-              <span className="nav-name" style={{ color: 'white' }}>Expert Technician</span>
+              <span className="nav-name" style={{ color: 'white' }}>{profileData.name}</span>
               <span className="nav-email-small" style={{ color: '#94a3b8' }}>Verified Specialist</span>
             </div>
           </div>
@@ -1987,7 +3009,14 @@ www.originode.com
                   <h2 className="tech-title">OPERATIONS SCHEDULE</h2>
                   <p className="tech-subtitle">Weekly Operational Planning</p>
                 </div>
-                <div className="header-actions">
+                <div className="header-actions" style={{ gap: '15px' }}>
+                  <button
+                    className={`btn-ai-assistant ${isOptimizing ? 'loading' : ''}`}
+                    onClick={handleOptimizeSchedule}
+                    disabled={isOptimizing}
+                  >
+                    {isOptimizing ? '🤖 Analysing Signals...' : '✨ AI Intelligence Scan'}
+                  </button>
                   <div className="date-nav">
                     <button className="btn-icon">◀</button>
                     <span style={{ fontWeight: '700', color: 'var(--navy-dark)' }}>Feb 19 - Feb 25, 2026</span>
@@ -1996,39 +3025,62 @@ www.originode.com
                 </div>
               </header>
 
-              <div className="glass-panel schedule-container">
+              <div className="glass-panel schedule-container" style={{ position: 'relative' }}>
                 <div className="schedule-grid">
                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                     <div key={day} className="day-col">
                       <div className="day-header">{day}</div>
                       <div className="day-slots">
-                        {day === 'Mon' && <div className="schedule-card job">
-                          <span className="time">09:00 AM</span>
-                          <h4>Site Inspection</h4>
-                          <p>Apex Heavy Ind.</p>
-                        </div>}
-                        {day === 'Mon' && <div className="schedule-card break" style={{ top: '140px' }}>
-                          <span className="time">01:00 PM</span>
-                          <h4>Lunch Break</h4>
-                        </div>}
-                        {day === 'Tue' && <div className="schedule-card job" style={{ height: '120px', background: '#ecfdf5', borderColor: '#d1fae5' }}>
-                          <span className="time">10:30 AM</span>
-                          <h4 style={{ color: '#065f46' }}>Hydraulic Repair</h4>
-                          <p style={{ color: '#047857' }}>GreenField Agri</p>
-                        </div>}
-                        {day === 'Thu' && <div className="schedule-card unavailable">
-                          <h4>Unavailable</h4>
-                          <p>Personal Leave</p>
-                        </div>}
-                        {day === 'Fri' && <div className="schedule-card job">
-                          <span className="time">02:00 PM</span>
-                          <h4>System Calibration</h4>
-                          <p>Solaris Power</p>
-                        </div>}
+                        {/* CURRENT SLOTS */}
+                        {weeklySchedule.filter(s => s.day_of_week === day).map((slot, sIdx) => (
+                          <div
+                            key={sIdx}
+                            className={`schedule-card ${slot.slot_type}`}
+                            style={slot.start_time ? { top: `${(parseInt(slot.start_time.split(':')[0]) - 8) * 60}px` } : {}}
+                          >
+                            <span className="time">{slot.start_time} - {slot.end_time}</span>
+                            <h4>{slot.title}</h4>
+                            <p>{slot.description}</p>
+                          </div>
+                        ))}
+
+                        {/* AI SUGGESTED SLOTS */}
+                        {suggestedSlots.filter(s => s.day_of_week === day).map((slot, sIdx) => (
+                          <div
+                            key={`suggested-${sIdx}`}
+                            className="schedule-card suggested animate-pulse-subtle"
+                            style={slot.start_time ? { top: `${(parseInt(slot.start_time.split(':')[0]) - 8) * 60}px` } : {}}
+                          >
+                            <div className="ai-badge">AI PROP</div>
+                            <span className="time">{slot.start_time} - {slot.end_time}</span>
+                            <h4>{slot.title}</h4>
+                            <p>{slot.description}</p>
+                            <div className="suggested-actions">
+                              <button className="btn-confirm-mini" onClick={() => {
+                                setWeeklySchedule([...weeklySchedule, slot]);
+                                setSuggestedSlots(suggestedSlots.filter(s => s !== slot));
+                                api.post('/schedule', slot);
+                              }}>Accept</button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
+
+                {suggestedSlots.length > 0 && (
+                  <div className="ai-suggestion-footer animate-slide-up">
+                    <div className="ai-insight">
+                      <span className="icon">🧠</span>
+                      <span>AI found <strong>{suggestedSlots.length} optimal windows</strong> for pending industrial signals.</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button className="btn-secondary-dark" onClick={() => setSuggestedSlots([])}>Discard</button>
+                      <button className="btn-primary-tech" onClick={handleConfirmAISchedule}>Synchronize All Proposals</button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : activeTab === 'support' ? (
@@ -2111,17 +3163,7 @@ www.originode.com
                     </div>
                     <div className="toggle-switch"></div>
                   </div>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Language</span>
-                      <small style={{ color: '#64748b' }}>Select your preferred interface language.</small>
-                    </div>
-                    <select className="std-input" value={language} onChange={(e) => setLanguage(e.target.value)}>
-                      <option>English</option>
-                      <option>Hindi</option>
-                      <option>Kannada</option>
-                    </select>
-                  </div>
+                  {/* Language dropdown removed as per request */}
                 </div>
               </div>
 
@@ -2203,6 +3245,7 @@ www.originode.com
                 </div>
 
                 <div className="chat-input-area">
+                  <button className="btn-icon" onClick={() => setShowInvoiceCreator(true)} title="Create Invoice" style={{ marginRight: '10px', fontSize: '1.2rem', cursor: 'pointer', background: 'none', border: 'none' }}>🧾</button>
                   <input
                     type="text"
                     className="chat-input"
@@ -2223,25 +3266,50 @@ www.originode.com
                   <p className="tech-subtitle">Revenue Streams & Payout History</p>
                 </div>
                 <div className="header-actions">
-                  <button className="btn-secondary">Export CSV</button>
+                  <button className="btn-secondary" onClick={handleExportCSV}>Export CSV</button>
                 </div>
               </header>
 
               <div className="earnings-stats-grid">
                 <div className="stat-card">
                   <div className="stat-label">TOTAL REVENUE (YTD)</div>
-                  <div className="stat-value">₹8,45,200</div>
+                  <div className="stat-value">₹{earningsStats.totalRevenue.toLocaleString()}</div>
                   <div className="stat-trend positive">▲ 12.5% vs last month</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">PENDING PAYOUT</div>
-                  <div className="stat-value">₹42,500</div>
+                  <div className="stat-value">₹{earningsStats.pendingPayout.toLocaleString()}</div>
                   <div className="stat-sub">Next payout: Feb 21</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">AVG. TICKET VALUE</div>
-                  <div className="stat-value">₹18,500</div>
+                  <div className="stat-value">₹{earningsStats.avgTicket}</div>
                   <div className="stat-trend neutral">─ Stable</div>
+                </div>
+              </div>
+
+              {/* [NEW] ANALYTICS CHART */}
+              <div className="glass-panel analytics-chart-container" style={{ marginBottom: '25px', padding: '20px', background: 'white' }}>
+                <h3 className="section-title" style={{ marginBottom: '20px' }}>Revenue Analytics</h3>
+                <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer>
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--navy-primary)" stopOpacity={0.1} />
+                          <stop offset="95%" stopColor="var(--navy-primary)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => `₹${value}`} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        formatter={(value) => [`₹${value}`, 'Revenue']}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="var(--navy-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
@@ -2258,22 +3326,21 @@ www.originode.com
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { id: 1, date: 'Feb 15, 2026', client: 'Apex Heavy Industries', service: '#SR-8921', status: 'Completed', amount: '₹22,000' },
-                      { id: 2, date: 'Feb 12, 2026', client: 'Solaris Power', service: '#SR-8840', status: 'Processing', amount: '₹15,500' },
-                      { id: 3, date: 'Feb 10, 2026', client: 'Hydra-Fix Specialists', service: '#SR-8812', status: 'Paid', amount: '₹8,400' },
-                      { id: 4, date: 'Feb 08, 2026', client: 'GreenField Agri', service: '#SR-8755', status: 'Paid', amount: '₹35,000' },
-                    ].map(tx => (
-                      <tr key={tx.id}>
-                        <td>{tx.date}</td>
-                        <td style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>{tx.client}</td>
-                        <td style={{ fontFamily: 'monospace', color: '#64748b' }}>{tx.service}</td>
-                        <td>
-                          <span className={`status-pill ${tx.status.toLowerCase()}`}>{tx.status}</span>
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--navy-dark)' }}>{tx.amount}</td>
-                      </tr>
-                    ))}
+                    {transactionHistory.length > 0 ? (
+                      transactionHistory.map(tx => (
+                        <tr key={tx.id}>
+                          <td>{tx.date}</td>
+                          <td style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>{tx.client}</td>
+                          <td style={{ fontFamily: 'monospace', color: '#64748b' }}>{tx.service}</td>
+                          <td>
+                            <span className={`status-pill ${tx.status.toLowerCase()}`}>{tx.status}</span>
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--navy-dark)' }}>{tx.amount}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No transactions recorded yet.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -2285,21 +3352,18 @@ www.originode.com
                   <h2 className="tech-title">EXPERT PROFILE</h2>
                   <p className="tech-subtitle">Manage Credentials & specialized skills</p>
                 </div>
-                <div className="header-actions">
-                  <button
-                    className={isEditingProfile ? "btn-primary" : "btn-secondary"}
-                    onClick={() => setIsEditingProfile(!isEditingProfile)}
-                  >
-                    {isEditingProfile ? "Save Changes" : "Edit Profile"}
-                  </button>
-                </div>
+                {!isEditingProfile && (
+                  <div className="header-actions">
+                    <button className="btn-secondary" onClick={() => setIsEditingProfile(true)}>Edit Profile</button>
+                  </div>
+                )}
               </header>
 
               <div className="profile-grid">
                 {/* ID Card / Main Info */}
                 <div className="glass-panel profile-card">
                   <div className="profile-header-visual">
-                    <div className="profile-avatar-large">XT</div>
+                    <div className="profile-avatar-large">{getExpertInitials()}</div>
                     <div className="verification-badge">✔ VERIFIED EXPERT</div>
                   </div>
                   <div className="profile-info-body">
@@ -2375,10 +3439,27 @@ www.originode.com
                 <div className="glass-panel skills-card">
                   <h3 className="panel-title">Technical Specializations</h3>
                   <div className="skills-tags-container">
-                    {['Hydraulics Systems', 'PLC Programming', 'Siemens S7', 'Industrial IoT', 'Pneumatic Actuators', 'Safety Protocols'].map(skill => (
-                      <span key={skill} className="tech-tag">{skill}</span>
+                    {(profileData.skills || []).map(skill => (
+                      <span key={skill} className="tech-tag">
+                        {skill}
+                        {isEditingProfile && <button onClick={() => handleRemoveSkill(skill)} style={{ marginLeft: '8px', background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 'bold' }}>×</button>}
+                      </span>
                     ))}
-                    <button className="add-tag-btn">+ Add Skill</button>
+                    {isEditingProfile && (
+                      <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '10px' }}>
+                        <input
+                          type="text"
+                          className="std-input compact"
+                          placeholder="Add new skill..."
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleAddSkill(e.target.value);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <h3 className="panel-title" style={{ marginTop: '25px' }}>Certifications</h3>
@@ -2431,6 +3512,18 @@ www.originode.com
                 </div>
               </div>
 
+              {isEditingProfile && (
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '40px 0' }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ padding: '14px 60px', fontSize: '1.1rem', borderRadius: '12px', boxShadow: '0 8px 25px rgba(15, 23, 42, 0.2)', background: 'var(--sage-green)' }}
+                    onClick={handleSaveExpertProfile}
+                  >
+                    Save Expert Identity
+                  </button>
+                </div>
+              )}
+
             </div>
           ) : (
             <div className="animate-fade" style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>
@@ -2439,47 +3532,60 @@ www.originode.com
             </div>
           )}
         </main>
-        {showPaymentModal && (
+
+        {/* [NEW] INVOICE CREATOR MODAL */}
+        {showInvoiceCreator && (
           <div className="modal-overlay">
-            <div className="confirm-modal" style={{ width: '400px', padding: '0', overflow: 'hidden' }}>
-              <div className="payment-modal-header" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, color: 'var(--navy-dark)', fontSize: '1.1rem' }}>Secure Payment</h3>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>🔒 SSL Encrypted</span>
-                </div>
+            <div className="confirm-modal" style={{ width: '350px', padding: '25px' }}>
+              <h3>Create Invoice</h3>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Amount (₹)</label>
+                <input type="number" className="std-input" value={invoiceData.amount} onChange={e => setInvoiceData({ ...invoiceData, amount: e.target.value })} style={{ width: '100%' }} />
               </div>
-              <div style={{ padding: '20px' }}>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', letterSpacing: '0.5px' }}>PAYING TO</label>
-                  <div style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>OrigiNode Escrow Secure</div>
-                </div>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', letterSpacing: '0.5px' }}>AMOUNT</label>
-                  <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--sage-green)' }}>{paymentConfig?.amountStr}</div>
-                  <small style={{ color: '#64748b' }}>{paymentConfig?.desc}</small>
-                </div>
-                <div style={{ background: '#f1f5f9', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: '700', marginBottom: '10px', color: '#475569' }}>PAYMENT METHOD</div>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>💳 Card</div>
-                    <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>🏦 NetBanking</div>
-                    <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>📱 UPI</div>
-                  </div>
-                </div>
-                <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={confirmPayment}>
-                  Pay {paymentConfig?.amountStr} Now
-                </button>
-                <button className="btn-small-text" style={{ width: '100%', marginTop: '15px', textAlign: 'center', color: '#94a3b8' }} onClick={() => setShowPaymentModal(false)}>
-                  Cancel Transaction
-                </button>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Description</label>
+                <input type="text" className="std-input" value={invoiceData.desc} onChange={e => setInvoiceData({ ...invoiceData, desc: e.target.value })} style={{ width: '100%' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSendInvoice}>Send Invoice</button>
+                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowInvoiceCreator(false)}>Cancel</button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Book Expert Modal */}
+        {showBookExpertModal && (
+          <div className="modal-overlay">
+            <div className="confirm-modal" style={{ width: '350px', padding: '30px', textAlign: 'center' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '15px', color: 'var(--sage-green)' }}>📅</div>
+              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px' }}>Expert Booked!</h3>
+              <p style={{ color: '#64748b', marginBottom: '25px' }}>Your request to book an expert has been received. You will be notified when the expert confirms the appointment.</p>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowBookExpertModal(false)}>OK</button>
+            </div>
+          </div>
+        )}
+
+        {
+          showPaymentReceived && (
+            <div className="modal-overlay">
+              <div className="confirm-modal" style={{ width: '400px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', borderTop: '5px solid var(--sage-green)' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '15px' }}>💰</div>
+                <h3 style={{ color: 'var(--navy-dark)', marginBottom: '5px', fontSize: '1.4rem' }}>Payment Received!</h3>
+                <p style={{ color: 'var(--sage-green)', fontWeight: '700', fontSize: '1.2rem', margin: '0 0 15px 0' }}>Job Completed</p>
+                <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.5' }}>Funds have been deposited to your escrow wallet. You can withdraw them in the Earnings tab.</p>
+                <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={() => setShowPaymentReceived(false)}>Acknowledge</button>
+              </div>
+            </div>
+          )
+        }
+
         {sharedModals}
-      </div>
+      </div >
     );
   }
+  // End of modal logic
+
 
   // --- RETURN: LOGIN / SIGNUP / LANDING VIEW ---
   return (

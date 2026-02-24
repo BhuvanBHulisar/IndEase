@@ -90,9 +90,38 @@ exports.login = async (req, res) => {
 // @desc    Get current user
 exports.getMe = async (req, res) => {
     try {
-        // Current user retrieval logic based on decoded JWT (to be implemented with middleware)
-        res.json({ message: 'Session data pending middleware integration' });
+        const userId = req.user.id;
+
+        // Fetch user from industrial ledger
+        const userResult = await db.query(
+            'SELECT id, email, first_name, last_name, role FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (userResult.rows.length === 0) {
+            // Check for demo user bypass
+            if (userId === 'demo-123') {
+                return res.json({
+                    id: 'demo-123',
+                    email: 'admin@originode.com',
+                    role: 'consumer',
+                    firstName: 'Demo',
+                    lastName: 'User'
+                });
+            }
+            return res.status(404).json({ message: 'User not found in network' });
+        }
+
+        const user = userResult.rows[0];
+        res.json({
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            firstName: user.first_name,
+            lastName: user.last_name
+        });
     } catch (err) {
+        console.error('[Auth] Session retrieval failure:', err);
         res.status(500).json({ message: 'Session retrieval failure' });
     }
 };

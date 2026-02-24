@@ -13,7 +13,10 @@ exports.getChatHistory = async (req, res) => {
         );
 
         if (request.rows.length === 0) {
-            return res.status(404).json({ message: 'Service request not found' });
+            // [FIX] Return empty array instead of 404 to support "Mock Mode"
+            // When DB is offline/mocked, request.rows is empty. 
+            // Sending 200 [] tells frontend "nothing new", so it keeps its own mock state.
+            return res.json([]);
         }
 
         const { consumer_id, producer_id } = request.rows[0];
@@ -30,6 +33,11 @@ exports.getChatHistory = async (req, res) => {
         res.json(messages.rows);
     } catch (err) {
         console.error('[Chat] History retrieval failure:', err);
+        if (err.code === '28P01') {
+            return res.status(503).json({
+                message: 'Database authentication failed. Update DB credentials in server/.env and restart backend.',
+            });
+        }
         res.status(500).json({ message: 'Internal operational failure' });
     }
 };

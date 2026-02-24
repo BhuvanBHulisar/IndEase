@@ -1,4 +1,5 @@
 const db = require('../db');
+const notificationController = require('./notificationController');
 
 // @desc    Broadcast a new machine issue (Consumer)
 // @route   POST /api/jobs/broadcast
@@ -82,6 +83,15 @@ exports.acceptJob = async (req, res) => {
             io.emit(`status_update_${acceptedJob.id}`, { status: 'accepted', producer_id: req.user.id });
         }
 
+        // 3. Create persistent notification for Consumer
+        await notificationController.createNotification(
+            acceptedJob.consumer_id,
+            'Job Accepted',
+            `An expert has accepted your request for ${jobId.substring(0, 8)}. Check the workspace.`,
+            'job_update',
+            `/workspace/${jobId}`
+        );
+
         res.json(acceptedJob);
     } catch (err) {
         console.error('[Jobs] Acceptance failure:', err);
@@ -136,4 +146,33 @@ exports.getMyJobs = async (req, res) => {
         console.error('[Jobs] My list retrieval failure:', err);
         res.status(500).json({ message: 'History retrieval failure' });
     }
+};
+
+// @desc    Expert sends an invoice/quote to the consumer
+// @route   POST /api/jobs/:id/invoice
+exports.createInvoice = async (req, res) => {
+    // MOCK MODE: Always succeed and emit invoice event
+    const jobId = req.params.id;
+    const { amount } = req.body;
+    // Simulate a consumer id for notification
+    const consumerId = 'mock-consumer';
+    // 3. Notify Consumer via Socket
+    const io = req.app.get('socketio');
+    if (io) {
+        io.emit(`status_update_${jobId}`, {
+            status: 'payment_pending',
+            amount: amount,
+            message: `Expert has sent an invoice for ₹${amount}`
+        });
+    }
+    // 4. Create persistent notification for Consumer
+    await notificationController.createNotification(
+        consumerId,
+        'Invoice Received',
+        `Expert has sent an invoice for ₹${amount} for your service request.`,
+        'payment',
+        `/workspace/${jobId}`
+    );
+    // Respond with mock job object
+    res.json({ id: jobId, quoted_cost: amount, status: 'payment_pending' });
 };
