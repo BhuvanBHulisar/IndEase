@@ -43,18 +43,71 @@ exports.broadcastJob = async (req, res) => {
 // @route   GET /api/jobs/radar
 exports.getRadarJobs = async (req, res) => {
     try {
+        // [MODIFIED] Filter out jobs that this expert has already declined
         const result = await db.query(`
-      SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
-      FROM service_requests jr
-      JOIN machines m ON jr.machine_id = m.id
-      JOIN users u ON jr.consumer_id = u.id
-      WHERE jr.status = 'broadcast'
-      ORDER BY jr.created_at DESC
-    `);
+            SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
+            FROM service_requests jr
+            JOIN machines m ON jr.machine_id = m.id
+            JOIN users u ON jr.consumer_id = u.id
+            WHERE jr.status = 'broadcast'
+            AND jr.id NOT IN (
+                SELECT request_id FROM declined_jobs WHERE user_id = $1
+            )
+            ORDER BY jr.created_at DESC
+        `, [req.user.id]);
+
         res.json(result.rows);
     } catch (err) {
-        console.error('[Jobs] Radar retrieval failure:', err);
-        res.status(500).json({ message: 'Radar sensor failure' });
+        console.warn('[Jobs] Radar selective scanning failed (Table missing?), falling back to full signal');
+        // Fallback: If declined_jobs table doesn't exist yet, just return all broadcast jobs
+        try {
+            const result = await db.query(`
+                SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
+                FROM service_requests jr
+                JOIN machines m ON jr.machine_id = m.id
+                JOIN users u ON jr.consumer_id = u.id
+                WHERE jr.status = 'broadcast'
+                ORDER BY jr.created_at DESC
+            `);
+            res.json(result.rows);
+        } catch (innerErr) {
+            res.status(500).json({ message: 'Radar sensor failure' });
+        }
+    }
+};
+
+// @desc    Get expert dashboard statistics
+// @route   GET /api/jobs/producer-stats
+exports.getProducerStats = async (req, res) => {
+    try {
+        const producerId = req.user.id;
+
+        // Return rich mock data for the demo account
+        if (producerId === 'demo-123') {
+            return res.json({
+                earnings: 14500,
+                completedJobs: 124,
+                rating: 4.9
+            });
+        }
+
+        const profileRes = await db.query('SELECT rating FROM producer_profiles WHERE user_id = $1', [producerId]);
+        const rating = profileRes.rows.length > 0 ? Number(profileRes.rows[0].rating) : 5.0;
+
+        const jobsRes = await db.query("SELECT COUNT(*) FROM service_requests WHERE producer_id = $1 AND status = 'completed'", [producerId]);
+        const completedJobs = Number(jobsRes.rows[0].count) || 0;
+
+        const earningsRes = await db.query("SELECT SUM(quoted_cost) FROM service_requests WHERE producer_id = $1 AND status = 'completed'", [producerId]);
+        const earnings = Number(earningsRes.rows[0].sum) || 0;
+
+        res.json({
+            earnings,
+            completedJobs,
+            rating
+        });
+    } catch (err) {
+        console.error('[Jobs] Stats retrieval failure:', err);
+        res.status(500).json({ message: 'Failed to retrieve expert statistics' });
     }
 };
 
@@ -65,7 +118,6 @@ exports.acceptJob = async (req, res) => {
 
     try {
         // 1. Atomically check if job is still available and update status
-        // Using a transaction would be better, but a simple UPDATE with WHERE status='broadcast' is atomic
         const result = await db.query(
             'UPDATE service_requests SET producer_id = $1, status = $2 WHERE id = $3 AND status = $4 RETURNING *',
             [req.user.id, 'accepted', jobId, 'broadcast']
@@ -96,6 +148,25 @@ exports.acceptJob = async (req, res) => {
     } catch (err) {
         console.error('[Jobs] Acceptance failure:', err);
         res.status(500).json({ message: 'Deployment failure' });
+    }
+};
+
+// @desc    Decline / skip a job (Expert)
+// @route   PATCH /api/jobs/:id/decline
+exports.declineJob = async (req, res) => {
+    const jobId = req.params.id;
+    try {
+        // [MODIFIED] Record the decline in the persistence layer
+        await db.query(
+            'INSERT INTO declined_jobs (user_id, request_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [req.user.id, jobId]
+        );
+
+        res.json({ message: 'Job declined from local radar' });
+    } catch (err) {
+        console.warn('[Jobs] Decline persistence failure (Table missing?), falling back to memory only');
+        // If table missing, still return success so frontend removes it from view
+        res.json({ message: 'Job declined (volatile)' });
     }
 };
 
@@ -151,28 +222,46 @@ exports.getMyJobs = async (req, res) => {
 // @desc    Expert sends an invoice/quote to the consumer
 // @route   POST /api/jobs/:id/invoice
 exports.createInvoice = async (req, res) => {
-    // MOCK MODE: Always succeed and emit invoice event
     const jobId = req.params.id;
     const { amount } = req.body;
-    // Simulate a consumer id for notification
-    const consumerId = 'mock-consumer';
-    // 3. Notify Consumer via Socket
-    const io = req.app.get('socketio');
-    if (io) {
-        io.emit(`status_update_${jobId}`, {
-            status: 'payment_pending',
-            amount: amount,
-            message: `Expert has sent an invoice for ₹${amount}`
-        });
+
+    try {
+        // 1. Update the service request with the quoted cost
+        const result = await db.query(
+            'UPDATE service_requests SET quoted_cost = $1, status = $2 WHERE id = $3 RETURNING *',
+            [amount, 'payment_pending', jobId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Service request not found' });
+        }
+
+        const job = result.rows[0];
+
+        // 2. Notify Consumer via Socket
+        const io = req.app.get('socketio');
+        if (io) {
+            io.emit(`status_update_${jobId}`, {
+                status: 'payment_pending',
+                amount: amount,
+                message: `Expert has sent an invoice for ₹${amount}`
+            });
+        }
+
+        // 3. Create persistent notification for Consumer using real consumer_id
+        if (job.consumer_id) {
+            await notificationController.createNotification(
+                job.consumer_id,
+                'Invoice Received',
+                `Expert has sent an invoice for ₹${amount} for your service request.`,
+                'payment',
+                `/workspace/${jobId}`
+            );
+        }
+
+        res.json({ id: jobId, quoted_cost: amount, status: 'payment_pending' });
+    } catch (err) {
+        console.error('[Jobs] Invoice creation failure:', err);
+        res.status(500).json({ message: 'Failed to create invoice' });
     }
-    // 4. Create persistent notification for Consumer
-    await notificationController.createNotification(
-        consumerId,
-        'Invoice Received',
-        `Expert has sent an invoice for ₹${amount} for your service request.`,
-        'payment',
-        `/workspace/${jobId}`
-    );
-    // Respond with mock job object
-    res.json({ id: jobId, quoted_cost: amount, status: 'payment_pending' });
 };

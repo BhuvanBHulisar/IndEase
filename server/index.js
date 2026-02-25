@@ -1,114 +1,99 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const http = require('http');
-const { Server } = require('socket.io');
-const db = require('./db');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import db from './config/db.js';
+import passport from './config/passport.js';
+import authRoutes from './routes/auth.routes.js';
+import { errorHandler } from './middleware/error.middleware.js';
 
 const app = express();
-const server = http.createServer(app);
+import session from 'express-session';
+const httpServer = createServer(app);
 
-// Initialize Socket.io with CORS for the React frontend
-const io = new Server(server, {
+// 1. GLOBAL MIDDLEWARE
+app.use(helmet());
+app.use(cors({
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    credentials: true
+}));
+app.use(morgan('dev'));
+app.use(express.json());
+app.use(cookieParser());
+app.use(session({
+    secret: process.env.JWT_SECRET || 'originode_session_secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000
+    }
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// 2. SOCKET INITIALIZATION
+const io = new Server(httpServer, {
     cors: {
         origin: process.env.CLIENT_URL || "http://localhost:5173",
-        methods: ["GET", "POST"]
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
-
-// Make io accessible to our routes/controllers
 app.set('socketio', io);
-global.io = io; // For standalone utility functions to access easily
 
-// Middleware
-app.use(helmet()); // Security headers
-app.use(cors());   // Enable cross-origin requests
-app.use(morgan('dev')); // Request logging
-app.use(express.json()); // Parse JSON bodies
+// 3. ROUTES
+app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes); // Supporting callback URL without /api prefix as per .env
 
-// Route Mounting
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/machines', require('./routes/machineRoutes'));
-app.use('/api/jobs', require('./routes/jobRoutes'));
-app.use('/api/chat', require('./routes/chatRoutes'));
-app.use('/api/finance', require('./routes/financeRoutes'));
-app.use('/api/reviews', require('./routes/reviewRoutes'));
-app.use('/api/profile', require('./routes/profileRoutes'));
-app.use('/api/schedule', require('./routes/scheduleRoutes'));
-app.use('/api/notifications', require('./routes/notificationRoutes'));
-app.use('/api/legacy', require('./routes/legacyRoutes'));
-app.use('/api/support', require('./routes/supportRoutes'));
-
-// Basic Health Check Route
+// Mock Health
 app.get('/api/health', (req, res) => {
-    res.status(200).json({
-        status: 'Operational',
-        timestamp: new Date().toISOString(),
-        service: 'origiNode Core API'
-    });
+    res.status(200).json({ status: 'Industrial Core Operational' });
 });
 
-// Socket.io Connection Logic
-const chatController = require('./controllers/chatController');
-
+// 4. SOCKET LOGIC
 io.on('connection', (socket) => {
-    console.log(`[Socket] New connection: ${socket.id}`);
+    console.log(`[Socket] Identity connected: ${socket.id}`);
 
-    // Join Radar sector
-    socket.on('join_radar', (role) => {
-        console.log(`[Socket] User joined radar as ${role}`);
-        socket.join('radar_room');
-    });
-
-    // Join specific Job Room
-    socket.on('join_job', (requestId) => {
-        console.log(`[Socket] User joined channel for Request ${requestId}`);
-        socket.join(`job_${requestId}`);
-    });
-
-    // [NEW] Real-time Messaging
-    socket.on('send_message', async ({ requestId, senderId, text }) => {
-        const savedMsg = await chatController.saveMessage(requestId, senderId, text);
-        if (savedMsg) {
-            // Broadcast to everyone in the room (including sender for confirmation)
-            io.to(`job_${requestId}`).emit('new_message', savedMsg);
-        }
-    });
-
-    // [NEW] User identification for targeted notifications
     socket.on('identify', (userId) => {
-        console.log(`[Socket] Identifying user: ${userId}`);
         socket.join(`user_${userId}`);
     });
 
     socket.on('disconnect', () => {
-        console.log(`[Socket] User disconnected`);
+        console.log(`[Socket] Identity severed`);
     });
 });
 
-// Start Server
+// 5. ERROR HANDLING
+app.use(errorHandler);
+
+// 6. STARTUP
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
     try {
         await db.query('SELECT 1');
-        console.log('[Database] Startup connectivity probe successful');
-    } catch (err) {
-        console.error('[Startup] Database connection failed:', err.message);
-        console.warn('[Startup] Continuing in degraded mode. DB-backed routes may return 503 until credentials are fixed.');
-    }
+        console.log('[Database] Integrity probe successful');
 
-    server.listen(PORT, () => {
-        console.log(`
-  🚀 ORIGINODE BACKEND INITIALIZED
+        httpServer.listen(PORT, () => {
+            console.log(`
+  🚀 ORIGINODE SECURE API V2.0
   --------------------------------
-  📡 API Server : http://localhost:${PORT}
-  🌍 Mode       : ${process.env.NODE_ENV || 'development'}
+  📡 Base Station : http://localhost:${PORT}
+  🌍 Environment  : ${process.env.NODE_ENV || 'development'}
   --------------------------------
   `);
-    });
+        });
+    } catch (err) {
+        console.error('[Startup] Critical system failure:', err.message);
+        process.exit(1);
+    }
 }
 
 startServer();

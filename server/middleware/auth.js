@@ -16,9 +16,15 @@ module.exports = function (req, res, next) {
 
     // 3. Verify token integrity
     try {
-        if (token === 'demo-token') {
-            // [DEMO BYPASS]
+        if (token === 'demo-token' || token === 'demo-token-consumer') {
+            // [DEMO BYPASS - Consumer]
             req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'consumer' };
+            return next();
+        }
+
+        if (token === 'demo-token-producer') {
+            // [DEMO BYPASS - Producer]
+            req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'producer' };
             return next();
         }
 

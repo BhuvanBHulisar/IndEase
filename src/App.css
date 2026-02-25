@@ -4367,6 +4367,7 @@ body.dark-mode .input-row input {
   height: 100%;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
+  display: flex;
   justify-content: center;
   align-items: center;
   z-index: 999999;
@@ -4459,6 +4460,42 @@ body.dark-mode .input-row input {
 
   to {
     transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.error-alert {
+  background: #fef2f2;
+  border-left: 4px solid #ef4444;
+  color: #b91c1c;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 15px 0;
+  font-weight: 600;
+}
+
+.success-alert {
+  background: #ecfdf5;
+  border-left: 4px solid #10b981;
+  color: #047857;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 15px 0;
+  font-weight: 600;
+}
+
+.animate-fade {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
     opacity: 1;
   }
 }

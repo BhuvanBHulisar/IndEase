@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { jwtDecode } from 'jwt-decode';
 // Simple popup modal for feedback
 function PopupModal({ message, onClose }) {
   return (
@@ -64,25 +65,32 @@ const parseMessageBody = (text) => {
 };
 
 function App() {
+  // Dark mode toggle handler
+  const handleDarkModeToggle = () => {
+    setIsDarkMode(prev => {
+      localStorage.setItem('darkMode', !prev);
+      return !prev;
+    });
+  };
   // --- CORE APPLICATION STATES ---
   const [view, setView] = useState('landing');
   const [socket, setSocket] = useState(null);
   // Popup for booking expert
   const [showBookExpertModal, setShowBookExpertModal] = useState(false);
-    // Real-time chart update listener
-    useEffect(() => {
-      if (!socket) return;
-      const handleChartUpdate = async () => {
-        try {
-          const chartRes = await api.get('/finance/chart-data');
-          setChartData(chartRes.data);
-        } catch (err) {
-          console.error('Failed to update chart data in real time', err);
-        }
-      };
-      socket.on('finance_chart_update', handleChartUpdate);
-      return () => socket.off('finance_chart_update', handleChartUpdate);
-    }, [socket]);
+  // Real-time chart update listener
+  useEffect(() => {
+    if (!socket) return;
+    const handleChartUpdate = async () => {
+      try {
+        const chartRes = await api.get('/finance/chart-data');
+        setChartData(chartRes.data);
+      } catch (err) {
+        console.error('Failed to update chart data in real time', err);
+      }
+    };
+    socket.on('finance_chart_update', handleChartUpdate);
+    return () => socket.off('finance_chart_update', handleChartUpdate);
+  }, [socket]);
   const [role, setRole] = useState('consumer'); // State to track Machine Owner vs Repair Expert
   const [isLogin, setIsLogin] = useState(true);
   // Handler to simulate booking expert (call this where booking happens)
@@ -131,9 +139,6 @@ function App() {
   ]);
   const [machines, setMachines] = useState(MOCK_MACHINES); // [FIX] Init with mock data
 
-  // [NEW OTP RESEND TIMER STATES]
-  const [timer, setTimer] = useState(30);
-  const [canResend, setCanResend] = useState(false);
 
   // [NEW] NOTIFICATION & DROPDOWN STATES
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -207,11 +212,23 @@ function App() {
 
 
   // [NEW] SETTINGS PREFERENCES
+  // Add dark mode toggle button to settings tab
+  // Render this button in your settings UI:
+  // <button className="btn btn-primary" onClick={handleDarkModeToggle} style={{margin:'10px'}}>Toggle Dark Mode</button>
   // Start in light mode by default
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
   const [isTwoFactorEnabled, setIsTwoFactorEnabled] = useState(false);
   const [profileVisibility, setProfileVisibility] = useState('Public');
   const [isTicketOpen, setIsTicketOpen] = useState(false);
+
+  // [NEW] Social Account Selector States
+  const [showSocialModal, setShowSocialModal] = useState(false);
+  const [socialProvider, setSocialProvider] = useState('');
+  const simulatedAccounts = [
+    { name: 'Bhuvan B H', email: 'bhuvan@originode.tech', avatar: 'https://ui-avatars.com/api/?name=Bhuvan+BH&background=020617&color=fff' },
+    { name: 'Technical Admin', email: 'admin@originode.com', avatar: 'https://ui-avatars.com/api/?name=Admin&background=1e293b&color=fff' },
+    { name: 'Industrial Guest', email: 'guest.identity@industries.in', avatar: 'https://ui-avatars.com/api/?name=Guest&background=334155&color=fff' }
+  ];
 
   // [NEW] VIDEO DIAGNOSIS STATES
   const [showDiagnosisModal, setShowDiagnosisModal] = useState(false);
@@ -262,6 +279,7 @@ function App() {
   const [radarJobs, setRadarJobs] = useState([]);
 
   // [NEW] DASHBOARD STATS
+  const [producerDashStats, setProducerDashStats] = useState({ earnings: 0, completedJobs: 0, rating: 5.0 });
   const [earningsStats, setEarningsStats] = useState({ totalRevenue: 0, pendingPayout: 0, avgTicket: 0 });
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [chartData, setChartData] = useState([]);
@@ -322,18 +340,8 @@ function App() {
   }, [activeTab]);
 
   const handleOptimizeSchedule = async () => {
-    setIsOptimizing(true);
-    setSuggestedSlots([]);
-    try {
-      // Simulate "AI Processing" latency for UX
-      await new Promise(r => setTimeout(r, 2000));
-      const res = await api.get('/schedule/optimize');
-      setSuggestedSlots(res.data);
-    } catch (err) {
-      alert("AI Engine is currently overloaded. Please try again later.");
-    } finally {
-      setIsOptimizing(false);
-    }
+    // AI intelligent scan and optimization removed from operation schedule
+    // You can add your own schedule logic here if needed
   };
 
   const handleConfirmAISchedule = async () => {
@@ -594,7 +602,15 @@ function App() {
 
     newSocket.on('notification', (notif) => {
       setNotifications(prev => [notif, ...prev]);
-      // Optional: Play sound or show toast
+    });
+
+    // Real-time: new service broadcast from a consumer
+    newSocket.on('new_signal', (newJob) => {
+      setRadarJobs(prev => {
+        // Avoid duplicates if we already have this job
+        if (prev.some(j => j.id === newJob.id)) return prev;
+        return [newJob, ...prev];
+      });
     });
 
     setSocket(newSocket);
@@ -720,19 +736,7 @@ function App() {
     { id: 3, title: "Safety Compliances 2025", type: "DOCX", size: "1.2 MB" }
   ];
 
-  // OTP Timer Logic
-  useEffect(() => {
-    let interval;
-    if (signupStep === 2 && timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    } else if (timer === 0) {
-      setCanResend(true);
-      if (interval) clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [timer, signupStep]);
+
 
   // [NEW] GLOBAL DARK MODE EFFECT
   useEffect(() => {
@@ -741,17 +745,20 @@ function App() {
     } else {
       document.body.classList.remove('dark-mode');
     }
+    // Force update for input placeholders
+    const allInputs = document.querySelectorAll('input, textarea, select');
+    allInputs.forEach(el => {
+      el.style.color = isDarkMode ? '#f3f4f6' : '';
+      el.style.background = isDarkMode ? '#1e293b' : '';
+      el.style.borderColor = isDarkMode ? '#334155' : '';
+      if (el.placeholder) {
+        el.style.setProperty('color', isDarkMode ? '#cbd5e1' : '', 'important');
+      }
+    });
   }, [isDarkMode]);
 
 
-  const handleResendOTP = () => {
-    if (canResend) {
-      console.log(`Resending OTP to +91 ${phone}...`);
-      setTimer(30);
-      setCanResend(false);
-      alert(`A new code has been sent to +91 ${phone}`);
-    }
-  };
+
 
   // --- PHOTO & CAMERA LOGIC ---
   const handlePhotoUpload = (e) => {
@@ -1274,7 +1281,8 @@ www.originode.com
         firstName: 'Demo',
         lastName: 'Admin'
       };
-      localStorage.setItem('token', 'demo-token');
+      // Store role-specific token so backend middleware knows the correct demo role
+      localStorage.setItem('token', role === 'producer' ? 'demo-token-producer' : 'demo-token-consumer');
       localStorage.setItem('user', JSON.stringify(demoUser));
 
       // Identify socket
@@ -1290,7 +1298,7 @@ www.originode.com
     try {
       if (isLogin) {
         // --- REAL LOGIN FLOW ---
-        const response = await api.post('/auth/login', { email, password });
+        const response = await api.post('/auth/login', { email, password, role });
         const { token, user } = response.data;
 
         // Persist session
@@ -1312,26 +1320,46 @@ www.originode.com
       } else {
         // --- MULTI-STEP SIGNUP FLOW ---
         if (signupStep === 1) {
-          // Validate step 1 locally first
-          setTimer(30);
-          setCanResend(false);
-          setSignupStep(2);
-        } else if (signupStep === 2) {
-          // Simulate OTP for now (or call an API if we added one)
-          if (otp === '1234') {
-            setSignupStep(3);
-            setErrors({});
-          } else {
-            setErrors({ otp: "Invalid OTP. Use '1234'." });
+          // [NEW] Frontend Validation
+          if (!firstName || !lastName || !email || !password || !phone) {
+            setErrors({ server: 'Please fill all identity fields: Name, Email, Password, and Phone.' });
+            return;
           }
+
+          if (password.length < 8) {
+            setErrors({ server: 'Password must be at least 8 characters long.' });
+            return;
+          }
+
+          try {
+            // Check Email
+            const checkRes = await api.get(`/auth/check-email/${encodeURIComponent(email)}`);
+            if (checkRes.data.exists) {
+              setErrors({ server: 'account already exist' });
+              return;
+            }
+
+            // Check Phone
+            const checkPhoneRes = await api.get(`/auth/check-phone/${encodeURIComponent(phone)}`);
+            if (checkPhoneRes.data.exists) {
+              setErrors({ server: 'phone number already registered' });
+              return;
+            }
+          } catch (err) {
+            console.error("Identity check failed:", err);
+          }
+          setSignupStep(3);
         } else if (signupStep === 3) {
+          // --- REAL SIGNUP FINALIZATION ---
           // --- REAL SIGNUP FINALIZATION ---
           const signupData = {
             email,
             password,
             firstName,
             lastName,
-            role // 'consumer' or 'producer'
+            role, // 'consumer' or 'producer'
+            phone,
+            extraInfo: extraInfo
           };
 
           const response = await api.post('/auth/signup', signupData);
@@ -1348,7 +1376,6 @@ www.originode.com
       console.error('[Auth] Operational failure:', err);
       const msg = err.response?.data?.message || 'Connection to network failed. Check if server is running.';
       setErrors({ server: msg });
-      alert(msg);
     }
   };
 
@@ -1521,20 +1548,71 @@ www.originode.com
   const fetchRadarJobs = async () => {
     try {
       const res = await api.get('/jobs/radar');
-      setRadarJobs(res.data);
+      setRadarJobs(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Radar offline:", err);
       setRadarJobs([]);
     }
   };
 
+  // Stable deterministic value based on job ID chars (no random on re-render)
+  const getJobEstValue = (id) => {
+    if (!id) return '₹5,000';
+    const hash = String(id).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const val = 5000 + (hash % 20) * 1000;
+    return `₹${val.toLocaleString('en-IN')}`;
+  };
+
+  const fetchProducerChats = async () => {
+    try {
+      const res = await api.get('/jobs/my');
+      const myJobs = Array.isArray(res.data) ? res.data : [];
+      if (myJobs.length > 0) {
+        const chatList = myJobs.map(job => ({
+          id: job.id,
+          name: `${job.other_party || 'Client'} — ${job.machine_name || 'Machine'}`,
+          avatar: (job.other_party || 'CL').substring(0, 2).toUpperCase(),
+          lastMsg: (job.issue_description || 'Service request').substring(0, 35) + '...',
+          time: new Date(job.created_at).toLocaleDateString(),
+          unread: 0,
+          status: job.status
+        }));
+        setProducerChats(chatList);
+      }
+    } catch (err) {
+      console.error("Failed to load producer chat list:", err);
+    }
+  };
+
   const handleAcceptJob = async (jobId) => {
     try {
-      await api.patch(`/jobs/${jobId}/accept`);
-      alert("Job Accepted! Redirecting to workspace...");
-      fetchRadarJobs();
+      const res = await api.patch(`/jobs/${jobId}/accept`);
+      const acceptedJob = res.data;
+
+      // Remove the accepted job from the radar board locally
+      setRadarJobs(prev => prev.filter(j => j.id !== jobId));
+
+      // Refresh the producer chat list to include the newly accepted job
+      await fetchProducerChats();
+
+      // Pre-select the accepted job chat and switch to messages tab
+      setActiveChatId(jobId);
+      setActiveTab('pro-messages');
+
     } catch (err) {
       alert("Failed to accept job: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleDeclineJob = async (jobId) => {
+    try {
+      await api.patch(`/jobs/${jobId}/decline`);
+      // Remove from local radar — other producers can still see it
+      setRadarJobs(prev => prev.filter(j => j.id !== jobId));
+    } catch (err) {
+      // Even if API fails (e.g., demo mode), remove locally for good UX
+      setRadarJobs(prev => prev.filter(j => j.id !== jobId));
+      console.warn("Decline API call failed (offline?)", err);
     }
   };
 
@@ -1546,11 +1624,32 @@ www.originode.com
 
   useEffect(() => {
     if (view === 'dashboard' && role === 'producer') {
+      const fetchStats = async () => {
+        try {
+          const res = await api.get('/jobs/producer-stats');
+          setProducerDashStats(res.data);
+        } catch (err) {
+          console.error("Failed to load dashboard stats", err);
+        }
+      };
+
       fetchRadarJobs();
-      const interval = setInterval(fetchRadarJobs, 10000);
+      fetchProducerChats();
+      fetchStats();
+      const interval = setInterval(() => {
+        fetchRadarJobs();
+        fetchStats();
+      }, 10000);
       return () => clearInterval(interval);
     }
   }, [view, role]);
+
+  // When producer switches to messages tab, refresh their chat list
+  useEffect(() => {
+    if (activeTab === 'pro-messages' && role === 'producer') {
+      fetchProducerChats();
+    }
+  }, [activeTab]);
 
   // [NEW] FETCH FINANCIAL STATS
   useEffect(() => {
@@ -1582,10 +1681,81 @@ www.originode.com
     setActiveTab('fleet');
   };
 
-  const handleSocialLogin = async (provider) => {
-    setView('dashboard');
-    setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
+  // [MODIFIED] Social Login Implementation
+  const handleSocialLogin = (provider) => {
+    setSocialProvider(provider);
+    setShowSocialModal(true);
   };
+
+  const finalizeSocialLogin = async (account) => {
+    try {
+      const socialData = {
+        email: account.email,
+        firstName: account.name.split(' ')[0],
+        lastName: account.name.split(' ').slice(1).join(' ') || 'User',
+        photoUrl: account.avatar,
+        role: role,
+        provider: socialProvider
+      };
+
+      const response = await api.post('/auth/social-login', socialData);
+      const { token, user } = response.data;
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      if (socket) socket.emit('identify', user.id || user.user_id);
+
+      setShowSocialModal(false);
+      setView('dashboard');
+      setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
+      fetchNotifications();
+
+    } catch (err) {
+      console.error('[Social Auth] System failure:', err);
+      alert(`Industrial authentication via ${socialProvider} failed.`);
+    }
+  };
+
+  // [NEW] Social Account Selector Modal Component
+  const SocialLoginModal = () => (
+    <div className="modal-overlay social-auth-overlay">
+      <div className="social-selector-card animate-social-slide-up">
+        <div className="social-modal-header">
+          <div className="social-logo-wrap">
+            {socialProvider === 'Google' ? (
+              <svg width="24" height="24" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 384 512"><path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 52.3-11.4 69.5-34.3z" /></svg>
+            )}
+          </div>
+          <h3>Choose an industrial identity</h3>
+          <p>to continue to <strong>origiNode</strong></p>
+        </div>
+
+        <div className="account-list">
+          {simulatedAccounts.map((acc, idx) => (
+            <div key={idx} className="account-item" onClick={() => finalizeSocialLogin(acc)}>
+              <img src={acc.avatar} alt={acc.name} className="acc-avatar" />
+              <div className="acc-info">
+                <span className="acc-name">{acc.name}</span>
+                <span className="acc-email">{acc.email}</span>
+              </div>
+            </div>
+          ))}
+          <div className="account-item use-another">
+            <div className="add-icon">+</div>
+            <span>Use another account</span>
+          </div>
+        </div>
+
+        <div className="social-modal-footer">
+          <p>By continuing, Google/Apple will share your name, email address, and profile picture with origiNode.</p>
+          <button className="btn-cancel-social" onClick={() => setShowSocialModal(false)}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
 
   const isFormValid = view === 'forgot'
     ? email.includes('@')
@@ -1645,15 +1815,15 @@ www.originode.com
             </div>
             <div className="modal-body-v2">
               <div className="input-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Machine Name / ID</label>
-                <input type="text" className="std-input" placeholder="e.g. Hydraulic Press #99"
+                <label htmlFor="machine_name" style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Machine Name / ID</label>
+                <input id="machine_name" type="text" className="std-input" name="machine_name" placeholder="e.g. Hydraulic Press #99"
                   value={newMachineData.name}
                   onChange={(e) => setNewMachineData({ ...newMachineData, name: e.target.value })}
                   style={{ width: '100%', padding: '10px' }} />
               </div>
               <div className="input-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Machine Type</label>
-                <select className="std-input"
+                <label htmlFor="machine_type" style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Machine Type</label>
+                <select id="machine_type" className="std-input" name="machine_type"
                   value={newMachineData.machine_type}
                   onChange={(e) => setNewMachineData({ ...newMachineData, machine_type: e.target.value })}
                   style={{ width: '100%', padding: '10px' }}>
@@ -1665,15 +1835,15 @@ www.originode.com
                 </select>
               </div>
               <div className="input-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Original Maker (OEM)</label>
-                <input type="text" className="std-input" placeholder="e.g. Hydra-Tech Germany"
+                <label htmlFor="oem" style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Original Maker (OEM)</label>
+                <input id="oem" type="text" className="std-input" name="oem" placeholder="e.g. Hydra-Tech Germany"
                   value={newMachineData.oem}
                   onChange={(e) => setNewMachineData({ ...newMachineData, oem: e.target.value })}
                   style={{ width: '100%', padding: '10px' }} />
               </div>
               <div className="input-group" style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Model Year</label>
-                <input type="number" className="std-input" placeholder="e.g. 1985"
+                <label htmlFor="model_year" style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Model Year</label>
+                <input id="model_year" type="number" className="std-input" name="model_year" placeholder="e.g. 1985"
                   value={newMachineData.model_year}
                   onChange={(e) => setNewMachineData({ ...newMachineData, model_year: e.target.value })}
                   style={{ width: '100%', padding: '10px' }} />
@@ -2850,8 +3020,14 @@ www.originode.com
           </div>
 
           <nav className="nav-links">
-            <div className={`nav-item ${activeTab === 'fleet' || activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>Service Board <span className="nav-badge" style={{ background: 'var(--error-red)', marginLeft: 'auto' }}>3</span></div>
-            <div className={`nav-item ${activeTab === 'pro-messages' ? 'active' : ''}`} onClick={() => setActiveTab('pro-messages')}>Client Messages</div>
+            <div className={`nav-item ${activeTab === 'fleet' || activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+              Service Board
+              {radarJobs.length > 0 && <span className="nav-badge" style={{ background: 'var(--error-red)', marginLeft: 'auto' }}>{radarJobs.length}</span>}
+            </div>
+            <div className={`nav-item ${activeTab === 'pro-messages' ? 'active' : ''}`} onClick={() => setActiveTab('pro-messages')}>
+              Client Messages
+              {producerChats.some(c => c.unread > 0) && <span className="nav-badge" style={{ background: 'var(--amber-gold)', marginLeft: 'auto', color: 'black' }}>!</span>}
+            </div>
             <div className={`nav-item ${activeTab === 'earnings' ? 'active' : ''}`} onClick={() => setActiveTab('earnings')}>Earnings Report</div>
             <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Expert Profile</div>
             <div className="nav-divider" style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '10px 0' }}></div>
@@ -2925,47 +3101,145 @@ www.originode.com
                 </div>
               </header>
               <div className="service-board-grid">
-                {Array.isArray(radarJobs) && radarJobs.length > 0 ? radarJobs.map(req => (
-                  <div key={req.id} className={`job-card ${req.priority || 'normal'}`}>
-                    <div className="job-card-header">
-                      <div className="client-badge">
-                        <div className="client-avatar">
-                          {req.client_name ? (req.client_name[0] || 'C') + (req.client_name[1] || '') : 'C'}
+                {Array.isArray(radarJobs) && radarJobs.length > 0 ? radarJobs.map(req => {
+                  // Stable distance from job ID hash
+                  const distHash = String(req.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+                  const dist = 5 + (distHash % 45);
+                  return (
+                    <div key={req.id} className={`job-card ${req.priority || 'normal'}`}>
+                      <div className="job-card-header">
+                        <div className="client-badge">
+                          <div className="client-avatar">
+                            {req.client_name ? (req.client_name[0] || 'C') + (req.client_name[1] || '') : 'C'}
+                          </div>
+                          <div className="client-meta">
+                            <h4>{req.client_name || "Unknown Client"}</h4>
+                            <span>Ticket #{String(req.id || '').substring(0, 6).toUpperCase()} • {req.created_at ? new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</span>
+                          </div>
                         </div>
-                        <div className="client-meta">
-                          <h4>{req.client_name || "Unknown Client"}</h4>
-                          <span>Ticket #{req.id * 83} • {req.created_at ? new Date(req.created_at).toLocaleTimeString() : 'Just now'}</span>
+                        <div className="job-value">{getJobEstValue(req.id)}</div>
+                      </div>
+                      <div className="job-card-body">
+                        {req.priority === 'critical' && <div className="priority-banner">⚠️ IMMEDIATE ATTENTION REQUIRED</div>}
+                        <div className="machine-spec">
+                          <span className="icon">⚙️</span>
+                          <span className="name">{req.machine_name || 'Unknown Machine'}</span>
+                        </div>
+                        <p className="issue-desc">"{req.issue_description || 'No description provided'}"</p>
+                        <div className="job-tags">
+                          <span className="job-tag">{req.priority || 'Normal'}</span>
+                          <span className="job-tag">Repair</span>
+                          {req.video_url && <span className="job-tag">Has Video</span>}
+                          <span className="job-dist">📍 {dist}km</span>
                         </div>
                       </div>
-                      <div className="job-value">₹{Math.floor(Math.random() * 20000) + 5000}</div>
-                    </div>
-                    <div className="job-card-body">
-                      {req.priority === 'critical' && <div className="priority-banner">⚠️ IMMEDIATE ATTENTION REQUIRED</div>}
-                      <div className="machine-spec">
-                        <span className="icon">⚙️</span>
-                        <span className="name">{req.machine_name || 'Unknown Machine'}</span>
-                      </div>
-                      <p className="issue-desc">"{req.issue_description || 'No description provided'}"</p>
-                      <div className="job-tags">
-                        <span className="job-tag">{req.priority || 'Normal'}</span>
-                        <span className="job-tag">Repair</span>
-                        {req.video_url && <span className="job-tag">Has Video</span>}
-                        <span className="job-dist">📍 {Math.floor(Math.random() * 50)}km</span>
+                      <div className="job-card-footer">
+                        <button className="btn-job-action decline" onClick={() => handleDeclineJob(req.id)}>DECLINE</button>
+                        <button className="btn-job-action accept" onClick={() => handleAcceptJob(req.id)}>ACCEPT ASSIGNMENT</button>
                       </div>
                     </div>
-                    <div className="job-card-footer">
-                      <button className="btn-job-action decline">DECLINE</button>
-                      <button className="btn-job-action accept" onClick={() => handleAcceptJob(req.id)}>ACCEPT ASSIGNMENT</button>
+                  );
+                }) : (
+                  <div className="empty-state-container animate-fade" style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+                    {/* Top Row: Welcome & Quick Stats */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 2fr) 1fr 1fr 1fr', gap: '20px' }}>
+                      <div className="glass-panel" style={{ padding: '25px', display: 'flex', flexDirection: 'column', justifyContent: 'center', border: '1px solid #e2e8f0', background: 'white' }}>
+                        <h3 style={{ fontSize: '1.5rem', marginBottom: '10px', color: 'var(--navy-dark)' }}>Welcome back, {profileData?.name || "Expert"}</h3>
+                        <p style={{ color: '#64748b' }}>Your terminal is actively monitoring for new service requests.</p>
+                      </div>
+                      <div className="glass-panel" style={{ padding: '25px', textAlign: 'center', border: '1px solid #e2e8f0', background: 'white' }}>
+                        <h4 style={{ color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>Earnings (This Week)</h4>
+                        <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--navy-dark)' }}>₹{producerDashStats.earnings.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="glass-panel" style={{ padding: '25px', textAlign: 'center', border: '1px solid #e2e8f0', background: 'white' }}>
+                        <h4 style={{ color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>Completed Jobs</h4>
+                        <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--navy-dark)' }}>{producerDashStats.completedJobs}</p>
+                      </div>
+                      <div className="glass-panel" style={{ padding: '25px', textAlign: 'center', border: '1px solid #e2e8f0', background: 'white' }}>
+                        <h4 style={{ color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>Expert Rating</h4>
+                        <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--navy-dark)' }}>⭐ {producerDashStats.rating.toFixed(1)}</p>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Active Jobs & Upcoming Schedule */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
+
+                      {/* Active Assignments */}
+                      <div className="glass-panel" style={{ padding: '25px', border: '1px solid #e2e8f0', background: 'white' }}>
+                        <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--navy-dark)' }}>
+                          Current Assignments
+                          <span style={{ fontSize: '0.8rem', background: '#eef2ff', color: '#4f46e5', padding: '6px 12px', borderRadius: '12px', fontWeight: 'bold' }}>
+                            {producerChats.length} Active
+                          </span>
+                        </h4>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                          {producerChats.length > 0 ? producerChats.slice(0, 3).map(chat => (
+                            <div key={chat.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px', cursor: 'pointer', border: '1px solid #e2e8f0', transition: 'transform 0.2s', ':hover': { transform: 'scale(1.02)' } }} onClick={() => { setActiveChatId(chat.id); setActiveTab('pro-messages'); }}>
+                              <div style={{ width: '45px', height: '45px', background: 'var(--navy-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', fontWeight: 'bold', fontSize: '1.2rem' }}>{chat.avatar}</div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                  <strong style={{ color: 'var(--navy-dark)' }}>{chat.name}</strong>
+                                  <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '8px', background: chat.status === 'payment_pending' ? '#fef3c7' : '#dcfce7', color: chat.status === 'payment_pending' ? '#b45309' : '#166534', fontWeight: 'bold' }}>
+                                    {chat.status === 'payment_pending' ? 'INVOICED' : 'IN PROGRESS'}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.85rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>{chat.lastMsg}</div>
+                              </div>
+                            </div>
+                          )) : (
+                            <div style={{ textAlign: 'center', color: '#64748b', padding: '20px', fontSize: '0.9rem' }}>No active assignments currently.</div>
+                          )}
+
+                          {producerChats.length > 3 && (
+                            <button className="btn-small-text" style={{ marginTop: '10px', alignSelf: 'center', color: 'var(--navy-primary)' }} onClick={() => setActiveTab('pro-messages')}>Review all assignments →</button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Upcoming Schedule */}
+                      <div className="glass-panel" style={{ padding: '25px', border: '1px solid #e2e8f0', background: 'white' }}>
+                        <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--navy-dark)' }}>
+                          Upcoming Schedule
+                          <button className="btn-small-text" onClick={() => setActiveTab('schedule')} style={{ color: 'var(--navy-primary)' }}>Manage ⚙️</button>
+                        </h4>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px', borderLeft: '4px solid var(--sage-green)', borderTop: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
+                            <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', textAlign: 'center', minWidth: '65px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                              <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.5px', marginBottom: '2px' }}>Tomorrow</div>
+                              <div style={{ fontSize: '1.2rem', color: 'var(--navy-dark)', fontWeight: 'bold' }}>09:00</div>
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 'bold', color: 'var(--navy-dark)', marginBottom: '6px', fontSize: '0.95rem' }}>Routine Maintenance: Line 4 Motors</div>
+                              <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span>📍 Solaris Power</span>
+                                <span style={{ width: '4px', height: '4px', background: '#cbd5e1', borderRadius: '50%' }}></span>
+                                <span>15km away</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px', borderLeft: '4px solid #facc15', borderTop: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
+                            <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', textAlign: 'center', minWidth: '65px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                              <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.5px', marginBottom: '2px' }}>Friday</div>
+                              <div style={{ fontSize: '1.2rem', color: 'var(--navy-dark)', fontWeight: 'bold' }}>14:30</div>
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 'bold', color: 'var(--navy-dark)', marginBottom: '6px', fontSize: '0.95rem' }}>Follow-up: Hydraulic Pressure Reset</div>
+                              <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span>📍 Apex Manufacturing</span>
+                                <span style={{ width: '4px', height: '4px', background: '#cbd5e1', borderRadius: '50%' }}></span>
+                                <span>22km away</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )) : <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#94a3b8', padding: '40px' }}>No active signals in your sector.</p>}
-                <div className="radar-card">
-                  <div className="radar-circle">
-                    <div className="radar-sweep"></div>
-                  </div>
-                  <h3>Scanning Sector 7...</h3>
-                  <p>Searching for new industrial signals in your vicinity.</p>
-                </div>
+                )}
               </div>
             </div>
           ) : activeTab === 'inventory' ? (
@@ -3010,13 +3284,6 @@ www.originode.com
                   <p className="tech-subtitle">Weekly Operational Planning</p>
                 </div>
                 <div className="header-actions" style={{ gap: '15px' }}>
-                  <button
-                    className={`btn-ai-assistant ${isOptimizing ? 'loading' : ''}`}
-                    onClick={handleOptimizeSchedule}
-                    disabled={isOptimizing}
-                  >
-                    {isOptimizing ? '🤖 Analysing Signals...' : '✨ AI Intelligence Scan'}
-                  </button>
                   <div className="date-nav">
                     <button className="btn-icon">◀</button>
                     <span style={{ fontWeight: '700', color: 'var(--navy-dark)' }}>Feb 19 - Feb 25, 2026</span>
@@ -3200,7 +3467,7 @@ www.originode.com
                 <div className="chat-search-bar">
                 </div>
                 <div className="chat-list">
-                  {producerChats.map(chat => (
+                  {producerChats.length > 0 ? producerChats.map(chat => (
                     <div key={chat.id} className={`chat-item ${activeChatId === chat.id ? 'active' : ''}`} onClick={() => setActiveChatId(chat.id)}>
                       <div className="chat-avatar">{chat.avatar}</div>
                       <div className="chat-info">
@@ -3208,10 +3475,18 @@ www.originode.com
                           <h4 className="chat-name">{chat.name}</h4>
                           <span className="chat-time">{chat.time}</span>
                         </div>
-                        <p className="chat-preview" style={chat.unread ? { fontWeight: '700', color: 'var(--navy-dark)' } : {}}>{chat.lastMsg}</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <p className="chat-preview" style={chat.unread ? { fontWeight: '700', color: 'var(--navy-dark)' } : {}}>{chat.lastMsg}</p>
+                          {chat.status && <span style={{ fontSize: '0.65rem', background: chat.status === 'accepted' ? '#dcfce7' : '#fef3c7', color: chat.status === 'accepted' ? '#166534' : '#92400e', padding: '2px 6px', borderRadius: '8px', fontWeight: '700', whiteSpace: 'nowrap', marginLeft: '4px' }}>{chat.status.toUpperCase()}</span>}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+                      <p style={{ fontSize: '1.5rem', marginBottom: '8px' }}>💬</p>
+                      <p>No active jobs yet.<br />Accept a job to start chatting.</p>
+                    </div>
+                  )}
                 </div>
               </aside>
 
@@ -3637,7 +3912,7 @@ www.originode.com
           <h1 className="form-title" style={{ marginBottom: '15px', fontSize: '1.6rem' }}>
             {view === 'forgot'
               ? 'Reset Password'
-              : isLogin ? `${role === 'consumer' ? 'Consumer' : 'Producer'} Login` : `Signup Step ${signupStep}`}
+              : isLogin ? `${role === 'consumer' ? 'Consumer' : 'Producer'} Login` : `Signup Step ${signupStep === 3 ? '2' : '1'}`}
           </h1>
 
           {isLogin ? (
@@ -3672,7 +3947,7 @@ www.originode.com
                   </button>
                 </div>
                 <div style={{ textAlign: 'right', marginTop: '4px' }}>
-                  <span className="forgot-password-link" onClick={() => setView('forgot')} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: '700' }}>Forgot Password?</span>
+                  <span className="forgot-password-link" onClick={() => { setView('forgot'); setErrors({}); }} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: '700' }}>Forgot Password?</span>
                 </div>
                 {errors.password && <small className="error-msg">{errors.password}</small>}
               </div>
@@ -3684,17 +3959,12 @@ www.originode.com
               {/* VISUAL STEPPER */}
               <div className="signup-stepper">
                 <div className={`step-item ${signupStep >= 1 ? 'active' : ''}`}>
-                  <div className="step-circle">{signupStep > 1 ? '✓' : '1'}</div>
+                  <div className="step-circle">{signupStep === 3 ? '✓' : '1'}</div>
                   <span className="step-label">Identity</span>
                 </div>
-                <div className={`step-line ${signupStep >= 2 ? 'filled' : ''}`}></div>
-                <div className={`step-item ${signupStep >= 2 ? 'active' : ''}`}>
-                  <div className="step-circle">{signupStep > 2 ? '✓' : '2'}</div>
-                  <span className="step-label">Verify</span>
-                </div>
-                <div className={`step-line ${signupStep >= 3 ? 'filled' : ''}`}></div>
-                <div className={`step-item ${signupStep >= 3 ? 'active' : ''}`}>
-                  <div className="step-circle">3</div>
+                <div className={`step-line ${signupStep === 3 ? 'filled' : ''}`}></div>
+                <div className={`step-item ${signupStep === 3 ? 'active' : ''}`}>
+                  <div className="step-circle">2</div>
                   <span className="step-label">Profile</span>
                 </div>
               </div>
@@ -3704,11 +3974,11 @@ www.originode.com
                   <div style={{ display: 'flex', gap: '15px' }}>
                     <div className="input-field-modern">
                       <label>First Name</label>
-                      <input type="text" placeholder="John" onChange={(e) => setFirstName(e.target.value)} />
+                      <input type="text" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                     </div>
                     <div className="input-field-modern">
                       <label>Last Name</label>
-                      <input type="text" placeholder="Doe" onChange={(e) => setLastName(e.target.value)} />
+                      <input type="text" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                     </div>
                   </div>
 
@@ -3726,43 +3996,21 @@ www.originode.com
 
                   <div className="input-field-modern">
                     <label>Work Email</label>
-                    <input type="email" placeholder="name@company.com" onChange={(e) => setEmail(e.target.value)} />
+                    <input type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   </div>
 
                   <div style={{ display: 'flex', gap: '15px' }}>
                     <div className="input-field-modern" style={{ flex: 1 }}>
                       <label>Password</label>
-                      <input type="password" placeholder="Min 8 chars" onChange={(e) => setPassword(e.target.value)} />
+                      <input type="password" placeholder="Min 8 chars" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
                     <div className="input-field-modern" style={{ flex: 1 }}>
                       <label>Confirm</label>
-                      <input type="password" placeholder="Repeat" onChange={(e) => setConfirmPassword(e.target.value)} />
+                      <input type="password" placeholder="Repeat" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
                     </div>
                   </div>
                   {errors.confirmPassword && <small className="error-msg">{errors.confirmPassword}</small>}
                   {errors.password && <small className="error-msg">{errors.password}</small>}
-                </div>
-              )}
-
-              {signupStep === 2 && (
-                <div className="signup-form-step text-center">
-                  <div className="otp-visual-icon">📱</div>
-                  <h3>Verify Your Number</h3>
-                  <p className="otp-desc">We sent a 4-digit code to <strong>+91 {phone}</strong></p>
-
-                  <div className="otp-input-wrapper">
-                    <input type="text" maxLength="4" className="otp-input-box-enhanced" placeholder="• • • •" onChange={(e) => setOtp(e.target.value)} autoFocus />
-                  </div>
-
-                  {errors.otp && <small className="error-msg">{errors.otp}</small>}
-
-                  <div className="resend-container">
-                    {timer > 0 ? (
-                      <p className="timer-text">Resend code in <span>00:{timer < 10 ? `0${timer}` : timer}</span></p>
-                    ) : (
-                      <button className="btn-text-only" onClick={handleResendOTP}>Resend Code</button>
-                    )}
-                  </div>
                 </div>
               )}
 
@@ -3783,8 +4031,11 @@ www.originode.com
             </div>
           )}
 
+          {errors.server && <div className="error-alert animate-fade">{errors.server}</div>}
+          {showSaveSuccessModal && <div className="success-alert animate-fade">Operation Successful! Redirecting...</div>}
+
           <button className="main-action-btn" onClick={handleLogin}>
-            {view === 'forgot' ? 'Send Reset Link' : isLogin ? 'Enter Portal' : (signupStep === 1 ? 'Verify Phone' : signupStep === 2 ? 'Verify OTP' : 'Finish Setup')}
+            {view === 'forgot' ? 'Send Reset Link' : isLogin ? 'Enter Portal' : (signupStep === 1 ? 'Continue' : 'Finish Setup')}
           </button>
 
           {view !== 'forgot' && (
@@ -3817,12 +4068,13 @@ www.originode.com
 
           <p className="switch-text" style={{ marginTop: '15px', fontSize: '0.85rem' }}>
             {isLogin ? "New to the platform?" : "Already registered?"}
-            <span onClick={() => { setIsLogin(!isLogin); setSignupStep(1); }}> {isLogin ? "Sign Up" : "Login"}</span>
+            <span onClick={() => { setIsLogin(!isLogin); setSignupStep(1); setErrors({}); }}> {isLogin ? "Sign Up" : "Login"}</span>
           </p>
           {sharedModals}
         </div>
       </div>
-    </div>
+      {showSocialModal && <SocialLoginModal />}
+    </div >
   );
 }
 

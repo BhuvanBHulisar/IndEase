@@ -10,14 +10,44 @@ const razorpay = new Razorpay({
 });
 
 // @desc    Initiate a payment order
-// @route   POST /api/finance/pay-order
 exports.createOrder = async (req, res) => {
-    // MOCK MODE: Always succeed and return a demo order for payment testing
     const { requestId } = req.body;
-    // Simulate a quoted cost for demo
-    const quoted_cost = 5000;
-    const order = { id: 'order_demo_' + Date.now(), amount: quoted_cost * 100, currency: 'INR' };
-    res.json(order);
+
+    try {
+        // 1. Fetch the quoted cost and verify request exists
+        const request = await db.query(
+            'SELECT quoted_cost, status FROM service_requests WHERE id = $1',
+            [requestId]
+        );
+
+        if (request.rows.length === 0) {
+            return res.status(404).json({ message: 'Service request not found' });
+        }
+
+        const cost = Number(request.rows[0].quoted_cost);
+        if (!cost || cost <= 0) {
+            return res.status(400).json({ message: 'No valid invoice found for this request' });
+        }
+
+        // 2. Create Razorpay order (or mock order for demo)
+        const orderId = 'order_demo_' + Date.now();
+        const order = {
+            id: orderId,
+            amount: cost * 100, // paisa
+            currency: 'INR'
+        };
+
+        // 3. Persist as PENDING transaction in our ledger
+        await db.query(
+            'INSERT INTO transactions (request_id, transaction_ref, amount, status) VALUES ($1, $2, $3, $4)',
+            [requestId, orderId, cost, 'pending']
+        );
+
+        res.json(order);
+    } catch (err) {
+        console.error('[Finance] Order creation failure:', err);
+        res.status(500).json({ message: 'Failed to initiate secure portal' });
+    }
 };
 
 // @desc    Verify payment signature (Secure Webhook/Callback)
@@ -50,6 +80,10 @@ exports.verifyPayment = async (req, res) => {
                 ['paid', razorpay_payment_id, razorpay_order_id]
             );
 
+            if (txResult.rows.length === 0) {
+                return res.status(404).json({ message: "Transaction record not found" });
+            }
+
             const requestId = txResult.rows[0].request_id;
 
             // 3. Update job status to completed & Fetch producer ID to notify
@@ -71,13 +105,15 @@ exports.verifyPayment = async (req, res) => {
                 io.to(`user_${req.user.id}`).emit('finance_chart_update');
             }
 
-            await notificationController.createNotification(
-                producerId,
-                'Payment Received',
-                `You have received payment for Job #${requestId.substring(0, 6)}. Funds are being processed.`,
-                'payment',
-                `/finance`
-            );
+            if (producerId) {
+                await notificationController.createNotification(
+                    producerId,
+                    'Payment Received',
+                    `You have received payment for Job #${requestId.substring(0, 6).toUpperCase()}. Funds are being processed.`,
+                    'payment',
+                    `/finance`
+                );
+            }
 
             return res.status(200).json({ message: "Transaction authenticated and recorded." });
         } else {
@@ -92,15 +128,59 @@ exports.verifyPayment = async (req, res) => {
 // @desc    Get dashboard financial stats
 // @route   GET /api/finance/stats
 exports.getStats = async (req, res) => {
-    // TEMPORARY: Return mock stats so frontend works without DB
+    const userId = req.user.id;
     const role = req.user.role;
-    let stats;
-    if (role === 'producer') {
-        stats = { totalRevenue: 100000, pendingPayout: 5000, avgTicket: 2500, totalSpent: 0 };
-    } else {
-        stats = { totalRevenue: 0, pendingPayout: 0, avgTicket: 0, totalSpent: 42000 };
+
+    try {
+        let stats;
+        if (role === 'producer') {
+            // Stats for Expert
+            const revenueRes = await db.query(
+                `SELECT 
+                    COALESCE(SUM(amount), 0) as total_revenue,
+                    COALESCE(AVG(amount), 0) as avg_ticket
+                 FROM transactions t
+                 JOIN service_requests sr ON t.request_id = sr.id
+                 WHERE sr.producer_id = $1 AND t.status = 'paid'`,
+                [userId]
+            );
+
+            const pendingRes = await db.query(
+                `SELECT COALESCE(SUM(quoted_cost), 0) as pending_payout 
+                 FROM service_requests 
+                 WHERE producer_id = $1 AND status IN ('accepted', 'payment_pending')`,
+                [userId]
+            );
+
+            stats = {
+                totalRevenue: Number(revenueRes.rows[0].total_revenue),
+                pendingPayout: Number(pendingRes.rows[0].pending_payout),
+                avgTicket: Math.round(Number(revenueRes.rows[0].avg_ticket)),
+                totalSpent: 0
+            };
+        } else {
+            // Stats for Consumer
+            const spentRes = await db.query(
+                `SELECT COALESCE(SUM(amount), 0) as total_spent
+                 FROM transactions t
+                 JOIN service_requests sr ON t.request_id = sr.id
+                 WHERE sr.consumer_id = $1 AND t.status = 'paid'`,
+                [userId]
+            );
+
+            stats = {
+                totalRevenue: 0,
+                pendingPayout: 0,
+                avgTicket: 0,
+                totalSpent: Number(spentRes.rows[0].total_spent)
+            };
+        }
+
+        res.json(stats);
+    } catch (err) {
+        console.error('[Finance] Stats retrieval failure:', err);
+        res.status(500).json({ message: 'Internal ledger error' });
     }
-    res.json(stats);
 };
 
 // @desc    Get recent transactions

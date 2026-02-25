@@ -8,6 +8,9 @@ const pool = new Pool({
     database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
     port: process.env.DB_PORT,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 async function initSchema() {
@@ -17,9 +20,9 @@ async function initSchema() {
         // Users Table (Ensure exists)
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY, -- or UUID if using string IDs
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 email VARCHAR(255) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(50) NOT NULL,
                 first_name VARCHAR(100),
                 last_name VARCHAR(100),
@@ -34,7 +37,19 @@ async function initSchema() {
             );
         `);
 
+        // Initialize Extensions
+        await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+
         // Users Migration (For existing tables)
+        await pool.query(`
+            DO $$ 
+            BEGIN 
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password') THEN
+                    ALTER TABLE users RENAME COLUMN password TO password_hash;
+                END IF;
+            END $$;
+        `);
+
         await pool.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS dob DATE;
@@ -70,11 +85,15 @@ async function initSchema() {
                 issue_description TEXT,
                 priority VARCHAR(50) DEFAULT 'normal',
                 video_url TEXT,
-                status VARCHAR(50) DEFAULT 'broadcast', -- broadcast, accepted, completed
+                status VARCHAR(50) DEFAULT 'broadcast', -- broadcast, accepted, payment_pending, completed
+                quoted_cost DECIMAL(12,2),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+
+        // Migration for quoted_cost if table already existed
+        await pool.query('ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS quoted_cost DECIMAL(12,2)');
 
         // Producer Profiles Table
         await pool.query(`
@@ -90,13 +109,35 @@ async function initSchema() {
             );
         `);
 
+        // NEW: Declined Jobs Table (To prevent jobs from reappearing on radar)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS declined_jobs (
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                request_id INTEGER REFERENCES service_requests(id) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, request_id)
+            );
+        `);
+
+        // NEW: Chat Messages Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id SERIAL PRIMARY KEY,
+                request_id INTEGER REFERENCES service_requests(id) ON DELETE CASCADE,
+                sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                message_text TEXT,
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
         // Transactions Table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS transactions (
                 id SERIAL PRIMARY KEY,
                 request_id INTEGER REFERENCES service_requests(id),
                 transaction_ref VARCHAR(255),
-                amount DECIMAL(10,2),
+                amount DECIMAL(12,2),
                 status VARCHAR(50) DEFAULT 'pending', -- pending, paid, failed
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -114,6 +155,33 @@ async function initSchema() {
                 slot_type VARCHAR(20) DEFAULT 'job', -- job, break, unavailable
                 title VARCHAR(255),
                 description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // NEW: Notifications Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS notifications (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                type VARCHAR(50), -- job_update, payment, chat, system
+                is_read BOOLEAN DEFAULT FALSE,
+                link VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // NEW: Reviews Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS reviews (
+                id SERIAL PRIMARY KEY,
+                request_id INTEGER UNIQUE REFERENCES service_requests(id) ON DELETE CASCADE,
+                consumer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                producer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+                comment TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);

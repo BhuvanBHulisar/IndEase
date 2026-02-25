@@ -11,6 +11,7 @@
 
 * {
   box-sizing: border-box;
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif !important;
 }
 
 html,
@@ -20,4 +21,174 @@ body,
   min-width: 320px;
   min-height: 100%;
   width: 100%;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999;
+}
+
+/* SOCIAL IDENTITY SELECTOR */
+.social-auth-overlay {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.social-selector-card {
+  background: white;
+  width: 100%;
+  max-width: 400px;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.social-modal-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.social-logo-wrap {
+  margin-bottom: 15px;
+}
+
+.social-modal-header h3 {
+  font-size: 1.5rem;
+  margin: 0;
+  color: #1a1a1b;
+}
+
+.social-modal-header p {
+  color: #5f6368;
+  margin-top: 5px;
+}
+
+.account-list {
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.account-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid #dadce0;
+}
+
+.account-item:last-child {
+  border-bottom: none;
+}
+
+.account-item:hover {
+  background: #f8f9fa;
+}
+
+.acc-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+
+.acc-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.acc-name {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #3c4043;
+}
+
+.acc-email {
+  font-size: 0.85rem;
+  color: #5f6368;
+}
+
+.use-another {
+  color: #1a73e8;
+  font-weight: 500;
+}
+
+.add-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-right: 12px;
+}
+
+.social-modal-footer {
+  font-size: 0.75rem;
+  color: #5f6368;
+  text-align: center;
+}
+
+.btn-cancel-social {
+  margin-top: 20px;
+  background: none;
+  border: none;
+  color: #1a73e8;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.animate-social-slide-up {
+  animation: slideUpSocial 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpSocial {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.dark-mode .social-selector-card {
+  background: #1e293b;
+  color: white;
+}
+
+.dark-mode .social-modal-header h3 {
+  color: white;
+}
+
+.dark-mode .account-list {
+  border-color: #334155;
+}
+
+.dark-mode .account-item {
+  border-bottom-color: #334155;
+}
+
+.dark-mode .account-item:hover {
+  background: #334155;
+}
+
+.dark-mode .acc-name {
+  color: #f1f5f9;
+}
+
+.dark-mode .acc-email {
+  color: #94a3b8;
 }

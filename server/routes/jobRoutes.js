@@ -16,9 +16,17 @@ router.post('/broadcast', auth, roleCheck(['consumer']), jobController.broadcast
 // @desc    Experts scan the radar for active signals
 router.get('/radar', auth, roleCheck(['producer']), jobController.getRadarJobs);
 
+// @route   GET api/jobs/producer-stats
+// @desc    Get expert dashboard statistics
+router.get('/producer-stats', auth, roleCheck(['producer']), jobController.getProducerStats);
+
 // @route   PATCH api/jobs/:id/accept
 // @desc    Expert accepts the assignment
 router.patch('/:id/accept', auth, roleCheck(['producer']), jobController.acceptJob);
+
+// @route   PATCH api/jobs/:id/decline
+// @desc    Expert declines / skips a broadcast job
+router.patch('/:id/decline', auth, roleCheck(['producer']), jobController.declineJob);
 
 // @route   POST api/jobs/:id/invoice
 // @desc    Expert sends an invoice/bill

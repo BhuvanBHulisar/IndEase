@@ -1,0 +1,40 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ???? prevent committing .env to code: https://dotenvx.com/precommit
+[Database] Integrity probe successful
+node : node:events:485
+At line:1 char:1
++ node index.js > server_exec.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifie 
+   d: (node:events:485:String) [], Remot  
+  eException
+    + FullyQualifiedErrorId : NativeComma 
+   ndError
+ 
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already 
+in use :::5002
+    at Server.setupListenHandle [as 
+_listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at startServer (file:///C:/Users/user2
+/OneDrive/Desktop/OrigiNode/server/index.j
+s:71:20)
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:105:5)
+Emitted 'error' event on Server instance 
+at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:90:21) 
+{
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 5002
+}
+
+Node.js v23.8.0
