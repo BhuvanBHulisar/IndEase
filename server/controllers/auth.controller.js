@@ -17,32 +17,28 @@ const cookieOptions = {
 /**
  * Controller for Auth Endpoints
  */
-export const register = async (req, res, next) => {
+export const register = async (req, res) => {
     try {
-        const validatedData = registerSchema.parse(req.body);
-        const user = await authService.registerUser(validatedData);
-
-        // Issue tokens for immediate access
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
-
-        const hRT = hashToken(refreshToken);
-        await db.query(
-            'INSERT INTO auth_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-            [user.id, hRT, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
+        const { email, password, role } = req.body;
+        const normalizedEmail = email.toLowerCase();
+        const userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
+        if (userRes.rows.length > 0) {
+            return res.status(400).json({ message: 'Account already exists. Please login.' });
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUserRes = await db.query(
+            'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING *',
+            [normalizedEmail, hashedPassword, role]
         );
-
-        res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-        res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-        res.status(201).json({
-            status: 'success',
-            message: 'Industrial account created. Verification email dispatched.',
-            token: accessToken,
-            user: { id: user.id, email: user.email, role: user.role, firstName: user.first_name || validatedData.firstName }
-        });
+        const user = newUserRes.rows[0];
+        const token = jwt.sign(
+            { id: user.id, email: user.email, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+        res.status(201).json({ token, user });
     } catch (err) {
-        next(err);
+        res.status(500).json({ message: 'Registration failed', error: err.message });
     }
 };
 
@@ -50,158 +46,63 @@ export const register = async (req, res, next) => {
  * Social Login Controller (Google)
  * POST /api/auth/social-login
  */
-export const socialLogin = async (req, res, next) => {
+export const socialLogin = async (req, res) => {
     try {
-        const { provider, token, email, name, picture } = req.body;
-
-        const normalizedProvider = (provider || '').toLowerCase().trim();
-        if (normalizedProvider !== 'google') {
-            console.error('[SocialLogin] Unsupported provider:', provider);
-            return res.status(400).json({ success: false, message: 'Only Google social login supported.' });
-        }
-
-        // 1. Verify Google token
-        if (!token || typeof token !== 'string' || token.split('.').length !== 3) {
-            console.error('[SocialLogin] Missing or invalid Google ID token:', token);
-            return res.status(400).json({ success: false, message: 'Missing or invalid Google ID token.' });
-        }
-        const client = new OAuth2Client();
+        const { token: idToken } = req.body;
         let payload;
         try {
-            const ticket = await client.verifyIdToken({ idToken: token, audience: process.env.GOOGLE_CLIENT_ID });
-            payload = ticket.getPayload();
-        } catch (err) {
-            console.error('[SocialLogin] Google token verification failed:', err);
-            return res.status(401).json({ success: false, message: 'Invalid Google token.', error: err?.message });
-        }
-
-        // 2. Find user by email or google_id
-        let user;
-        try {
-            const dbUserRes = await db.query(
-                'SELECT * FROM users WHERE LOWER(email) = $1 OR google_id = $2',
-                [email.toLowerCase(), payload.sub]
-            );
-            user = dbUserRes.rows[0];
-
-            if (user) {
-                // 3. Update google_id if missing
-                if (!user.google_id) {
-                    await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [payload.sub, user.id]);
-                    user.google_id = payload.sub;
-                }
-                // Optionally update photo_url if missing
-                if (!user.photo_url && picture) {
-                    await db.query('UPDATE users SET photo_url = $1 WHERE id = $2', [picture, user.id]);
-                    user.photo_url = picture;
-                }
-            } else {
-                // 4. Create user
-                const insertRes = await db.query(
-                    `INSERT INTO users (email, google_id, first_name, photo_url, role, is_verified) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-                    [email.toLowerCase(), payload.sub, name, picture, 'consumer', true]
-                );
-                user = insertRes.rows[0];
-            }
-        } catch (err) {
-            console.error('[SocialLogin] DB error:', err);
-            return res.status(500).json({ success: false, message: 'Database error during social login.', error: err?.message });
-        }
-
-        // 5. Generate tokens
-        try {
-            const accessToken = generateAccessToken(user);
-            const refreshToken = generateRefreshToken(user);
-            const hRT = hashToken(refreshToken);
-            await db.query(
-                'INSERT INTO auth_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-                [user.id, hRT, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
-            );
-
-            // Set cookies
-            res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-            res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-            // Return user info and tokens
-            res.status(200).json({
-                success: true,
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    name: user.first_name,
-                    photo_url: user.photo_url,
-                    role: user.role,
-                    google_id: user.google_id
-                },
-                accessToken,
-                refreshToken
+            const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+            const ticket = await client.verifyIdToken({
+                idToken,
+                audience: process.env.GOOGLE_CLIENT_ID,
             });
-        } catch (err) {
-            console.error('[SocialLogin] Token/cookie error:', err);
-            return res.status(500).json({ success: false, message: 'Token or cookie error during social login.', error: err?.message });
+            payload = ticket.getPayload();
+        } catch {
+            return res.status(401).json({ message: 'Invalid Google token.' });
+        }
+        const normalizedEmail = payload.email.toLowerCase();
+        let userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
+        if (userRes.rows.length > 0) {
+            let user = userRes.rows[0];
+            if (!user.google_id) {
+                await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [payload.sub, user.id]);
+            }
+            const jwtToken = jwt.sign(
+                { id: user.id, email: user.email, role: user.role },
+                process.env.JWT_SECRET,
+                { expiresIn: '1h' }
+            );
+            return res.json({ token: jwtToken, user });
+        } else {
+            // User not found, do not auto-create
+            return res.status(200).json({ status: "USER_NOT_FOUND", email: normalizedEmail });
         }
     } catch (err) {
-        next(err);
+        res.status(500).json({ message: 'Google login failed', error: err.message });
     }
 };
 
-export const login = async (req, res, next) => {
+export const login = async (req, res) => {
     try {
-        const { email, password, role } = loginSchema.parse(req.body);
+        const { email, password } = req.body;
         const normalizedEmail = email.toLowerCase();
-
-        // 1. Locate Identity
-        const result = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
-        if (result.rows.length === 0) {
-            return next(new AppError('No account found, create one', 404));
+        const userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
+        if (userRes.rows.length === 0) {
+            return res.status(400).json({ message: 'No account found. Please sign up.' });
         }
-
-        const user = result.rows[0];
-
-        // 2. Lockout Check
-        if (user.locked_until && user.locked_until > new Date()) {
-            return next(new AppError('Account locked. Too many failed attempts.', 403));
-        }
-
-        // 3. Role Restriction
-        if (role && user.role !== role) {
-            return next(new AppError(`Forbidden: Registered as ${user.role}`, 403));
-        }
-
-        // 4. Verify Password
+        const user = userRes.rows[0];
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
-            // Increment failures
-            await db.query('UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = $1', [user.id]);
-            if (user.failed_login_attempts + 1 >= 5) {
-                await db.query('UPDATE users SET locked_until = $1 WHERE id = $2', [new Date(Date.now() + 15 * 60 * 1000), user.id]);
-            }
-            return next(new AppError('Invalid credentials', 401));
+            return res.status(401).json({ message: 'Invalid credentials.' });
         }
-
-        // 5. Success reset
-        await db.query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
-
-        // 6. Tokens
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
-
-        const hRT = hashToken(refreshToken);
-        await db.query(
-            'INSERT INTO auth_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-            [user.id, hRT, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
+        const token = jwt.sign(
+            { id: user.id, email: user.email, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
         );
-
-        res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-        res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-        res.json({
-            status: 'success',
-            token: accessToken,
-            user: { id: user.id, email: user.email, role: user.role, firstName: user.first_name }
-        });
+        res.json({ token, user });
     } catch (err) {
-        next(err);
+        res.status(500).json({ message: 'Login failed', error: err.message });
     }
 };
 
