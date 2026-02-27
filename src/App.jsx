@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 // Simple popup modal for feedback
-function PopupModal({ message, onClose }) {
+function PopupModal({ title = 'Support Ticket Submitted', message, onClose }) {
   return (
     <div className="modal-overlay" style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(1px)' }}>
       <div className="confirm-modal animate-fade" style={{ width: '350px', textAlign: 'center', padding: '35px', background: 'white', borderRadius: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
         <div style={{ width: '70px', height: '70px', background: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <span style={{ fontSize: '2.5rem', color: '#10b981' }}>✓</span>
         </div>
-        <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.3rem', fontWeight: '800' }}>Support Ticket Submitted</h3>
+        <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.3rem', fontWeight: '800' }}>{title}</h3>
         <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>{message}</p>
         <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: '700', borderRadius: '10px' }} onClick={onClose}>OK</button>
       </div>
@@ -4053,10 +4053,10 @@ www.originode.com
       {showSocialModal && <SocialLoginModal />}
       {showForgotModal && (
         <PopupModal
+          title="Reset Link Sent"
           message={`If an account exists, a reset link has been sent to ${email}`}
           onClose={() => {
             setShowForgotModal(false);
-            setView('landing');
           }}
         />
       )}

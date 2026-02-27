@@ -267,6 +267,17 @@ export const resetPassword = async (req, res, next) => {
     }
 };
 
+export const verifyToken = async (req, res, next) => {
+    try {
+        const { token } = req.query;
+        if (!token) return res.status(400).json({ status: 'error', message: 'Token is required' });
+        await authService.validateResetToken(token);
+        res.json({ status: 'success', valid: true });
+    } catch (err) {
+        next(err);
+    }
+};
+
 export const getMe = async (req, res, next) => {
     try {
         const result = await db.query('SELECT id, email, role, first_name, last_name, email_verified, company_name FROM users WHERE id = $1', [req.user.id]);

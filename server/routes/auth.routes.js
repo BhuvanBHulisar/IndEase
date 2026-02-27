@@ -51,6 +51,7 @@ router.post('/verify-email', authController.verifyEmail);
 router.post('/login', loginLimiter, authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/forgot-password', authController.forgotPassword);
+router.get('/verify-token', authController.verifyToken);
 router.post('/reset-password', authController.resetPassword);
 
 // SOCIAL LOGIN

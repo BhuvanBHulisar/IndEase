@@ -103,3 +103,17 @@ export const resetUserPassword = async (token, newPassword) => {
     await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
     await db.query('DELETE FROM verification_tokens WHERE id = $1', [result.rows[0].id]);
 };
+export const validateResetToken = async (token) => {
+    const hashedToken = hashToken(token);
+
+    const result = await db.query(
+        'SELECT id FROM verification_tokens WHERE token_hash = $1 AND type = $2 AND expires_at > NOW()',
+        [hashedToken, 'password_reset']
+    );
+
+    if (result.rows.length === 0) {
+        throw new AppError('Invalid or expired reset token', 400);
+    }
+
+    return true;
+};
