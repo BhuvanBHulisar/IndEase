@@ -257,7 +257,8 @@ body,
 /* 3. LOGIN PAGE WRAPPER (VIEW 2) */
 .login-page-wrapper {
   background: radial-gradient(circle at top left, var(--navy-dark), #0f172a);
-  height: 100vh;
+  min-height: 100vh;
+  padding: 40px 0;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -279,7 +280,7 @@ body,
 .glass-container {
   display: flex;
   width: 1000px;
-  min-height: 700px;
+  min-height: min-content;
   background: #ffffff;
   border-radius: 20px;
   overflow: hidden;
@@ -4499,6 +4500,7 @@ body.dark-mode .input-row input {
     opacity: 1;
   }
 }
+
 .auth-container {
   min-height: 100vh;
   display: flex;
@@ -4508,12 +4510,13 @@ body.dark-mode .input-row input {
   background: #f4f7fb;
 }
 
-.login-box, .signup-box {
+.login-box,
+.signup-box {
   background: white;
   padding: 40px;
   border-radius: 12px;
   width: 400px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 .login-box input,

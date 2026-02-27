@@ -66,6 +66,8 @@ const parseMessageBody = (text) => {
 };
 
 function App() {
+  // [NEW] LOGIN FORM STATE
+  const [formData, setFormData] = useState({ email: '', password: '' });
   // Dark mode toggle handler
   const handleDarkModeToggle = () => {
     setIsDarkMode(prev => {
@@ -111,17 +113,17 @@ function App() {
   const [helpSearch, setHelpSearch] = useState(''); // Search state for help section
 
   const [signupStep, setSignupStep] = useState(1); // 1: Details, 2: OTP, 3: Context
-  const [firstName, setFirstName] = useState('Bhuvan');
-  const [lastName, setLastName] = useState('B H');
-  const [phone, setPhone] = useState('+91 98765 24210'); // Added Phone Number
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState(''); // Added Phone Number
   const [confirmPassword, setConfirmPassword] = useState(''); // Added Confirm Password
-  const [dob, setDob] = useState('2000-01-17');
-  const [location, setLocation] = useState('Mumbai, Maharashtra');
-  const [selectedState, setSelectedState] = useState('Maharashtra');
-  const [selectedCity, setSelectedCity] = useState('Mumbai');
-  const [taxId, setTaxId] = useState('27AAACN0000Z1Z0');
+  const [dob, setDob] = useState('');
+  const [location, setLocation] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [taxId, setTaxId] = useState('');
   const [otp, setOtp] = useState('');
-  const [extraInfo, setExtraInfo] = useState('Doe Industrial Manufacturing Ltd.'); // Company for Consumer, Skill for Producer
+  const [extraInfo, setExtraInfo] = useState(''); // Company for Consumer, Skill for Producer
 
   // [NEW IDENTITY & PHOTO STATES]
   const [userPhoto, setUserPhoto] = useState(null);
@@ -129,6 +131,7 @@ function App() {
   const [showCamera, setShowCamera] = useState(false);
   // Language selection removed as per request
   const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
   const [showNoChangesModal, setShowNoChangesModal] = useState(false);
   const [originalData, setOriginalData] = useState({});
 
@@ -1270,113 +1273,46 @@ www.originode.com
   };
 
   const handleLogin = async () => {
-    // 1. Validation check
-    if (!validate()) return;
+    setErrors({});
 
-    // --- DEMO BYPASS ---
-    if (isLogin && email === 'admin@originode.com' && password === 'Demo@1234') {
-      const demoUser = {
-        id: 'demo-123',
-        email: 'admin@originode.com',
-        role: role, // Use whatever role is currently selected
-        firstName: 'Demo',
-        lastName: 'Admin'
-      };
-      // Store role-specific token so backend middleware knows the correct demo role
-      localStorage.setItem('token', role === 'producer' ? 'demo-token-producer' : 'demo-token-consumer');
-      localStorage.setItem('user', JSON.stringify(demoUser));
+    if (view === 'forgot') {
+      if (!email) {
+        setErrors({ server: "Email is required." });
+        return;
+      }
+      try {
+        await api.post('/auth/forgot-password', { email });
+      } catch (err) {
+        console.warn(err);
+      }
+      setShowForgotModal(true);
+      return;
+    }
 
-      // Identify socket
-      if (socket) socket.emit('identify', demoUser.id);
-
-      setView('dashboard');
-      setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
-      setErrors({});
-      fetchNotifications();
+    // Basic validation
+    if (!email || !password) {
+      setErrors({ server: "Email and password are required." });
       return;
     }
 
     try {
-      if (isLogin) {
-        // --- REAL LOGIN FLOW ---
-        const response = await api.post('/auth/login', { email, password, role });
-        const { token, user } = response.data;
+      const res = await api.post('/auth/login', {
+        email: email,
+        password: password,
+      });
 
-        // Persist session
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        // Identify socket
-        if (socket) socket.emit('identify', user.id || user.user_id);
-
-        // Update UI state
-        setRole(user.role || 'consumer');
-        setFirstName(user.firstName || user.first_name || '');
-        setLastName(user.lastName || user.last_name || '');
+      if (res.data?.token) {
+        localStorage.setItem('token', res.data.token);
         setView('dashboard');
-        setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
-        setErrors({});
-        fetchNotifications();
-
       } else {
-        // --- MULTI-STEP SIGNUP FLOW ---
-        if (signupStep === 1) {
-          // [NEW] Frontend Validation
-          if (!firstName || !lastName || !email || !password || !phone) {
-            setErrors({ server: 'Please fill all identity fields: Name, Email, Password, and Phone.' });
-            return;
-          }
-
-          if (password.length < 8) {
-            setErrors({ server: 'Password must be at least 8 characters long.' });
-            return;
-          }
-
-          try {
-            // Check Email
-            const checkRes = await api.get(`/auth/check-email/${encodeURIComponent(email)}`);
-            if (checkRes.data.exists) {
-              setErrors({ server: 'account already exist' });
-              return;
-            }
-
-            // Check Phone
-            const checkPhoneRes = await api.get(`/auth/check-phone/${encodeURIComponent(phone)}`);
-            if (checkPhoneRes.data.exists) {
-              setErrors({ server: 'phone number already registered' });
-              return;
-            }
-          } catch (err) {
-            console.error("Identity check failed:", err);
-          }
-          setSignupStep(3);
-        } else if (signupStep === 3) {
-          // --- REAL SIGNUP FINALIZATION ---
-          // --- REAL SIGNUP FINALIZATION ---
-          const signupData = {
-            email,
-            password,
-            firstName,
-            lastName,
-            role, // 'consumer' or 'producer'
-            phone,
-            extraInfo: extraInfo
-          };
-
-          const response = await api.post('/auth/signup', signupData);
-          const { token, user } = response.data;
-
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(user));
-
-          setView('dashboard');
-          setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
-        }
+        setErrors({ server: "Invalid login response." });
       }
     } catch (err) {
-      console.error('[Auth] Operational failure:', err);
-      const msg = err.response?.data?.message || 'Connection to network failed. Check if server is running.';
-      setErrors({ server: msg });
+      setErrors({
+        server:
+          err.response?.data?.message ||
+          "Invalid email or password."
+      });
     }
   };
 
@@ -1688,31 +1624,31 @@ www.originode.com
       const { credential } = credentialResponse;
       setErrors({});
 
-      const res = await api.post('/auth/social-login', {
-        provider: 'google',
-        token: credential,
+      const res = await api.post('/auth/google', {
+        id_token: credential,
       }, { withCredentials: true });
 
-      // Handle user redirection if not registered
       if (res.data && res.data.status === 'USER_NOT_FOUND') {
-        setIsLogin(false);
-        setSignupStep(1);
-        setEmail(res.data.email || '');
-        setFirstName('');
-        setLastName('');
-        setPhone('');
-        setErrors({ server: 'No industrial account found for this Google identity. Please complete signup.' });
+        if (isLogin) {
+          setIsLogin(false);
+          setSignupStep(1);
+          setEmail(res.data.email || '');
+          setFirstName(res.data.given_name || '');
+          setLastName(res.data.family_name || '');
+          setPhone('');
+          setErrors({ server: 'No industrial account found for this Google identity. Please complete signup.' });
+        } else {
+          setEmail(res.data.email || '');
+          setFirstName(res.data.given_name || '');
+          setLastName(res.data.family_name || '');
+          setErrors({});
+        }
         return;
       }
 
-      // Successful login
-      const { token, user } = res.data;
-      if (token && user) {
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-
+      const { user } = res.data;
+      if (user) {
         if (socket) socket.emit('identify', user.id || user.user_id);
-
         setView('dashboard');
         setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
         fetchNotifications();
@@ -1722,13 +1658,21 @@ www.originode.com
       setErrors({ server: 'Authentication failed. Please try traditional credentials.' });
     } catch (err) {
       if (err.response && err.response.data && err.response.data.status === 'USER_NOT_FOUND') {
-        setIsLogin(false);
-        setSignupStep(1);
-        setEmail(err.response.data.email || '');
-        setErrors({ server: 'No account found. Complete your identity profile below.' });
+        if (isLogin) {
+          setIsLogin(false);
+          setSignupStep(1);
+          setEmail(err.response.data.email || '');
+          setFirstName(err.response.data.given_name || '');
+          setLastName(err.response.data.family_name || '');
+          setErrors({ server: 'No account found. Complete your identity profile below.' });
+        } else {
+          setEmail(err.response.data.email || '');
+          setFirstName(err.response.data.given_name || '');
+          setLastName(err.response.data.family_name || '');
+          setErrors({});
+        }
         return;
       }
-      console.error('[Google Auth] Error:', err);
       setErrors({ server: 'Google authentication encountered a network error.' });
     }
   };
@@ -3949,34 +3893,40 @@ www.originode.com
                 <input
                   type="email"
                   placeholder="Enter your email"
+                  value={email}
+                  autoComplete="off"
                   onChange={(e) => setEmail(e.target.value)}
                   className={errors.email ? 'field-error' : ''}
                 />
                 {errors.email && <small className="error-msg">{errors.email}</small>}
               </div>
 
-              <div className="input-row" style={{ marginBottom: '10px' }}>
-                <label>Password</label>
-                <div className="password-input-wrapper">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter password"
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={errors.password ? 'field-error' : ''}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
+              {view !== 'forgot' && (
+                <div className="input-row" style={{ marginBottom: '10px' }}>
+                  <label>Password</label>
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      value={password}
+                      autoComplete="new-password"
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={errors.password ? 'field-error' : ''}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle-btn"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                  <div style={{ textAlign: 'right', marginTop: '4px' }}>
+                    <span className="forgot-password-link" onClick={() => { setView('forgot'); setErrors({}); }} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: '700' }}>Forgot Password?</span>
+                  </div>
+                  {errors.password && <small className="error-msg">{errors.password}</small>}
                 </div>
-                <div style={{ textAlign: 'right', marginTop: '4px' }}>
-                  <span className="forgot-password-link" onClick={() => { setView('forgot'); setErrors({}); }} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: '700' }}>Forgot Password?</span>
-                </div>
-                {errors.password && <small className="error-msg">{errors.password}</small>}
-              </div>
+              )}
             </div>
           ) : (
             // SIGNUP STEPS
@@ -4000,18 +3950,18 @@ www.originode.com
                   <div style={{ display: 'flex', gap: '15px' }}>
                     <div className="input-field-modern">
                       <label>First Name</label>
-                      <input type="text" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                      <input type="text" placeholder="John" value={firstName} autoComplete="off" onChange={(e) => setFirstName(e.target.value)} required />
                     </div>
                     <div className="input-field-modern">
                       <label>Last Name</label>
-                      <input type="text" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                      <input type="text" placeholder="Doe" value={lastName} autoComplete="off" onChange={(e) => setLastName(e.target.value)} required />
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '15px' }}>
                     <div className="input-field-modern" style={{ flex: 1.5 }}>
-                      <label>Is This Right?</label>
-                      <input type="tel" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                      <label>Phone Number</label>
+                      <input type="tel" placeholder="+91 98765 43210" value={phone} autoComplete="tel" onChange={(e) => setPhone(e.target.value)} />
                     </div>
                     <div className="input-field-modern" style={{ flex: 1 }}>
                       <label>Birth Date</label>
@@ -4022,17 +3972,17 @@ www.originode.com
 
                   <div className="input-field-modern">
                     <label>Work Email</label>
-                    <input type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <input type="email" placeholder="name@company.com" value={email} autoComplete="off" onChange={(e) => setEmail(e.target.value)} required />
                   </div>
 
                   <div style={{ display: 'flex', gap: '15px' }}>
                     <div className="input-field-modern" style={{ flex: 1 }}>
                       <label>Password</label>
-                      <input type="password" placeholder="Min 8 chars" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                      <input type="password" placeholder="Min 8 chars" value={password} autoComplete="new-password" onChange={(e) => setPassword(e.target.value)} required />
                     </div>
                     <div className="input-field-modern" style={{ flex: 1 }}>
                       <label>Confirm</label>
-                      <input type="password" placeholder="Repeat" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                      <input type="password" placeholder="Repeat password" value={confirmPassword} autoComplete="new-password" onChange={(e) => setConfirmPassword(e.target.value)} required />
                     </div>
                   </div>
                   {errors.confirmPassword && <small className="error-msg">{errors.confirmPassword}</small>}
@@ -4101,6 +4051,15 @@ www.originode.com
         </div>
       </div>
       {showSocialModal && <SocialLoginModal />}
+      {showForgotModal && (
+        <PopupModal
+          message={`If an account exists, a reset link has been sent to ${email}`}
+          onClose={() => {
+            setShowForgotModal(false);
+            setView('landing');
+          }}
+        />
+      )}
     </div >
   );
 }

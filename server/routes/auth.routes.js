@@ -55,6 +55,8 @@ router.post('/reset-password', authController.resetPassword);
 
 // SOCIAL LOGIN
 router.post('/social-login', authController.socialLogin);
+// Google ID Token Login (API)
+router.post('/google', authController.googleIdTokenLogin);
 
 // PROTECTED REACH
 router.get('/me', protect, authController.getMe);

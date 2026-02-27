@@ -113,7 +113,7 @@
 .input-field-modern input:focus,
 .input-field-modern select:focus {
     border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37,99,235,0.10);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
     outline: none;
 }
 
@@ -124,14 +124,6 @@
     font-size: 0.97rem;
     font-weight: 400;
     transition: color 0.2s;
-}
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-    background: #f8fafc;
-    font-size: 0.95rem;
-    color: #1e293b;
-    transition: all 0.2s;
 }
 
 .input-field-modern input:focus {

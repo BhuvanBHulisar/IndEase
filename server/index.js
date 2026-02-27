@@ -50,14 +50,18 @@ app.set('socketio', io);
 
 // 3. ROUTES
 app.use('/api/auth', authRoutes);
-app.use('/auth', authRoutes); // Supporting callback URL without /api prefix as per .env
+app.use('/auth', authRoutes);
 
-// Mock Health
+app.use((err, req, res, next) => {
+    console.error('[Express Error]', err);
+    if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'Industrial Core Operational' });
 });
-
-// 4. SOCKET LOGIC
 io.on('connection', (socket) => {
     console.log(`[Socket] Identity connected: ${socket.id}`);
 

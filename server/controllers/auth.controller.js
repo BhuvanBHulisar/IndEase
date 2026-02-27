@@ -1,3 +1,4 @@
+import { OAuth2Client } from 'google-auth-library';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../config/db.js';
@@ -6,7 +7,84 @@ import * as authService from '../services/auth.service.js';
 import { generateAccessToken, generateRefreshToken, hashToken } from '../utils/token.util.js';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema } from '../validators/auth.validator.js';
 
-import { OAuth2Client } from 'google-auth-library';
+export const googleAuthReact = async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ error: 'Missing idToken' });
+        let payload;
+        try {
+            const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+            const ticket = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID });
+            payload = ticket.getPayload();
+        } catch {
+            return res.status(401).json({ error: 'Invalid Google token' });
+        }
+        const { email, name, picture } = payload;
+        if (!email) return res.status(400).json({ error: 'No email in token' });
+        const normalizedEmail = email.toLowerCase();
+        let user;
+        try {
+            const insertQuery = `INSERT INTO users (email, first_name, picture, provider) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO NOTHING RETURNING *`;
+            const values = [normalizedEmail, name, picture, 'google'];
+            const result = await db.query(insertQuery, values);
+            if (result.rows.length > 0) {
+                user = result.rows[0];
+                return res.status(201).json({ message: 'Account created', user: { id: user.id, email: user.email, name: user.first_name, picture: user.picture, provider: user.provider } });
+            } else {
+                const userResult = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
+                if (userResult.rows.length > 0) {
+                    user = userResult.rows[0];
+                    return res.status(200).json({ message: 'Login successful', user: { id: user.id, email: user.email, name: user.first_name, picture: user.picture, provider: user.provider } });
+                } else {
+                    return res.status(409).json({ error: 'Account already exists. Please login.' });
+                }
+            }
+        } catch {
+            return res.status(500).json({ error: 'Database error' });
+        }
+    } catch {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+// Google ID Token Login (API)
+export const googleIdTokenLogin = async (req, res) => {
+    try {
+        const { id_token } = req.body;
+        if (!id_token) return res.status(400).json({ error: 'ID token required' });
+        let payload;
+        try {
+            const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+            const ticket = await client.verifyIdToken({
+                idToken: id_token,
+                audience: process.env.GOOGLE_CLIENT_ID,
+            });
+            payload = ticket.getPayload();
+        } catch {
+            return res.status(401).json({ error: 'Invalid or expired Google token' });
+        }
+        const normalizedEmail = payload.email.toLowerCase();
+        let userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
+        if (userRes.rows.length > 0) {
+            let user = userRes.rows[0];
+            if (!user.google_id) {
+                await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [payload.sub, user.id]);
+            }
+            // Set secure session cookie
+            res.cookie('session', jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' }), {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'Strict',
+                maxAge: 60 * 60 * 1000
+            });
+            return res.json({ user: { email: user.email, name: user.first_name || '', picture: user.picture || '' } });
+        } else {
+            return res.status(200).json({ status: "USER_NOT_FOUND", email: normalizedEmail, given_name: payload.given_name, family_name: payload.family_name });
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'Google login failed', details: err.message });
+    }
+};
+
 
 const cookieOptions = {
     httpOnly: true,
@@ -75,7 +153,7 @@ export const socialLogin = async (req, res) => {
             return res.json({ token: jwtToken, user });
         } else {
             // User not found, do not auto-create
-            return res.status(200).json({ status: "USER_NOT_FOUND", email: normalizedEmail });
+            return res.status(200).json({ status: "USER_NOT_FOUND", email: normalizedEmail, given_name: payload.given_name, family_name: payload.family_name });
         }
     } catch (err) {
         res.status(500).json({ message: 'Google login failed', error: err.message });
