@@ -1,7 +1,7 @@
-const express = require('express');
-const router = express.Router();
-const machineController = require('../controllers/machineController');
-const auth = require('../middleware/auth');
+import express from 'express';
+export const router = express.Router();
+import * as machineController from '../controllers/machineController.js';
+import { protect as auth } from '../middleware/auth.middleware.js';
 
 /**
  * MACHINE REGISTRY ROUTES
@@ -20,4 +20,4 @@ router.put('/:id', auth, machineController.updateMachine);
 // @route   DELETE api/machines/:id
 router.delete('/:id', auth, machineController.deleteMachine);
 
-module.exports = router;
+export default router;

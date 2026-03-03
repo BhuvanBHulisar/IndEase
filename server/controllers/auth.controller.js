@@ -29,12 +29,12 @@ export const googleAuthReact = async (req, res) => {
             const result = await db.query(insertQuery, values);
             if (result.rows.length > 0) {
                 user = result.rows[0];
-                return res.status(201).json({ message: 'Account created', user: { id: user.id, email: user.email, name: user.first_name, picture: user.picture, provider: user.provider } });
+                return res.status(201).json({ message: 'Account created', user: { id: user.id, email: user.email, name: user.first_name, picture: user.picture, provider: user.provider, role: user.role } });
             } else {
                 const userResult = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
                 if (userResult.rows.length > 0) {
                     user = userResult.rows[0];
-                    return res.status(200).json({ message: 'Login successful', user: { id: user.id, email: user.email, name: user.first_name, picture: user.picture, provider: user.provider } });
+                    return res.status(200).json({ message: 'Login successful', user: { id: user.id, email: user.email, name: user.first_name, picture: user.picture, provider: user.provider, role: user.role } });
                 } else {
                     return res.status(409).json({ error: 'Account already exists. Please login.' });
                 }
@@ -69,14 +69,14 @@ export const googleIdTokenLogin = async (req, res) => {
             if (!user.google_id) {
                 await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [payload.sub, user.id]);
             }
-            // Set secure session cookie
-            res.cookie('session', jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' }), {
+            const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            res.cookie('session', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'Strict',
                 maxAge: 60 * 60 * 1000
             });
-            return res.json({ user: { email: user.email, name: user.first_name || '', picture: user.picture || '' } });
+            return res.json({ token, user: { id: user.id, email: user.email, name: user.first_name || '', picture: user.picture || '', role: user.role } });
         } else {
             return res.status(200).json({ status: "USER_NOT_FOUND", email: normalizedEmail, given_name: payload.given_name, family_name: payload.family_name });
         }
@@ -97,7 +97,7 @@ const cookieOptions = {
  */
 export const register = async (req, res) => {
     try {
-        const { email, password, role } = req.body;
+        const { email, password, role, firstName, lastName, phone, dob, organization } = req.body;
         const normalizedEmail = email.toLowerCase();
         const userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
         if (userRes.rows.length > 0) {
@@ -105,8 +105,8 @@ export const register = async (req, res) => {
         }
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUserRes = await db.query(
-            'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING *',
-            [normalizedEmail, hashedPassword, role]
+            'INSERT INTO users (email, password_hash, role, first_name, last_name, phone, dob, organization) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [normalizedEmail, hashedPassword, role, firstName || null, lastName || null, phone || null, dob || null, organization || null]
         );
         const user = newUserRes.rows[0];
         const token = jwt.sign(

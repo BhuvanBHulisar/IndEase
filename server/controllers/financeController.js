@@ -217,7 +217,8 @@ exports.getHistory = async (req, res) => {
 
         const formatted = result.rows.map(row => ({
             id: row.id,
-            date: new Date(row.created_at).toLocaleDateString(),
+            created_at: row.created_at,
+            date: row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB').replace(/\//g, '.') : new Date().toLocaleDateString('en-GB').replace(/\//g, '.'),
             client: row.other_party,
             service: `#SR-${row.service_id.toString().substring(0, 6)}`,
             status: row.status.charAt(0).toUpperCase() + row.status.slice(1),

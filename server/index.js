@@ -9,7 +9,9 @@ import { Server } from 'socket.io';
 import db from './config/db.js';
 import passport from './config/passport.js';
 import authRoutes from './routes/auth.routes.js';
+import paymentRoutes from './routes/payment.js';
 import { errorHandler } from './middleware/error.middleware.js';
+import machineRoutes from './routes/machineRoutes.js';
 
 const app = express();
 import session from 'express-session';
@@ -51,6 +53,8 @@ app.set('socketio', io);
 // 3. ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/machines', machineRoutes);
 
 app.use((err, req, res, next) => {
     console.error('[Express Error]', err);

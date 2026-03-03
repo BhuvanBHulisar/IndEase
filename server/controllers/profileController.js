@@ -13,28 +13,30 @@ exports.getProfile = async (req, res) => {
             [userId]
         );
 
-        if (userResult.rows.length === 0) {
-            // Check for demo user bypass or failed DB fallback
-            if (userId === 'demo-123' || (req.user && req.user.email === 'admin@originode.com')) {
-                return res.json({
-                    id: 'demo-123',
-                    email: 'admin@originode.com',
-                    first_name: 'Bhuvan',
-                    last_name: 'B H',
-                    role: role || 'consumer',
-                    phone: '+91 98765 24210',
-                    dob: '2000-01-17',
-                    organization: 'Doe Industrial Manufacturing Ltd.',
-                    location: 'Mumbai, Maharashtra',
-                    tax_id: '27AAACN0000Z1Z0',
-                    is_verified: true,
-                    skills: role === 'producer' ? ['Hydraulics', 'PLC Logic'] : []
-                });
-            }
-            return res.status(404).json({ message: 'User not found' });
+        let user = userResult.rows.length > 0 ? userResult.rows[0] : null;
+
+        // Check for demo user bypass or failed DB fallback FIRST
+        if (userId === 'demo-123' || (req.user && req.user.email === 'admin@originode.com') || (user && user.email === 'admin@originode.com')) {
+            return res.json({
+                id: user ? user.id : 'demo-123',
+                email: 'admin@originode.com',
+                first_name: (user && user.first_name) || 'Technical',
+                last_name: (user && user.last_name) || 'Admin',
+                role: (user && user.role) || role || 'consumer',
+                phone: (user && user.phone) || '+91 98765 24210',
+                dob: (user && user.dob) || '1995-05-20',
+                organization: (user && user.organization) || 'OrigiNode Administration',
+                location: (user && user.location) || 'Bengaluru, Karnataka',
+                tax_id: (user && user.tax_id) || '29AAACN0000Z1Z0',
+                is_verified: user ? user.is_verified : true,
+                photo_url: (user && user.photo_url) || 'https://ui-avatars.com/api/?name=Admin&background=1e293b&color=fff',
+                skills: (user && user.role === 'producer') ? ['System Architecture', 'Database Management'] : []
+            });
         }
 
-        const user = userResult.rows[0];
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
         // 2. If expert, get specialized metadata
         let profile = {};
@@ -74,6 +76,8 @@ exports.updateProfile = async (req, res) => {
     const role = req.user.role;
 
     try {
+        const toNull = (val) => (val === '' ? null : val);
+
         // 1. Update basic user table (Including consumer fields)
         await db.query(
             `UPDATE users 
@@ -86,7 +90,7 @@ exports.updateProfile = async (req, res) => {
                  location = COALESCE($7, location),
                  tax_id = COALESCE($8, tax_id)
              WHERE id = $9`,
-            [first_name, last_name, phone, dob, photo_url, organization, location, tax_id, userId]
+            [toNull(first_name), toNull(last_name), toNull(phone), toNull(dob), toNull(photo_url), toNull(organization), toNull(location), toNull(tax_id), userId]
         );
 
         // 2. Update producer_profiles if role is producer

@@ -49,7 +49,8 @@ const INDIAN_LOCATIONS = [
 const MOCK_MESSAGES = [
   { id: 101, chatId: 1, sender: 'expert', text: "Systems check complete. We are seeing some pressure variance.", time: "10:04 AM" },
   { id: 102, chatId: 1, sender: 'user', text: "Noted. Is it critical?", time: "10:12 AM" },
-  { id: 103, chatId: 1, sender: 'expert', text: "Not yet, but we recommend scheduling a valve seal replacement.", time: "10:15 AM" }
+  { id: 103, chatId: 1, sender: 'expert', text: "Not yet, but we recommend scheduling a valve seal replacement.", time: "10:15 AM" },
+  { id: 104, chatId: 1, sender: 'expert', text: '[INVOICE]:{"amount":"4500", "desc":"Valve Seal Replacement"}', type: 'invoice', amount: "4500", desc: "Valve Seal Replacement", time: "10:18 AM" }
 ];
 
 // Helper to parse special message types (Invoices)
@@ -251,6 +252,7 @@ function App() {
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showReviewSuccess, setShowReviewSuccess] = useState(false);
   const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
   const [showPaymentReceived, setShowPaymentReceived] = useState(false);
   const [completedJobId, setCompletedJobId] = useState(null);
@@ -258,6 +260,7 @@ function App() {
   const [showExpertProfileModal, setShowExpertProfileModal] = useState(false);
   const [selectedExpert, setSelectedExpert] = useState(null);
   const [showInvoiceCreator, setShowInvoiceCreator] = useState(false);
+  const [showInvoiceSuccess, setShowInvoiceSuccess] = useState(false);
   const [invoiceData, setInvoiceData] = useState({ amount: '', desc: '' });
   const [supportTicket, setSupportTicket] = useState({ subject: 'Machine Diagnosis Error', description: '' });
   const [myTickets, setMyTickets] = useState([]);
@@ -697,30 +700,35 @@ function App() {
 
     try {
       // 1. Call Backend API to Create Invoice & Update State
-      await api.post(`/jobs/${activeChatId}/invoice`, {
-        amount: invoiceData.amount
-      });
+      if (String(activeChatId).length > 20) {
+        await api.post(`/jobs/${activeChatId}/invoice`, {
+          amount: invoiceData.amount
+        });
+      } else {
+        console.warn("Skipping backend call for mock chat ID:", activeChatId);
+      }
 
       // 2. Send Chat Message for Record
       const invoicePayload = JSON.stringify({ amount: invoiceData.amount, desc: invoiceData.desc });
       const formattedMsg = `[INVOICE]:${invoicePayload}`;
 
       if (socket) {
-        const user = JSON.parse(localStorage.getItem('user'));
+        const userStr = localStorage.getItem('user');
+        const user = userStr && userStr !== 'undefined' ? JSON.parse(userStr) : { id: 1 };
         socket.emit('send_message', {
           requestId: activeChatId,
-          senderId: user.id || user.user_id, // Ensure ID is present
+          senderId: user.id || user.user_id || 1, // Ensure ID is present
           text: formattedMsg
         });
       }
 
-      alert("Invoice Sent Successfully!");
+      setShowInvoiceSuccess(true);
       setShowInvoiceCreator(false);
       setInvoiceData({ amount: '', desc: '' });
 
     } catch (err) {
       console.error("Failed to create invoice", err);
-      alert("Failed to send invoice. Please try again.");
+      alert("Failed to send invoice. Reason: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -1075,7 +1083,7 @@ function App() {
   const filteredHistory = [
     ...(Array.isArray(transactionHistory) ? transactionHistory.map(th => ({
       id: th.id,
-      date: new Date(th.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+      date: th.created_at ? new Date(th.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
       machine: th.machine_name || 'Industrial System',
       expert: th.other_party || 'Verified Expert',
       action: 'Service Transaction',
@@ -1090,7 +1098,7 @@ function App() {
   );
 
   // [NEW] PAYMENT LOGIC
-  const handlePayment = (amountStr, desc) => {
+  const promptPaymentModal = (amountStr, desc) => {
     setPaymentConfig({ amountStr, desc });
     setShowPaymentModal(true);
   };
@@ -1169,7 +1177,7 @@ function App() {
 
     // Optimistic UI Update
     setShowReviewModal(false);
-    alert("Review Submitted! Thank you for your feedback.");
+    setShowReviewSuccess(true);
 
     try {
       await api.post('/reviews', {
@@ -1288,8 +1296,40 @@ www.originode.com
       setShowForgotModal(true);
       return;
     }
+    if (!isLogin) {
+      if (!validate()) return;
+      try {
+        const res = await api.post('/auth/register', {
+          email,
+          password,
+          role,
+          firstName,
+          lastName,
+          phone,
+          dob,
+          organization: extraInfo
+        });
 
-    // Basic validation
+        if (res.data?.token) {
+          localStorage.setItem('token', res.data.token);
+          if (res.data.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+            setRole(res.data.user.role || 'consumer');
+            setActiveTab(res.data.user.role === 'consumer' ? 'fleet' : 'requests');
+          }
+          setView('dashboard');
+        } else {
+          setErrors({ server: "Invalid signup response." });
+        }
+      } catch (err) {
+        setErrors({
+          server: err.response?.data?.message || "Signup failed."
+        });
+      }
+      return;
+    }
+
+    // Basic validation for Login
     if (!email || !password) {
       setErrors({ server: "Email and password are required." });
       return;
@@ -1303,6 +1343,11 @@ www.originode.com
 
       if (res.data?.token) {
         localStorage.setItem('token', res.data.token);
+        if (res.data.user) {
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+          setRole(res.data.user.role || 'consumer');
+          setActiveTab(res.data.user.role === 'consumer' ? 'fleet' : 'requests');
+        }
         setView('dashboard');
       } else {
         setErrors({ server: "Invalid login response." });
@@ -1618,6 +1663,94 @@ www.originode.com
     setActiveTab('fleet');
   };
 
+  const handlePayment = async (amountStr, desc) => {
+    try {
+      const amountFinal = parseInt(String(amountStr).replace(/[^0-9]/g, '')) || 5000;
+      const res = await api.post('/payment/create-order', { amount: amountFinal });
+      const order = res.data;
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Enter the Key ID generated from the Dashboard
+        amount: order.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+        currency: order.currency,
+        name: "OrigiNode Industrial Services",
+        description: desc || "Invoice Payment",
+        order_id: order.id, //This is a sample Order ID. Pass the `id` obtained in the response of create-order.
+        handler: async function (response) {
+          try {
+            const verifyRes = await api.post('/payment/verify-payment', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            if (verifyRes.data.success) {
+              const successText = `✓ Payment of ₹${amountFinal} processed successfully. Ref: ${response.razorpay_payment_id}`;
+
+              setMessages(prev => [...prev, {
+                id: Date.now(),
+                chatId: activeChatId,
+                sender: 'system',
+                text: successText,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }]);
+
+              if (socket) {
+                const userStr = localStorage.getItem('user');
+                const user = userStr ? JSON.parse(userStr) : { id: 'unknown' };
+                socket.emit('send_message', {
+                  requestId: activeChatId,
+                  senderId: user.id || user.user_id,
+                  text: successText
+                });
+              }
+              setShowPaymentSuccess(true);
+              setCompletedJobId(activeChatId);
+
+              // [NEW] Optimistic Service Ledger Update
+              setTransactionHistory(prev => [{
+                id: response.razorpay_payment_id || Date.now(),
+                date: new Date().toLocaleDateString('en-GB').replace(/\//g, '.'),
+                client: "Online Payment",
+                service: desc || "Invoice Payment",
+                status: "Cleared",
+                amount: `₹${amountFinal}`
+              }, ...prev]);
+
+              setEarningsStats(prev => ({
+                ...prev,
+                totalRevenue: Number(prev.totalRevenue || 0) + Number(amountFinal),
+                totalSpent: Number(prev.totalSpent || 0) + Number(amountFinal)
+              }));
+
+            } else {
+              setErrors({ server: 'Payment Verification Failed!' });
+            }
+          } catch (error) {
+            console.error('Error verifying payment:', error);
+            setErrors({ server: 'Payment Verification Error. Please check dashboard.' });
+          }
+        },
+        prefill: {
+          name: firstName || "Customer",
+          email: email || "customer@example.com",
+          contact: phone || "9000090000"
+        },
+        theme: {
+          color: "#3399cc"
+        }
+      };
+      const rzp1 = new window.Razorpay(options);
+      rzp1.on('payment.failed', function (response) {
+        setErrors({ server: "Payment Failed" });
+        console.warn(response.error);
+      });
+      rzp1.open();
+    } catch (err) {
+      console.error('Payment intent failed', err);
+      setErrors({ server: 'Could not initialize payment gateway.' });
+    }
+  };
+
   // [NEW] Robust Google OAuth Implementation
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
@@ -1646,10 +1779,13 @@ www.originode.com
         return;
       }
 
-      const { user } = res.data;
+      const { user, token } = res.data;
       if (user) {
         if (socket) socket.emit('identify', user.id || user.user_id);
+        if (token) localStorage.setItem('token', token);
         setView('dashboard');
+        setRole(user.role || 'consumer');
+        localStorage.setItem('user', JSON.stringify(user));
         setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
         fetchNotifications();
         return;
@@ -2331,7 +2467,7 @@ www.originode.com
                             <div className="invoice-row"><span>Service:</span> <strong>{msg.desc}</strong></div>
                             <div className="invoice-total"><span>Total:</span> <span>{msg.amount}</span></div>
                             {role === 'consumer' && (
-                              <button type="button" className="btn-pay-now" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePayment(msg.amount, msg.desc); }}>PAY {msg.amount}</button>
+                              <button type="button" className="btn-pay-now" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePayment(msg.amount, msg.desc); }}>Pay Now</button>
                             )}
                           </div>
                         </div>
@@ -2382,9 +2518,9 @@ www.originode.com
                       <div key={item.id} className="timeline-row animate-fade">
                         {/* Date Column */}
                         <div className="timeline-date-col">
-                          <span className="t-month">{item.date.split(' ')[0]}</span>
-                          <span className="t-day">{item.date.split(' ')[1].replace(',', '')}</span>
-                          <span className="t-year">{item.date.split(' ')[2]}</span>
+                          <span className="t-month">{(item.date || '').split(' ')[0] || ''}</span>
+                          <span className="t-day">{(item.date || '').split(' ')[1] ? item.date.split(' ')[1].replace(',', '') : ''}</span>
+                          <span className="t-year">{(item.date || '').split(' ')[2] || ''}</span>
                         </div>
 
                         {/* Connector Column */}
@@ -2715,7 +2851,7 @@ www.originode.com
                           <td style={{ fontFamily: 'monospace', color: '#64748b' }}>#{String(t.id).substring(0, 8)}</td>
                           <td style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>{t.subject}</td>
                           <td><span className={`status-pill ${t.status === 'open' ? 'pending' : 'completed'}`}>{t.status || 'open'}</span></td>
-                          <td>{new Date(t.created_at).toLocaleDateString()}</td>
+                          <td>{t.created_at ? new Date(t.created_at).toLocaleDateString() : 'Just now'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3799,6 +3935,30 @@ www.originode.com
           </div>
         )}
 
+        {/* [NEW] REVIEW SUCCESS MODAL */}
+        {showReviewSuccess && (
+          <div className="modal-overlay">
+            <div className="confirm-modal animate-fade-in-up" style={{ width: '350px', padding: '30px', textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '15px', color: 'var(--sage-green)' }}>✓</div>
+              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px' }}>Review Submitted!</h3>
+              <p style={{ color: '#64748b', marginBottom: '25px' }}>Thank you for your feedback. We appreciate your input.</p>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowReviewSuccess(false)}>Done</button>
+            </div>
+          </div>
+        )}
+
+        {/* [NEW] INVOICE SUCCESS MODAL */}
+        {showInvoiceSuccess && (
+          <div className="modal-overlay">
+            <div className="confirm-modal animate-fade-in-up" style={{ width: '350px', padding: '30px', textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '15px', color: 'var(--sage-green)' }}>✓</div>
+              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px' }}>Invoice Sent!</h3>
+              <p style={{ color: '#64748b', marginBottom: '25px' }}>Your invoice has been successfully sent to the client.</p>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowInvoiceSuccess(false)}>Done</button>
+            </div>
+          </div>
+        )}
+
         {/* Book Expert Modal */}
         {showBookExpertModal && (
           <div className="modal-overlay">
@@ -3811,18 +3971,17 @@ www.originode.com
           </div>
         )}
 
-        {
-          showPaymentReceived && (
-            <div className="modal-overlay">
-              <div className="confirm-modal" style={{ width: '400px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', borderTop: '5px solid var(--sage-green)' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '15px' }}>💰</div>
-                <h3 style={{ color: 'var(--navy-dark)', marginBottom: '5px', fontSize: '1.4rem' }}>Payment Received!</h3>
-                <p style={{ color: 'var(--sage-green)', fontWeight: '700', fontSize: '1.2rem', margin: '0 0 15px 0' }}>Job Completed</p>
-                <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.5' }}>Funds have been deposited to your escrow wallet. You can withdraw them in the Earnings tab.</p>
-                <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={() => setShowPaymentReceived(false)}>Acknowledge</button>
-              </div>
+        {showPaymentReceived && (
+          <div className="modal-overlay">
+            <div className="confirm-modal" style={{ width: '400px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', borderTop: '5px solid var(--sage-green)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '15px' }}>💰</div>
+              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '5px', fontSize: '1.4rem' }}>Payment Received!</h3>
+              <p style={{ color: 'var(--sage-green)', fontWeight: '700', fontSize: '1.2rem', margin: '0 0 15px 0' }}>Job Completed</p>
+              <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.5' }}>Funds have been deposited to your escrow wallet. You can withdraw them in the Earnings tab.</p>
+              <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={() => setShowPaymentReceived(false)}>Acknowledge</button>
             </div>
-          )
+          </div>
+        )
         }
 
         {sharedModals}
@@ -4016,11 +4175,7 @@ www.originode.com
 
           {view !== 'forgot' && (
             <div className="animate-fade">
-              {isLogin && (
-                <p style={{ fontSize: '0.75rem', color: '#475569', marginTop: '10px', textAlign: 'center', fontWeight: '500' }}>
-                  Demo: admin@originode.com / Demo@1234
-                </p>
-              )}
+
               <div className="divider" style={{ margin: '12px 0' }}><span>OR</span></div>
               <div className="social-grid" style={{ gap: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
@@ -4033,12 +4188,6 @@ www.originode.com
                     width="100%"
                   />
                 </div>
-                <button className="btn-social apple" onClick={() => handleSocialLogin('Apple')}>
-                  <svg width="20" height="20" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg">
-                    <path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 52.3-11.4 69.5-34.3z" />
-                  </svg>
-                  <span style={{ flex: 1, textAlign: 'center' }}>Continue with Apple</span>
-                </button>
               </div>
             </div>
           )}

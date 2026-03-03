@@ -1,8 +1,8 @@
-const db = require('../db');
+import db from '../config/db.js';
 
 // @desc    Get all machines for current consumer
 // @route   GET /api/machines
-exports.getMachines = async (req, res) => {
+export const getMachines = async (req, res) => {
     // [DEMO BYPASS]
     if (req.user.id === 'demo-123') {
         return res.json([
@@ -25,7 +25,7 @@ exports.getMachines = async (req, res) => {
 
 // @desc    Register a new machine node
 // @route   POST /api/machines
-exports.addMachine = async (req, res) => {
+export const addMachine = async (req, res) => {
     // Correctly extracting fields matching frontend state
     const { name, oem, model_year, machine_type } = req.body;
     let ownerId = req.user.id;
@@ -60,7 +60,7 @@ exports.addMachine = async (req, res) => {
 
 // @desc    Update machine telemetry/status
 // @route   PUT /api/machines/:id
-exports.updateMachine = async (req, res) => {
+export const updateMachine = async (req, res) => {
     const { name, conditionScore, lastService } = req.body;
     const machineId = req.params.id;
 
@@ -85,7 +85,7 @@ exports.updateMachine = async (req, res) => {
 
 // @desc    Remove machine from fleet
 // @route   DELETE /api/machines/:id
-exports.deleteMachine = async (req, res) => {
+export const deleteMachine = async (req, res) => {
     const machineId = req.params.id;
 
     try {
