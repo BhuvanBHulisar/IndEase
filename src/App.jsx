@@ -134,6 +134,12 @@ function App() {
   const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [showNoChangesModal, setShowNoChangesModal] = useState(false);
+
+  // [NEW] CHECKOUT MODAL STATES
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutDetails, setCheckoutDetails] = useState(null);
+  const [checkoutDesc, setCheckoutDesc] = useState('');
+
   const [originalData, setOriginalData] = useState({});
 
   // [NEW NOTIFICATION STATE]
@@ -1663,10 +1669,32 @@ www.originode.com
     setActiveTab('fleet');
   };
 
-  const handlePayment = async (amountStr, desc) => {
+  const handlePayment = (amountStr, desc) => {
+    const providerPrice = parseInt(String(amountStr).replace(/[^0-9]/g, '')) || 5000;
+    const commissionPercentage = parseFloat(import.meta.env.VITE_PLATFORM_COMMISSION_PERCENTAGE || '10');
+    const commission = (providerPrice * commissionPercentage) / 100;
+    const gst = commission * 0.18;
+    const totalPayable = providerPrice + commission + gst;
+
+    setCheckoutDesc(desc || "Invoice Payment");
+    setCheckoutDetails({
+      providerPrice,
+      commissionPercentage,
+      commission: Math.round(commission * 100) / 100,
+      gst: Math.round(gst * 100) / 100,
+      totalPayable: Math.round(totalPayable * 100) / 100
+    });
+    setShowCheckoutModal(true);
+  };
+
+  const initiateRazorpayCheckout = async () => {
+    if (!checkoutDetails) return;
     try {
-      const amountFinal = parseInt(String(amountStr).replace(/[^0-9]/g, '')) || 5000;
-      const res = await api.post('/payment/create-order', { amount: amountFinal });
+      setShowCheckoutModal(false);
+      const res = await api.post('/payment/create-order', {
+        providerPrice: checkoutDetails.providerPrice,
+        requestId: activeChatId || null
+      });
       const order = res.data;
 
       const options = {
@@ -1674,7 +1702,7 @@ www.originode.com
         amount: order.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
         currency: order.currency,
         name: "OrigiNode Industrial Services",
-        description: desc || "Invoice Payment",
+        description: checkoutDesc,
         order_id: order.id, //This is a sample Order ID. Pass the `id` obtained in the response of create-order.
         handler: async function (response) {
           try {
@@ -1684,7 +1712,7 @@ www.originode.com
               razorpay_signature: response.razorpay_signature
             });
             if (verifyRes.data.success) {
-              const successText = `✓ Payment of ₹${amountFinal} processed successfully. Ref: ${response.razorpay_payment_id}`;
+              const successText = `✓ Payment of ₹${checkoutDetails.totalPayable} processed successfully. Ref: ${response.razorpay_payment_id}`;
 
               setMessages(prev => [...prev, {
                 id: Date.now(),
@@ -1711,15 +1739,15 @@ www.originode.com
                 id: response.razorpay_payment_id || Date.now(),
                 date: new Date().toLocaleDateString('en-GB').replace(/\//g, '.'),
                 client: "Online Payment",
-                service: desc || "Invoice Payment",
+                service: checkoutDesc,
                 status: "Cleared",
-                amount: `₹${amountFinal}`
+                amount: `₹${checkoutDetails.totalPayable}`
               }, ...prev]);
 
               setEarningsStats(prev => ({
                 ...prev,
-                totalRevenue: Number(prev.totalRevenue || 0) + Number(amountFinal),
-                totalSpent: Number(prev.totalSpent || 0) + Number(amountFinal)
+                totalRevenue: Number(prev.totalRevenue || 0) + Number(checkoutDetails.totalPayable),
+                totalSpent: Number(prev.totalSpent || 0) + Number(checkoutDetails.totalPayable)
               }));
 
             } else {
@@ -1912,6 +1940,33 @@ www.originode.com
   // --- SHARED UI COMPONENTS (MODALS) ---
   const sharedModals = (
     <>
+      {showCheckoutModal && checkoutDetails && (
+        <div className="modal-overlay">
+          <div className="confirm-modal animate-fade" style={{ width: '400px', padding: '30px', textAlign: 'left' }}>
+            <h3 style={{ marginBottom: '20px', color: 'var(--navy-dark)', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>Payment Breakdown</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ color: '#64748b' }}>Service Price:</span>
+              <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.providerPrice}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ color: '#64748b' }}>Platform Fee ({checkoutDetails.commissionPercentage}%):</span>
+              <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.commission}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px' }}>
+              <span style={{ color: '#64748b' }}>GST (18% on Fee):</span>
+              <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.gst}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', fontSize: '1.2rem' }}>
+              <strong style={{ color: 'var(--navy-dark)' }}>Total Payable:</strong>
+              <strong style={{ color: 'var(--navy-primary)' }}>₹{checkoutDetails.totalPayable}</strong>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn btn-outline-dark" style={{ flex: 1 }} onClick={() => setShowCheckoutModal(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={initiateRazorpayCheckout}>Proceed to Pay</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showAddMachineModal && (
         <div className="modal-overlay">
           <div className="diagnosis-modal" style={{ maxWidth: '500px' }}>
