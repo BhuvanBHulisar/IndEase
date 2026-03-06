@@ -617,6 +617,36 @@ function App() {
       setNotifications(prev => [notif, ...prev]);
     });
 
+    // Handle real-time invoice receipt
+    newSocket.on('invoice_received', (data) => {
+      console.log("[Socket] Targeted Invoice Received:", data);
+      // Trigger the premium checkout flow directly
+      handlePayment(`₹${data.amount}`, data.message || "Expert Service Invoice", data.requestId);
+    });
+
+    // Real-time: status updates for jobs
+    newSocket.on('status_update', (data) => {
+      console.log("[Socket] Status Update:", data);
+      // Update UI if needed, e.g., mark as completed if status is 'completed'
+      if (data.status === 'completed') {
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          chatId: data.requestId,
+          sender: 'system',
+          text: "✓ Service request marked as completed. Payment verified.",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
+    });
+
+    // Real-time: job completion specific event
+    newSocket.on('job_completed', (data) => {
+      console.log("[Socket] Job Completed:", data);
+      if (role === 'producer') {
+        setShowPaymentReceived(true);
+      }
+    });
+
     // Real-time: new service broadcast from a consumer
     newSocket.on('new_signal', (newJob) => {
       setRadarJobs(prev => {
@@ -706,13 +736,9 @@ function App() {
 
     try {
       // 1. Call Backend API to Create Invoice & Update State
-      if (String(activeChatId).length > 20) {
-        await api.post(`/jobs/${activeChatId}/invoice`, {
-          amount: invoiceData.amount
-        });
-      } else {
-        console.warn("Skipping backend call for mock chat ID:", activeChatId);
-      }
+      await api.post(`/jobs/${activeChatId}/invoice`, {
+        amount: invoiceData.amount
+      });
 
       // 2. Send Chat Message for Record
       const invoicePayload = JSON.stringify({ amount: invoiceData.amount, desc: invoiceData.desc });
@@ -1103,79 +1129,7 @@ function App() {
     item.action.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // [NEW] PAYMENT LOGIC
-  const promptPaymentModal = (amountStr, desc) => {
-    setPaymentConfig({ amountStr, desc });
-    setShowPaymentModal(true);
-  };
-
-  const confirmPayment = async () => {
-    if (!paymentConfig) return;
-    const { amountStr, desc, requestId } = paymentConfig;
-
-    setIsPaymentProcessing(true);
-
-    try {
-      // 1. Create Order on Backend
-      const amountFinal = parseInt(String(amountStr).replace(/[^0-9]/g, '')) || 5000;
-      const orderRes = await api.post('/finance/pay-order', {
-        requestId: requestId || activeChatId,
-        amount: amountFinal
-      });
-
-      const orderData = orderRes.data;
-
-      // [INTEGRATION] We would normally call Razorpay here.
-      // For this implementation, we simulate the success response.
-      setTimeout(async () => {
-        try {
-          // 2. Verify Payment on Backend (Using Mock Signatures for Demo)
-          await api.post('/finance/verify', {
-            razorpay_order_id: orderData.id,
-            razorpay_payment_id: 'pay_mock_' + Date.now().toString().slice(-6),
-            razorpay_signature: 'mock_signature' // Backend needs to handle mock sigs if in demo mode
-          });
-
-          // 3. Update local history and UI
-          const successText = `✓ Payment of ${amountStr} processed successfully. Ref: PAY-${Date.now().toString().slice(-6)}`;
-
-          setMessages(prev => [...prev, {
-            id: Date.now(),
-            chatId: activeChatId,
-            sender: 'system',
-            text: successText,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }]);
-
-          if (socket) {
-            const userStr = localStorage.getItem('user');
-            const user = userStr ? JSON.parse(userStr) : { id: 'unknown' };
-            socket.emit('send_message', {
-              requestId: activeChatId,
-              senderId: user.id || user.user_id,
-              text: successText
-            });
-          }
-
-          setIsPaymentProcessing(false);
-          setShowPaymentModal(false);
-          setPaymentConfig(null);
-          setShowPaymentSuccess(true);
-          setCompletedJobId(activeChatId);
-
-        } catch (innerErr) {
-          console.error("Verification failed", innerErr);
-          alert("Payment verification failed. Please contact support.");
-          setIsPaymentProcessing(false);
-        }
-      }, 2000);
-
-    } catch (err) {
-      console.error("Order creation failed", err);
-      alert("Failed to initiate secure portal. Check connection.");
-      setIsPaymentProcessing(false);
-    }
-  };
+  // [REMOVED] Legacy mock payment logic replaced by premium Razorpay flow
 
   // [NEW] SUBMIT REVIEW HANDLER
   const handleSubmitReview = async () => {
@@ -1508,13 +1462,8 @@ www.originode.com
       const handleStatusUpdate = (data) => {
         console.log("Job Status Update Received:", data);
         if (data.status === 'payment_pending' && role === 'consumer') {
-          // Show payment modal for consumer
-          setPaymentConfig({
-            requestId: activeChatId,
-            amountStr: `₹${data.amount}`,
-            desc: data.message
-          });
-          setShowPaymentModal(true);
+          // Use the premium handlePayment flow
+          handlePayment(`₹${data.amount}`, data.message || "Expert Service Invoice", data.requestId);
         }
 
         if (data.status === 'completed' && role === 'producer') {
@@ -1523,9 +1472,6 @@ www.originode.com
       };
 
       // Since the event name is dynamic status_update_${jobId}, 
-      // but we might not know the jobId immediately, 
-      // the backend should ideally emit a general 'job_update' or we subscribe to rooms.
-      // For now, let's use the dynamic one if we have an active chat.
       if (activeChatId) {
         socket.on(`status_update_${activeChatId}`, handleStatusUpdate);
         return () => socket.off(`status_update_${activeChatId}`, handleStatusUpdate);
@@ -1669,7 +1615,7 @@ www.originode.com
     setActiveTab('fleet');
   };
 
-  const handlePayment = (amountStr, desc) => {
+  const handlePayment = (amountStr, desc, requestId = null) => {
     const providerPrice = parseInt(String(amountStr).replace(/[^0-9]/g, '')) || 5000;
     const commissionPercentage = parseFloat(import.meta.env.VITE_PLATFORM_COMMISSION_PERCENTAGE || '10');
     const commission = (providerPrice * commissionPercentage) / 100;
@@ -1682,7 +1628,8 @@ www.originode.com
       commissionPercentage,
       commission: Math.round(commission * 100) / 100,
       gst: Math.round(gst * 100) / 100,
-      totalPayable: Math.round(totalPayable * 100) / 100
+      totalPayable: Math.round(totalPayable * 100) / 100,
+      requestId: requestId || activeChatId
     });
     setShowCheckoutModal(true);
   };
@@ -1693,7 +1640,7 @@ www.originode.com
       setShowCheckoutModal(false);
       const res = await api.post('/payment/create-order', {
         providerPrice: checkoutDetails.providerPrice,
-        requestId: activeChatId || null
+        requestId: checkoutDetails.requestId || activeChatId || null
       });
       const order = res.data;
 
@@ -1942,27 +1889,40 @@ www.originode.com
     <>
       {showCheckoutModal && checkoutDetails && (
         <div className="modal-overlay">
-          <div className="confirm-modal animate-fade" style={{ width: '400px', padding: '30px', textAlign: 'left' }}>
-            <h3 style={{ marginBottom: '20px', color: 'var(--navy-dark)', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>Payment Breakdown</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#64748b' }}>Service Price:</span>
-              <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.providerPrice}</strong>
+          <div className="confirm-modal checkout-modal animate-fade-in-up">
+            <div className="checkout-header">
+              <div className="icon-wrap">💳</div>
+              <h3 style={{ margin: 0, fontSize: '1.5rem' }}>Secure Checkout</h3>
+              <p style={{ margin: '5px 0 0', opacity: 0.8, fontSize: '0.9rem' }}>Review your service transaction</p>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#64748b' }}>Platform Fee ({checkoutDetails.commissionPercentage}%):</span>
-              <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.commission}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px' }}>
-              <span style={{ color: '#64748b' }}>GST (18% on Fee):</span>
-              <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.gst}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', fontSize: '1.2rem' }}>
-              <strong style={{ color: 'var(--navy-dark)' }}>Total Payable:</strong>
-              <strong style={{ color: 'var(--navy-primary)' }}>₹{checkoutDetails.totalPayable}</strong>
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn-outline-dark" style={{ flex: 1 }} onClick={() => setShowCheckoutModal(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={initiateRazorpayCheckout}>Proceed to Pay</button>
+            <div className="checkout-body">
+              <div className="checkout-summary-item">
+                <span style={{ color: '#64748b' }}>Service Price</span>
+                <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.providerPrice}</strong>
+              </div>
+              <div className="checkout-summary-item">
+                <span style={{ color: '#64748b' }}>Platform Service Fee ({checkoutDetails.commissionPercentage}%)</span>
+                <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.commission}</strong>
+              </div>
+              <div className="checkout-summary-item">
+                <span style={{ color: '#64748b' }}>Tax (GST 18%)</span>
+                <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.gst}</strong>
+              </div>
+
+              <div className="checkout-summary-item total">
+                <span>Total Amount Due</span>
+                <span style={{ color: 'var(--navy-primary)' }}>₹{checkoutDetails.totalPayable}</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '30px' }}>
+                <button className="btn btn-outline-dark" style={{ padding: '12px' }} onClick={() => setShowCheckoutModal(false)}>Keep Chatting</button>
+                <button className="btn btn-primary" style={{ padding: '12px', background: 'var(--sage-green)', color: 'white' }} onClick={initiateRazorpayCheckout}>Confirm & Pay</button>
+              </div>
+
+              <div className="secure-badge">
+                <span style={{ fontSize: '1.2rem' }}>🔒</span>
+                SSL SECURE & ENCRYPTED PAYMENTS
+              </div>
             </div>
           </div>
         </div>
@@ -2996,61 +2956,7 @@ www.originode.com
             </div>
           )}
         </main>
-        {showPaymentModal && (
-          <div className="modal-overlay">
-            <div className="confirm-modal" style={{ width: '400px', padding: '0', overflow: 'hidden' }}>
-              {isPaymentProcessing ? (
-                <div style={{ padding: '60px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div className="spinner-loader" style={{
-                    width: '50px',
-                    height: '50px',
-                    border: '5px solid #f3f3f3',
-                    borderTop: '5px solid var(--sage-green)',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }}></div>
-                  <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                  <h3 style={{ marginTop: '25px', color: 'var(--navy-dark)' }}>Processing Secure Payment...</h3>
-                  <p style={{ color: '#64748b' }}>Please do not close this window.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="payment-modal-header" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 style={{ margin: 0, color: 'var(--navy-dark)', fontSize: '1.1rem' }}>Secure Payment</h3>
-                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>🔒 SSL Encrypted</span>
-                    </div>
-                  </div>
-                  <div style={{ padding: '20px' }}>
-                    <div style={{ marginBottom: '15px' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', letterSpacing: '0.5px' }}>PAYING TO</label>
-                      <div style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>OrigiNode Escrow Secure</div>
-                    </div>
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', letterSpacing: '0.5px' }}>AMOUNT</label>
-                      <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--sage-green)' }}>{paymentConfig?.amountStr}</div>
-                      <small style={{ color: '#64748b' }}>{paymentConfig?.desc}</small>
-                    </div>
-                    <div style={{ background: '#f1f5f9', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: '700', marginBottom: '10px', color: '#475569' }}>PAYMENT METHOD</div>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>💳 Card</div>
-                        <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>🏦 NetBanking</div>
-                        <div style={{ padding: '8px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}>📱 UPI</div>
-                      </div>
-                    </div>
-                    <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={confirmPayment}>
-                      Pay {paymentConfig?.amountStr} Now
-                    </button>
-                    <button className="btn-small-text" style={{ width: '100%', marginTop: '15px', textAlign: 'center', color: '#94a3b8' }} onClick={() => setShowPaymentModal(false)}>
-                      Cancel Transaction
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+        {/* [REMOVED] Redundant PaymentModal replaced by premium CheckoutModal in sharedModals */}
         {showPaymentSuccess && (
           <div className="modal-overlay">
             <div className="confirm-modal" style={{ width: '350px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>

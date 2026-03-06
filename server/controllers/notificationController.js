@@ -1,8 +1,8 @@
-const db = require('../db');
+import db from '../config/db.js';
 
 // @desc    Get all notifications for current user
 // @route   GET /api/notifications
-exports.getNotifications = async (req, res) => {
+export const getNotifications = async (req, res) => {
     try {
         const userId = req.user.id;
         const result = await db.query(
@@ -18,7 +18,7 @@ exports.getNotifications = async (req, res) => {
 
 // @desc    Mark a notification as read
 // @route   PATCH /api/notifications/:id/read
-exports.markAsRead = async (req, res) => {
+export const markAsRead = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.id;
@@ -37,7 +37,7 @@ exports.markAsRead = async (req, res) => {
 
 // @desc    Clear all notifications for current user
 // @route   DELETE /api/notifications
-exports.clearAll = async (req, res) => {
+export const clearAll = async (req, res) => {
     try {
         const userId = req.user.id;
         await db.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
@@ -52,8 +52,25 @@ exports.clearAll = async (req, res) => {
  * UTILITY: createNotification
  * Internal function to be used by other controllers to trigger alerts.
  */
-exports.createNotification = async (userId, title, message, type, link) => {
+export const createNotification = async (userId, title, message, type, link) => {
     try {
+        // [FIX] Skip DB for mock user IDs
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(userId)) {
+            console.log('[Notifications] Skipping DB for mock UserID:', userId);
+            if (global.io) {
+                global.io.to(`user_${userId}`).emit('notification', {
+                    id: Date.now(),
+                    type: type || 'system',
+                    msg: message || title,
+                    time: 'Just now',
+                    read: false,
+                    link: link || null
+                });
+            }
+            return { id: Date.now() };
+        }
+
         const result = await db.query(
             'INSERT INTO notifications (user_id, title, message, type, link) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [userId, title, message, type || 'system', link || null]
@@ -61,14 +78,6 @@ exports.createNotification = async (userId, title, message, type, link) => {
 
         const newNotif = result.rows[0];
 
-        // [NEW] Real-time Emit via Socket.io
-        // We need the app instance to get 'socketio'. 
-        // Note: This relies on app being accessible. A safer way is to pass io if possible, 
-        // but for utility usage in controllers, we can try to get it from a global or passed ref.
-        // For now, we'll try to reach it if the controller has access to a request, 
-        // but since this is an internal utility, we might need a workaround.
-
-        // Better: Export a setter for io in this module that index.js calls.
         if (global.io) {
             global.io.to(`user_${userId}`).emit('notification', {
                 id: newNotif.id,

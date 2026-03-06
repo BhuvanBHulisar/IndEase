@@ -4,23 +4,27 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import session from 'express-session';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import db from './config/db.js';
 import passport from './config/passport.js';
 import authRoutes from './routes/auth.routes.js';
 import paymentRoutes from './routes/payment.js';
+import jobRoutes from './routes/jobRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import machineRoutes from './routes/machineRoutes.js';
+import { saveMessage } from './controllers/chatController.js';
 
+import adminRouter from './routes/admin.js';
 const app = express();
-import session from 'express-session';
 const httpServer = createServer(app);
 
 // 1. GLOBAL MIDDLEWARE
 app.use(helmet());
 app.use(cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: ["http://localhost:5173", "http://localhost:5174"],
     credentials: true
 }));
 app.use(morgan('dev'));
@@ -43,34 +47,46 @@ app.use(passport.session());
 // 2. SOCKET INITIALIZATION
 const io = new Server(httpServer, {
     cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:5173",
+        origin: ["http://localhost:5173", "http://localhost:5174"],
         methods: ["GET", "POST"],
         credentials: true
-    }
+    },
+    transports: ["websocket", "polling"]
 });
 app.set('socketio', io);
+global.io = io; // For controllers to access without req object
 
 // 3. ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/machines', machineRoutes);
-
-app.use((err, req, res, next) => {
-    console.error('[Express Error]', err);
-    if (!res.headersSent) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
+app.use('/api/jobs', jobRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/admin', adminRouter);
 
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'Industrial Core Operational' });
 });
+
+// 4. REAL-TIME SIGNALS
 io.on('connection', (socket) => {
     console.log(`[Socket] Identity connected: ${socket.id}`);
 
     socket.on('identify', (userId) => {
         socket.join(`user_${userId}`);
+        console.log(`[Socket] Registered user room: user_${userId}`);
+    });
+
+    socket.on('send_message', async (data) => {
+        const { requestId, senderId, text } = data;
+        console.log(`[Socket] Incoming signal in session ${requestId} from source ${senderId}`);
+
+        // Persist to DB (Mock or Real)
+        const saved = await saveMessage(requestId, senderId, text);
+
+        // Broadcast to all (for demo simplicity)
+        io.emit('new_message', saved);
     });
 
     socket.on('disconnect', () => {
@@ -91,7 +107,7 @@ async function startServer() {
 
         httpServer.listen(PORT, () => {
             console.log(`
-  🚀 ORIGINODE SECURE API V2.0
+  🚀 ORIGINODE SECURE API V2.1
   --------------------------------
   📡 Base Station : http://localhost:${PORT}
   🌍 Environment  : ${process.env.NODE_ENV || 'development'}

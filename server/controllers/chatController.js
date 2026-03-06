@@ -1,8 +1,8 @@
-const db = require('../db');
+import db from '../config/db.js';
 
 // @desc    Retrieve chat history for a specific request
 // @route   GET /api/chat/:requestId
-exports.getChatHistory = async (req, res) => {
+export const getChatHistory = async (req, res) => {
     const requestId = req.params.requestId;
 
     try {
@@ -43,8 +43,15 @@ exports.getChatHistory = async (req, res) => {
 };
 
 // @desc    Store a message in the ledger (usually called from socket event)
-exports.saveMessage = async (requestId, senderId, text) => {
+export const saveMessage = async (requestId, senderId, text) => {
     try {
+        // Check if requestId and senderId are valid UUIDs before inserting
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(requestId) || !uuidRegex.test(senderId)) {
+            console.log('[Chat] Skipping DB persistence for mock/invalid UUIDs');
+            return { id: 'mock-' + Date.now(), request_id: requestId, sender_id: senderId, message_text: text, created_at: new Date() };
+        }
+
         const result = await db.query(
             'INSERT INTO chat_messages (request_id, sender_id, message_text) VALUES ($1, $2, $3) RETURNING *',
             [requestId, senderId, text]

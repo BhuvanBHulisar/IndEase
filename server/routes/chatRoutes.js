@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import * as chatController from '../controllers/chatController.js';
+import { protect as auth } from '../middleware/auth.middleware.js';
+
 const router = express.Router();
-const chatController = require('../controllers/chatController');
-const auth = require('../middleware/auth');
 
 /**
  * SECURE COMMUNICATION ROUTES
@@ -11,4 +12,4 @@ const auth = require('../middleware/auth');
 // @desc    Retrieve historical signals for a specific service request
 router.get('/:requestId', auth, chatController.getChatHistory);
 
-module.exports = router;
+export default router;

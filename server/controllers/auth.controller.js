@@ -69,7 +69,7 @@ export const googleIdTokenLogin = async (req, res) => {
             if (!user.google_id) {
                 await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [payload.sub, user.id]);
             }
-            const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            const token = generateAccessToken(user);
             res.cookie('session', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
@@ -109,11 +109,7 @@ export const register = async (req, res) => {
             [normalizedEmail, hashedPassword, role, firstName || null, lastName || null, phone || null, dob || null, organization || null]
         );
         const user = newUserRes.rows[0];
-        const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
+        const token = generateAccessToken(user);
         res.status(201).json({ token, user });
     } catch (err) {
         res.status(500).json({ message: 'Registration failed', error: err.message });
@@ -145,11 +141,7 @@ export const socialLogin = async (req, res) => {
             if (!user.google_id) {
                 await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [payload.sub, user.id]);
             }
-            const jwtToken = jwt.sign(
-                { id: user.id, email: user.email, role: user.role },
-                process.env.JWT_SECRET,
-                { expiresIn: '1h' }
-            );
+            const jwtToken = generateAccessToken(user);
             return res.json({ token: jwtToken, user });
         } else {
             // User not found, do not auto-create
@@ -173,11 +165,7 @@ export const login = async (req, res) => {
         if (!isMatch) {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
-        const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
+        const token = generateAccessToken(user);
         res.json({ token, user });
     } catch (err) {
         res.status(500).json({ message: 'Login failed', error: err.message });

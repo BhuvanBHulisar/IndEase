@@ -20,7 +20,17 @@ export const protect = async (req, res, next) => {
             return next(new AppError('No industrial access token found', 401));
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+        // [DEMO BYPASS]
+        if (token === 'demo-token' || token === 'demo-token-consumer') {
+            req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'consumer' };
+            return next();
+        }
+        if (token === 'demo-token-producer') {
+            req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'producer' };
+            return next();
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET);
         req.user = decoded;
         next();
     } catch (err) {

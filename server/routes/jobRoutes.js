@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
+import * as jobController from '../controllers/jobController.js';
+import { protect as auth } from '../middleware/auth.middleware.js';
+import { roleCheck } from '../middleware/roleCheck.js';
+
 const router = express.Router();
-const jobController = require('../controllers/jobController');
-const auth = require('../middleware/auth');
-const roleCheck = require('../middleware/roleCheck');
 
 /**
  * JOB & RADAR ROUTES
@@ -36,4 +37,4 @@ router.post('/:id/invoice', auth, roleCheck(['producer']), jobController.createI
 // @desc    Get my active jobs (Chat List)
 router.get('/my', auth, jobController.getMyJobs);
 
-module.exports = router;
+export default router;

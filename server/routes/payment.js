@@ -89,15 +89,64 @@ router.post('/verify-payment', async (req, res) => {
         const isAuthentic = expectedSignature === razorpay_signature;
 
         if (isAuthentic) {
-            // Update transaction to paid
-            await db.query(
-                `UPDATE transactions SET status = 'paid', transaction_ref = $1 WHERE transaction_ref = $2`,
+            // 1. Update transaction to paid
+            const transRes = await db.query(
+                `UPDATE transactions SET status = 'paid', transaction_ref = $1 WHERE transaction_ref = $2 RETURNING request_id`,
                 [razorpay_payment_id, razorpay_order_id]
             );
 
+            if (transRes.rows.length > 0) {
+                const requestId = transRes.rows[0].request_id;
+
+                if (requestId) {
+                    // 2. Update Job status to completed
+                    await db.query(
+                        `UPDATE service_requests SET status = 'completed' WHERE id = $1`,
+                        [requestId]
+                    );
+
+                    // 3. Notify Producer & Consumer via Socket
+                    const jobRes = await db.query(
+                        `SELECT producer_id, consumer_id, quoted_cost FROM service_requests WHERE id = $1`,
+                        [requestId]
+                    );
+
+                    if (jobRes.rows.length > 0) {
+                        const { producer_id, consumer_id, quoted_cost } = jobRes.rows[0];
+
+                        if (global.io) {
+                            // Notify both about completion
+                            // 3a. Specific event for producer to show success modal
+                            if (producer_id) {
+                                global.io.to(`user_${producer_id}`).emit('job_completed', {
+                                    requestId,
+                                    status: 'completed'
+                                });
+                                global.io.to(`user_${producer_id}`).emit('notification', {
+                                    id: Date.now(),
+                                    type: 'success',
+                                    msg: `Payment of ₹${quoted_cost} received! Job completed.`,
+                                    time: 'Just now',
+                                    read: false
+                                });
+                            }
+
+                            // 3b. Specific event for consumer
+                            if (consumer_id) {
+                                global.io.to(`user_${consumer_id}`).emit('status_update', {
+                                    requestId,
+                                    status: 'completed',
+                                    message: 'Payment confirmed. Job completed.'
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
             res.status(200).json({
                 success: true,
-                message: 'Payment has been verified successfully',
+                message: 'Payment verified and job status updated to completed',
             });
         } else {
             res.status(400).json({

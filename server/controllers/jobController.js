@@ -1,38 +1,56 @@
-const db = require('../db');
-const notificationController = require('./notificationController');
+import db from '../config/db.js';
+import * as notificationController from './notificationController.js';
 
 // @desc    Broadcast a new machine issue (Consumer)
 // @route   POST /api/jobs/broadcast
-exports.broadcastJob = async (req, res) => {
+export const broadcastJob = async (req, res) => {
     const { machineId, issueDescription, priority, videoUrl } = req.body;
 
     try {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
         // 1. Verify machine ownership
-        const machine = await db.query('SELECT * FROM machines WHERE id = $1 AND owner_id = $2', [machineId, req.user.id]);
-        if (machine.rows.length === 0) {
-            return res.status(404).json({ message: 'Machine node not found or access denied' });
+        if (uuidRegex.test(machineId) && uuidRegex.test(req.user.id)) {
+            const machine = await db.query('SELECT * FROM machines WHERE id = $1 AND owner_id = $2', [machineId, req.user.id]);
+            if (machine.rows.length === 0) {
+                return res.status(404).json({ message: 'Machine node not found or access denied' });
+            }
+
+            // 2. Insert into service requests ledger
+            const result = await db.query(
+                'INSERT INTO service_requests (machine_id, consumer_id, issue_description, priority, video_url, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                [machineId, req.user.id, issueDescription, priority || 'normal', videoUrl, 'broadcast']
+            );
+
+            const newJob = result.rows[0];
+            const io = req.app.get('socketio') || global.io;
+            if (io) {
+                io.to('radar_room').emit('new_signal', {
+                    ...newJob,
+                    machine_name: machine.rows[0].name
+                });
+            }
+            return res.status(201).json(newJob);
+        } else {
+            // Mock Broadcast
+            const mockJob = {
+                id: 'mock-' + Date.now(),
+                machine_id: machineId,
+                consumer_id: req.user.id,
+                issue_description: issueDescription,
+                priority: priority || 'normal',
+                status: 'broadcast',
+                created_at: new Date()
+            };
+            const io = req.app.get('socketio') || global.io;
+            if (io) {
+                io.to('radar_room').emit('new_signal', {
+                    ...mockJob,
+                    machine_name: 'Mock Machine'
+                });
+            }
+            return res.status(201).json(mockJob);
         }
-
-        // 2. Insert into service requests ledger
-        const result = await db.query(
-            'INSERT INTO service_requests (machine_id, consumer_id, issue_description, priority, video_url, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [machineId, req.user.id, issueDescription, priority || 'normal', videoUrl, 'broadcast']
-        );
-
-        const newJob = result.rows[0];
-
-        // 3. Emit real-time signal via Socket.io (Handled in index.js via io object if passed, 
-        // but for now we'll assume the frontend poller or a separate socket controller handles it)
-        // For this implementation, we will notify experts listening to 'radar_room'
-        const io = req.app.get('socketio');
-        if (io) {
-            io.to('radar_room').emit('new_signal', {
-                ...newJob,
-                machine_name: machine.rows[0].name
-            });
-        }
-
-        res.status(201).json(newJob);
     } catch (err) {
         console.error('[Jobs] Broadcast failure:', err);
         res.status(500).json({ message: 'Internal operational failure' });
@@ -41,9 +59,8 @@ exports.broadcastJob = async (req, res) => {
 
 // @desc    Retrieve all active broadcasts in sector (Expert)
 // @route   GET /api/jobs/radar
-exports.getRadarJobs = async (req, res) => {
+export const getRadarJobs = async (req, res) => {
     try {
-        // [MODIFIED] Filter out jobs that this expert has already declined
         const result = await db.query(`
             SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
             FROM service_requests jr
@@ -58,8 +75,7 @@ exports.getRadarJobs = async (req, res) => {
 
         res.json(result.rows);
     } catch (err) {
-        console.warn('[Jobs] Radar selective scanning failed (Table missing?), falling back to full signal');
-        // Fallback: If declined_jobs table doesn't exist yet, just return all broadcast jobs
+        console.warn('[Jobs] Radar selective scanning fallback');
         try {
             const result = await db.query(`
                 SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
@@ -71,19 +87,19 @@ exports.getRadarJobs = async (req, res) => {
             `);
             res.json(result.rows);
         } catch (innerErr) {
-            res.status(500).json({ message: 'Radar sensor failure' });
+            res.json([]); // Return empty list for radar failures
         }
     }
 };
 
 // @desc    Get expert dashboard statistics
 // @route   GET /api/jobs/producer-stats
-exports.getProducerStats = async (req, res) => {
+export const getProducerStats = async (req, res) => {
     try {
         const producerId = req.user.id;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-        // Return rich mock data for the demo account
-        if (producerId === 'demo-123') {
+        if (!uuidRegex.test(producerId)) {
             return res.json({
                 earnings: 14500,
                 completedJobs: 124,
@@ -100,11 +116,7 @@ exports.getProducerStats = async (req, res) => {
         const earningsRes = await db.query("SELECT SUM(quoted_cost) FROM service_requests WHERE producer_id = $1 AND status = 'completed'", [producerId]);
         const earnings = Number(earningsRes.rows[0].sum) || 0;
 
-        res.json({
-            earnings,
-            completedJobs,
-            rating
-        });
+        res.json({ earnings, completedJobs, rating });
     } catch (err) {
         console.error('[Jobs] Stats retrieval failure:', err);
         res.status(500).json({ message: 'Failed to retrieve expert statistics' });
@@ -113,80 +125,83 @@ exports.getProducerStats = async (req, res) => {
 
 // @desc    Accept a job assignment (Expert)
 // @route   PATCH /api/jobs/:id/accept
-exports.acceptJob = async (req, res) => {
+export const acceptJob = async (req, res) => {
     const jobId = req.params.id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     try {
-        // 1. Atomically check if job is still available and update status
-        const result = await db.query(
-            'UPDATE service_requests SET producer_id = $1, status = $2 WHERE id = $3 AND status = $4 RETURNING *',
-            [req.user.id, 'accepted', jobId, 'broadcast']
-        );
+        if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
+            const result = await db.query(
+                'UPDATE service_requests SET producer_id = $1, status = $2 WHERE id = $3 AND status = $4 RETURNING *',
+                [req.user.id, 'accepted', jobId, 'broadcast']
+            );
 
-        if (result.rows.length === 0) {
-            return res.status(400).json({ message: 'Job no longer available or already claimed' });
+            if (result.rows.length === 0) {
+                return res.status(400).json({ message: 'Job no longer available' });
+            }
+
+            const acceptedJob = result.rows[0];
+            const io = req.app.get('socketio') || global.io;
+            if (io) {
+                io.emit(`status_update_${acceptedJob.id}`, { status: 'accepted', producer_id: req.user.id });
+            }
+
+            await notificationController.createNotification(
+                acceptedJob.consumer_id,
+                'Job Accepted',
+                `An expert has accepted your request.`,
+                'job_update',
+                `/workspace/${jobId}`
+            );
+
+            return res.json(acceptedJob);
+        } else {
+            // Mock Acceptance
+            res.json({ id: jobId, status: 'accepted', producer_id: req.user.id });
         }
-
-        const acceptedJob = result.rows[0];
-
-        // Notify the consumer that an expert has been assigned
-        const io = req.app.get('socketio');
-        if (io) {
-            io.emit(`status_update_${acceptedJob.id}`, { status: 'accepted', producer_id: req.user.id });
-        }
-
-        // 3. Create persistent notification for Consumer
-        await notificationController.createNotification(
-            acceptedJob.consumer_id,
-            'Job Accepted',
-            `An expert has accepted your request for ${jobId.substring(0, 8)}. Check the workspace.`,
-            'job_update',
-            `/workspace/${jobId}`
-        );
-
-        res.json(acceptedJob);
     } catch (err) {
         console.error('[Jobs] Acceptance failure:', err);
-        res.status(500).json({ message: 'Deployment failure' });
+        res.status(500).json({ message: 'Internal failure' });
     }
 };
 
 // @desc    Decline / skip a job (Expert)
 // @route   PATCH /api/jobs/:id/decline
-exports.declineJob = async (req, res) => {
+export const declineJob = async (req, res) => {
     const jobId = req.params.id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     try {
-        // [MODIFIED] Record the decline in the persistence layer
-        await db.query(
-            'INSERT INTO declined_jobs (user_id, request_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [req.user.id, jobId]
-        );
-
-        res.json({ message: 'Job declined from local radar' });
+        if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
+            await db.query(
+                'INSERT INTO declined_jobs (user_id, request_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [req.user.id, jobId]
+            );
+        }
+        res.json({ message: 'Job declined' });
     } catch (err) {
-        console.warn('[Jobs] Decline persistence failure (Table missing?), falling back to memory only');
-        // If table missing, still return success so frontend removes it from view
         res.json({ message: 'Job declined (volatile)' });
     }
 };
 
 // @desc    Retrieve chat history for a specific request
 // @route   GET /api/jobs/my
-exports.getMyJobs = async (req, res) => {
+export const getMyJobs = async (req, res) => {
     try {
-        const params = [req.user.id];
-        let query;
+        const userId = req.user.id;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+        if (!uuidRegex.test(userId)) {
+            // Return mock jobs for demo accounts
+            return res.json([
+                { id: 1, status: 'accepted', issue_description: 'Hydraulic leakage', machine_name: 'Press #08', other_party: 'Expert Technician', other_party_id: 'exp-1' }
+            ]);
+        }
+
+        let query;
         if (req.user.role === 'consumer') {
             query = `
-                SELECT 
-                    sr.id, 
-                    sr.status, 
-                    sr.issue_description, 
-                    sr.created_at,
-                    m.name as machine_name, 
-                    COALESCE(u.first_name, 'Scanning...') as other_party,
-                    u.id as other_party_id
+                SELECT sr.id, sr.status, sr.issue_description, sr.created_at, m.name as machine_name, 
+                       COALESCE(u.first_name, 'Scanning...') as other_party, u.id as other_party_id
                 FROM service_requests sr
                 JOIN machines m ON sr.machine_id = m.id
                 LEFT JOIN users u ON sr.producer_id = u.id
@@ -195,14 +210,8 @@ exports.getMyJobs = async (req, res) => {
              `;
         } else {
             query = `
-                SELECT 
-                    sr.id, 
-                    sr.status, 
-                    sr.issue_description, 
-                    sr.created_at,
-                    m.name as machine_name, 
-                    u.first_name as other_party,
-                    u.id as other_party_id
+                SELECT sr.id, sr.status, sr.issue_description, sr.created_at, m.name as machine_name, 
+                       u.first_name as other_party, u.id as other_party_id
                 FROM service_requests sr
                 JOIN machines m ON sr.machine_id = m.id
                 JOIN users u ON sr.consumer_id = u.id
@@ -211,7 +220,7 @@ exports.getMyJobs = async (req, res) => {
              `;
         }
 
-        const result = await db.query(query, params);
+        const result = await db.query(query, [userId]);
         res.json(result.rows);
     } catch (err) {
         console.error('[Jobs] My list retrieval failure:', err);
@@ -221,26 +230,52 @@ exports.getMyJobs = async (req, res) => {
 
 // @desc    Expert sends an invoice/quote to the consumer
 // @route   POST /api/jobs/:id/invoice
-exports.createInvoice = async (req, res) => {
+export const createInvoice = async (req, res) => {
     const jobId = req.params.id;
     const { amount } = req.body;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     try {
-        // 1. Update the service request with the quoted cost
-        const result = await db.query(
-            'UPDATE service_requests SET quoted_cost = $1, status = $2 WHERE id = $3 RETURNING *',
-            [amount, 'payment_pending', jobId]
-        );
+        let job;
+        if (uuidRegex.test(jobId)) {
+            const result = await db.query(
+                'UPDATE service_requests SET quoted_cost = $1, status = $2 WHERE id = $3 RETURNING *',
+                [amount, 'payment_pending', jobId]
+            );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Service request not found' });
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Service request not found' });
+            }
+            job = result.rows[0];
+        } else {
+            // Mock Invoice Logic
+            console.log('[Jobs] Creating mock invoice for ID:', jobId);
+            job = { id: jobId, consumer_id: 'consumer-1', status: 'payment_pending', quoted_cost: amount };
         }
 
-        const job = result.rows[0];
-
         // 2. Notify Consumer via Socket
-        const io = req.app.get('socketio');
+        const io = req.app.get('socketio') || global.io;
         if (io) {
+            console.log(`[Socket] Sending targeted invoice notification to user_${job.consumer_id}`);
+
+            // Send targeted event for the payment modal to pop up
+            io.to(`user_${job.consumer_id}`).emit('invoice_received', {
+                requestId: jobId,
+                amount: amount,
+                message: `Expert has sent an invoice for ₹${amount}`
+            });
+
+            // Also emit a general notification for the list
+            io.to(`user_${job.consumer_id}`).emit('notification', {
+                id: Date.now(),
+                type: 'payment',
+                msg: `Expert has sent an invoice for ₹${amount}`,
+                time: 'Just now',
+                read: false,
+                requestId: jobId
+            });
+
+            // Broadcast status update for the specific job channel
             io.emit(`status_update_${jobId}`, {
                 status: 'payment_pending',
                 amount: amount,
@@ -248,12 +283,12 @@ exports.createInvoice = async (req, res) => {
             });
         }
 
-        // 3. Create persistent notification for Consumer using real consumer_id
-        if (job.consumer_id) {
+        // 3. Create persistent notification if real user
+        if (uuidRegex.test(job.consumer_id)) {
             await notificationController.createNotification(
                 job.consumer_id,
                 'Invoice Received',
-                `Expert has sent an invoice for ₹${amount} for your service request.`,
+                `Expert has sent an invoice for ₹${amount}.`,
                 'payment',
                 `/workspace/${jobId}`
             );
