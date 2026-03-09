@@ -13,7 +13,9 @@ import {
     AvatarGroup,
     Avatar,
     Divider,
-    Chip
+    Chip,
+    Snackbar,
+    Alert
 } from '@mui/material';
 
 import {
@@ -52,6 +54,7 @@ const Dashboard = () => {
     const [jobDistribution, setJobDistribution] = useState([]);
     const [jobDistLoading, setJobDistLoading] = useState(true);
     const [jobDistError, setJobDistError] = useState('');
+    const [snackbar, setSnackbar] = useState({ open: false, message: '' });
 
     const revenueData = [
         { name: 'Mon', revenue: 4500 },
@@ -67,7 +70,6 @@ const Dashboard = () => {
         setJobDistLoading(true);
         try {
             const response = await api.get('/analytics/job-distribution');
-            console.log('Job distribution data:', response.data);
             setJobDistribution(response.data.categories || []);
         } catch (err) {
             setJobDistError('Failed to load job distribution');
@@ -81,7 +83,6 @@ const Dashboard = () => {
         setLoading(true);
         try {
             const response = await api.get('/analytics/overview');
-            console.log('Dashboard API response:', response.data);
             setSummary(response.data);
         } catch (err) {
             console.error('Error fetching dashboard summary:', err);
@@ -95,8 +96,10 @@ const Dashboard = () => {
         fetchData();
         fetchJobDistribution();
         socket.on('new_job_created', (data) => {
-            console.log('New job notification:', data);
-            alert(data.message);
+            const message = (data && data.message) ? data.message : 'New job created';
+            setSnackbar({ open: true, message });
+            fetchData();
+            fetchJobDistribution();
         });
         return () => {
             socket.off('new_job_created');
@@ -294,7 +297,19 @@ const Dashboard = () => {
 
             </Grid>
 
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert severity="info" variant="filled" sx={{ width: '100%', borderRadius: 3 }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
+
         </Box>
+
     );
 };
 

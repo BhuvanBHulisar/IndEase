@@ -68,15 +68,26 @@ const Header = ({ onMenuClick }) => {
     };
 
     useEffect(() => {
-        // Fetch initial notifications from API
-        api.get('/admin/notifications').then(res => {
-            setNotifications(res.data.map(n => n.message));
-        });
+        let mounted = true;
+        const fetchNotifications = async () => {
+            try {
+                const res = await api.get('/admin/notifications');
+                if (mounted) {
+                    setNotifications(res.data.map(n => n.message));
+                }
+            } catch (err) {
+                // Silently handle notification fetch errors
+            }
+        };
+        fetchNotifications();
         // Listen for real-time notifications
         socket.on('admin_notification', (data) => {
-            setNotifications(prev => [data.message, ...prev]);
+            if (mounted) {
+                setNotifications(prev => [data.message, ...prev]);
+            }
         });
         return () => {
+            mounted = false;
             socket.off('admin_notification');
         };
     }, []);

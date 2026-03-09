@@ -58,7 +58,6 @@ const Jobs = () => {
         setLoading(true);
         try {
             const response = await api.get('/jobs');
-            console.log('Jobs API response:', response.data);
             setJobs(response.data);
         } catch (err) {
             console.error('Error fetching jobs:', err);
@@ -88,8 +87,7 @@ const Jobs = () => {
 
     const handleStatusChange = async (id, newStatus) => {
         try {
-            const response = await api.patch(`/admin/jobs/${id}/status`, { status: newStatus });
-            console.log('API Response:', response.data);
+            await api.patch(`/admin/jobs/${id}/status`, { status: newStatus });
             setToast({ open: true, message: `Job ${id} status pushed to ${newStatus}`, severity: 'success' });
             fetchJobs();
         } catch (err) {

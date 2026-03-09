@@ -17,7 +17,9 @@ import {
     Divider,
     Menu,
     MenuItem,
-    CircularProgress
+    CircularProgress,
+    Snackbar,
+    Alert
 } from '@mui/material';
 import {
     Search,
@@ -40,13 +42,13 @@ const Providers = () => {
     const [search, setSearch] = useState('');
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedProvider, setSelectedProvider] = useState(null);
+    const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
     const theme = useTheme();
 
     const fetchProviders = async () => {
         setLoading(true);
         try {
             const response = await api.get('/providers');
-            console.log('Providers API response:', response.data);
             setProviders(response.data);
         } catch (err) {
             console.error('Error fetching providers:', err);
@@ -72,12 +74,11 @@ const Providers = () => {
 
     const updateStatus = async (status) => {
         try {
-            const response = await api.patch(`/admin/users/${selectedProvider.id}/status`, { status });
-            console.log('API Response:', response.data);
-            fetchProviders();
-        } catch (err) {
-            console.error('Status update failed');
+            await api.patch(`/admin/users/${selectedProvider.id}/status`, { status });
             setProviders(prev => prev.map(p => p.id === selectedProvider.id ? { ...p, status } : p));
+        } catch (err) {
+            fetchProviders();
+            setToast({ open: true, message: `Status update failed: ${err.message || err}`, severity: 'error' });
         }
         handleMenuClose();
     };
@@ -235,6 +236,17 @@ const Providers = () => {
                     <Block sx={{ fontSize: 18, mr: 1.5, color: 'error.main' }} /> Suspend Access
                 </MenuItem>
             </Menu>
+
+            <Snackbar
+                open={toast.open}
+                autoHideDuration={4000}
+                onClose={() => setToast({ ...toast, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert severity={toast.severity} variant="filled" sx={{ width: '100%', borderRadius: 3 }}>
+                    {toast.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };

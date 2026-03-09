@@ -23,16 +23,17 @@ export const broadcastJob = async (req, res) => {
             );
 
             const newJob = result.rows[0];
+            // Always persist notification regardless of socket availability
+            await db.query(
+                'INSERT INTO notifications (type, message, job_id) VALUES ($1, $2, $3)',
+                ['new_job', 'New service request created', newJob.id]
+            );
             if (io) {
                 io.to('radar_room').emit('new_signal', {
                     ...newJob,
                     machine_name: machine.rows[0].name
                 });
-                // 3. Insert admin notification and emit event
-                await db.query(
-                    'INSERT INTO notifications (type, message) VALUES ($1, $2)',
-                    ['new_job', 'New service request created']
-                );
+                // Emit admin notification and new job event
                 io.emit('admin_notification', {
                     type: 'new_job',
                     message: 'New service request created'
@@ -306,15 +307,15 @@ export const createInvoice = async (req, res) => {
             );
         }
 
-        // 3. Insert admin notification and emit event
+        // 4. Insert admin notification and emit invoice_created event
         await db.query(
             'INSERT INTO notifications (type, message) VALUES ($1, $2)',
-            ['new_job', 'New service request created']
+            ['invoice_created', 'New invoice created']
         );
         if (io) {
             io.emit('admin_notification', {
-                type: 'new_job',
-                message: 'New service request created'
+                type: 'invoice_created',
+                message: 'New invoice created'
             });
         }
 

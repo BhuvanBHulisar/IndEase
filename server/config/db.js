@@ -5,7 +5,7 @@ const { Pool } = pkg;
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-        rejectUnauthorized: false
+        rejectUnauthorized: process.env.NODE_ENV === 'production' && !process.env.DB_ALLOW_INSECURE_SSL
     }
 });
 

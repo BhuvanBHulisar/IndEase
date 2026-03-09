@@ -62,8 +62,7 @@ const Settings = () => {
     const handleSave = async () => {
         setLoading(true);
         try {
-            const response = await api.patch('/admin/settings', platformSettings);
-            console.log('API Response:', response.data);
+            await api.patch('/admin/settings', platformSettings);
             setToast({ open: true, message: 'Global platform settings updated successfully', severity: 'success' });
         } catch (err) {
             setToast({ open: true, message: 'Administrative override failed. Check logs.', severity: 'error' });
