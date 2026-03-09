@@ -1,3 +1,4 @@
+import api from '../services/api';
 import React, { useState, useEffect } from 'react';
 import {
     Box,
@@ -45,18 +46,12 @@ const Providers = () => {
     const fetchProviders = async () => {
         setLoading(true);
         try {
-            // Assuming a dedicated providers endpoint or filtering users by role 'producer'
-            const { data } = await adminApi.get('/api/admin/users');
-            setProviders(data.filter(u => u.role === 'producer'));
+            const response = await api.get('/providers');
+            console.log('Providers API response:', response.data);
+            setProviders(response.data);
         } catch (err) {
             console.error('Error fetching providers:', err);
-            // Fallback/Mock
-            setProviders([
-                { id: 'PROV001', name: 'Elite Plumbers Ltd', category: 'Plumbing', rating: 4.8, status: 'approved', jobsCount: 156 },
-                { id: 'PROV002', name: 'Volt Masters', category: 'Electrical', rating: 4.5, status: 'pending', jobsCount: 0 },
-                { id: 'PROV003', name: 'Crystal Clean Co', category: 'Cleaning', rating: 4.2, status: 'approved', jobsCount: 89 },
-                { id: 'PROV004', name: 'Rapid Repairs', category: 'General Maintenance', rating: 3.9, status: 'suspended', jobsCount: 21 },
-            ]);
+            setProviders([]);
         } finally {
             setLoading(false);
         }

@@ -1,8 +1,8 @@
-const db = require('../db');
+import db from '../config/db.js';
 
 // @desc    Get expert schedule
 // @route   GET /api/schedule
-exports.getSchedule = async (req, res) => {
+export const getSchedule = async (req, res) => {
     try {
         const userId = req.user.id;
         const result = await db.query(
@@ -29,7 +29,7 @@ exports.getSchedule = async (req, res) => {
 
 // @desc    Update/Add schedule slot
 // @route   POST /api/schedule
-exports.updateSchedule = async (req, res) => {
+export const updateSchedule = async (req, res) => {
     try {
         const userId = req.user.id;
         const { day_of_week, start_time, end_time, slot_type, title, description, request_id } = req.body;
@@ -50,7 +50,7 @@ exports.updateSchedule = async (req, res) => {
 
 // @desc    Delete schedule slot
 // @route   DELETE /api/schedule/:id
-exports.deleteSlot = async (req, res) => {
+export const deleteSlot = async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -69,7 +69,7 @@ exports.deleteSlot = async (req, res) => {
 
 // @desc    AI Schedule Assistant: Propose optimal slots for pending jobs
 // @route   GET /api/schedule/optimize
-exports.optimizeSchedule = async (req, res) => {
+export const optimizeSchedule = async (req, res) => {
     try {
         const userId = req.user.id;
 

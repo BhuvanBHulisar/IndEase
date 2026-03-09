@@ -4,12 +4,20 @@ import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 export const ColorModeContext = createContext({ toggleColorMode: () => { } });
 
 export default function ThemeProviderWrapper({ children }) {
-    const [mode, setMode] = useState('dark'); // Default to dark for premium feel
+    // Use localStorage to persist theme
+    const [mode, setMode] = useState(() => {
+        const savedMode = localStorage.getItem('theme');
+        return savedMode || 'light'; // Default to light mode
+    });
 
     const colorMode = useMemo(
         () => ({
             toggleColorMode: () => {
-                setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+                setMode((prevMode) => {
+                    const newMode = prevMode === 'light' ? 'dark' : 'light';
+                    localStorage.setItem('theme', newMode);
+                    return newMode;
+                });
             },
             mode,
         }),

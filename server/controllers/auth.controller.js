@@ -154,20 +154,42 @@ export const socialLogin = async (req, res) => {
 
 export const login = async (req, res) => {
     try {
+        console.log('[Auth] Login attempt for:', req.body.email);
         const { email, password } = req.body;
-        const normalizedEmail = email.toLowerCase();
-        const userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
-        if (userRes.rows.length === 0) {
-            return res.status(400).json({ message: 'No account found. Please sign up.' });
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Missing credentials.' });
         }
-        const user = userRes.rows[0];
-        const isMatch = await bcrypt.compare(password, user.password_hash);
+
+        const normalizedEmail = email.trim().toLowerCase();
+        // Query admins table
+        const adminRes = await db.query('SELECT id, name, email, password FROM admins WHERE LOWER(email) = $1', [normalizedEmail]);
+
+        if (adminRes.rows.length === 0) {
+            console.log('[Auth] Login failed: No such admin -', normalizedEmail);
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        const admin = adminRes.rows[0];
+        const isMatch = await bcrypt.compare(password, admin.password);
         if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid credentials.' });
+            console.log('[Auth] Login failed: Password mismatch for', normalizedEmail);
+            return res.status(401).json({ message: 'Invalid email or password' });
         }
-        const token = generateAccessToken(user);
-        res.json({ token, user });
+
+        // Generate JWT token
+        const token = generateAccessToken({ id: admin.id, email: admin.email, role: 'admin', name: admin.name });
+        console.log('[Auth] Login successful for', normalizedEmail);
+        res.json({
+            token,
+            admin: {
+                id: admin.id,
+                name: admin.name,
+                email: admin.email,
+                role: 'admin'
+            }
+        });
     } catch (err) {
+        console.error('[Auth] Login exception:', err.message);
         res.status(500).json({ message: 'Login failed', error: err.message });
     }
 };

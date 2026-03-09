@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const adminApi = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/admin',
+    baseURL: '/api/admin',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -10,7 +10,7 @@ const adminApi = axios.create({
 // Interceptor to add the admin token to every request
 adminApi.interceptors.request.use(
     (config) => {
-        const token = import.meta.env.VITE_ADMIN_TOKEN;
+        const token = localStorage.getItem('adminToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }

@@ -1,3 +1,4 @@
+import api from '../services/api';
 import React, { useState, useEffect } from 'react';
 import {
     Box,
@@ -52,17 +53,12 @@ const Payments = () => {
     const fetchPayments = async () => {
         setLoading(true);
         try {
-            const { data } = await adminApi.get('/api/admin/payments');
-            setPayments(data);
+            const response = await api.get('/payments');
+            console.log('Payments API response:', response.data);
+            setPayments(response.data);
         } catch (err) {
             console.error('Error fetching payments:', err);
-            // Fallback/Mock
-            setPayments([
-                { id: 'TXN10245', amount: 2500, commission: 250, gst: 450, status: 'paid', consumer: 'john@consumer.com', producer: 'smith@provider.com', created_at: '2026-03-05T09:00:00Z' },
-                { id: 'TXN10246', amount: 15000, commission: 1500, gst: 2700, status: 'pending', consumer: 'alice@test.com', producer: 'elite-plumbers@service.com', created_at: '2026-03-05T10:15:00Z' },
-                { id: 'TXN10247', amount: 3200, commission: 320, gst: 576, status: 'failed', consumer: 'bob@user.com', producer: 'volt-masters@service.com', created_at: '2026-03-04T16:45:00Z' },
-                { id: 'TXN10248', amount: 4800, commission: 480, gst: 864, status: 'paid', consumer: 'charlie@demo.com', producer: 'smith@provider.com', created_at: '2026-03-05T12:00:00Z' },
-            ]);
+            setPayments([]);
         } finally {
             setLoading(false);
         }

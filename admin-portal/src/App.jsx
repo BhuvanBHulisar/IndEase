@@ -1,3 +1,4 @@
+import AdminProfile from './pages/AdminProfile';
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import {
@@ -21,6 +22,18 @@ import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import { socket } from './utils/socket';
 import ThemeProviderWrapper from './theme';
+import Login from './pages/Login';
+
+const ProtectedRoute = ({ children }) => {
+    const token = localStorage.getItem('adminToken');
+    const location = useLocation();
+
+    if (!token) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    return children;
+};
 
 const sidebarWidth = 260;
 
@@ -73,17 +86,16 @@ const AdminLayout = () => {
 // Global App wrapper
 const PortalRoutes = () => {
     const [socketReady, setSocketReady] = React.useState(false);
-    const adminToken = import.meta.env.VITE_ADMIN_TOKEN;
 
     React.useEffect(() => {
+        const adminToken = localStorage.getItem('adminToken');
         if (adminToken) {
+            socket.auth = { token: adminToken };
             socket.connect();
-            setSocketReady(true); // For now, we don't block UI if socket fails
-        } else {
-            setSocketReady(true);
         }
+        setSocketReady(true);
         return () => socket.disconnect();
-    }, [adminToken]);
+    }, []);
 
     if (!socketReady) {
         return (
@@ -95,15 +107,24 @@ const PortalRoutes = () => {
 
     return (
         <Routes>
-            <Route element={<AdminLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/users" element={<Users />} />
-                <Route path="/providers" element={<Providers />} />
-                <Route path="/jobs" element={<Jobs />} />
-                <Route path="/payments" element={<Payments />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/404" element={<NotFound />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+                path="/*"
+                element={
+                    <ProtectedRoute>
+                        <AdminLayout />
+                    </ProtectedRoute>
+                }
+            >
+                <Route index element={<Dashboard />} />
+                <Route path="users" element={<Users />} />
+                <Route path="providers" element={<Providers />} />
+                <Route path="jobs" element={<Jobs />} />
+                <Route path="payments" element={<Payments />} />
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="admin/profile" element={<AdminProfile />} />
+                <Route path="404" element={<NotFound />} />
                 <Route path="*" element={<Navigate to="/404" replace />} />
             </Route>
         </Routes>

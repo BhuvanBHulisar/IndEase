@@ -1,3 +1,4 @@
+import api from '../services/api';
 import React, { useState, useEffect } from 'react';
 import {
     Box,
@@ -57,17 +58,12 @@ const Jobs = () => {
     const fetchJobs = async () => {
         setLoading(true);
         try {
-            const { data } = await adminApi.get('/api/admin/jobs');
-            setJobs(data);
+            const response = await api.get('/jobs');
+            console.log('Jobs API response:', response.data);
+            setJobs(response.data);
         } catch (err) {
             console.error('Error fetching jobs:', err);
-            // Fallback/Mock
-            setJobs([
-                { id: 'JOB001', consumer: 'john@consumer.com', producer: 'smith@provider.com', category: 'Plumbing', service: 'Emergency Leak Fix', status: 'in_progress', price: 2500, created_at: '2026-03-05T09:00:00Z' },
-                { id: 'JOB002', consumer: 'alice@test.com', producer: 'elite-plumbers@service.com', category: 'Electrical', service: 'House Rewiring', status: 'pending', price: 15000, created_at: '2026-03-05T10:15:00Z' },
-                { id: 'JOB003', consumer: 'bob@user.com', producer: 'volt-masters@service.com', category: 'Cleaning', service: 'Deep Clean 2BHK', status: 'completed', price: 3200, created_at: '2026-03-04T16:45:00Z' },
-                { id: 'JOB004', consumer: 'charlie@demo.com', producer: null, category: 'Carpentry', service: 'Wardrobe Repair', status: 'pending', price: 1200, created_at: '2026-03-05T12:00:00Z' },
-            ]);
+            setJobs([]);
         } finally {
             setLoading(false);
         }

@@ -1,3 +1,4 @@
+import api from '../services/api';
 import React, { useState, useEffect } from 'react';
 import {
     Box,
@@ -49,17 +50,12 @@ const Users = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const { data } = await adminApi.get('/api/admin/users');
-            setUsers(data);
+            const response = await api.get('/users');
+            console.log('Users API response:', response.data);
+            setUsers(response.data);
         } catch (err) {
             console.error('Error fetching users:', err);
-            // Fallback/Mock
-            setUsers([
-                { id: 1, email: 'admin@originode.com', role: 'admin', created_at: '2026-01-01T10:00:00Z' },
-                { id: 2, email: 'john@consumer.com', role: 'consumer', created_at: '2026-02-15T14:30:00Z' },
-                { id: 3, email: 'smith@provider.com', role: 'producer', created_at: '2026-03-01T09:15:00Z' },
-                { id: 4, email: 'alice@test.com', role: 'consumer', created_at: '2026-03-04T16:20:00Z' },
-            ]);
+            setUsers([]);
         } finally {
             setLoading(false);
         }

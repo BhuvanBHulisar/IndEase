@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const scheduleController = require('../controllers/scheduleController');
-const auth = require('../middleware/auth');
+import * as scheduleController from '../controllers/scheduleController.js';
+import { protect as auth } from '../middleware/auth.middleware.js';
 
 /**
  * OPERATIONS SCHEDULE ROUTES
@@ -23,4 +23,4 @@ router.delete('/:id', auth, scheduleController.deleteSlot);
 // @desc    Get AI-proposed slots
 router.get('/optimize', auth, scheduleController.optimizeSchedule);
 
-module.exports = router;
+export default router;

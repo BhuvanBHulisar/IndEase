@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import {
     AppBar,
     Toolbar,
@@ -18,15 +18,58 @@ import {
     Logout as LogoutIcon
 } from '@mui/icons-material';
 import { ColorModeContext } from '../theme';
+import { useNavigate } from 'react-router-dom';
 
 const Header = ({ onMenuClick }) => {
     const theme = useTheme();
     const colorMode = useContext(ColorModeContext);
+    const navigate = useNavigate();
+
+    // Mock notifications
+    const mockNotifications = [
+        'New provider registered',
+        'New job request submitted',
+        'Payment processed successfully',
+        'System update completed'
+    ];
+    const [notifications, setNotifications] = useState(mockNotifications);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const notifRef = useRef(null);
+
+    // Profile dropdown
+    const [profileOpen, setProfileOpen] = useState(false);
+    const profileRef = useRef(null);
+
+    // Handle outside click for dropdowns
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (notifOpen && notifRef.current && !notifRef.current.contains(event.target)) {
+                setNotifOpen(false);
+            }
+            if (profileOpen && profileRef.current && !profileRef.current.contains(event.target)) {
+                setProfileOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [notifOpen, profileOpen]);
 
     const handleLogout = () => {
-        // Clear admin-related sessions if needed, but here it's token-based from .env
-        console.log('Logging out from admin portal...');
-        window.location.reload();
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        navigate('/login', { replace: true });
+    };
+
+    const handleNotifClick = () => {
+        setNotifOpen((open) => !open);
+        // Mark notifications as viewed (clear badge)
+        if (notifications.length > 0) setNotifications([]);
+    };
+
+    const handleProfileClick = () => {
+        setProfileOpen((open) => !open);
     };
 
     return (
@@ -69,14 +112,45 @@ const Header = ({ onMenuClick }) => {
                         </IconButton>
                     </Tooltip>
 
-                    <IconButton color="inherit">
-                        <Badge badgeContent={4} color="error">
-                            <NotificationsIcon sx={{ fontSize: 22 }} />
-                        </Badge>
-                    </IconButton>
+                    {/* Notification Bell */}
+                    <Box ref={notifRef} sx={{ position: 'relative' }}>
+                        <IconButton color="inherit" onClick={handleNotifClick}>
+                            <Badge badgeContent={notifications.length} color="error">
+                                <NotificationsIcon sx={{ fontSize: 22 }} />
+                            </Badge>
+                        </IconButton>
+                        {notifOpen && (
+                            <Box sx={{
+                                position: 'absolute',
+                                top: '110%',
+                                right: 0,
+                                minWidth: 240,
+                                bgcolor: 'background.paper',
+                                boxShadow: 3,
+                                borderRadius: 2,
+                                p: 2,
+                                zIndex: 1201,
+                            }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Notifications</Typography>
+                                {mockNotifications.map((msg, idx) => (
+                                    <Box key={idx} sx={{
+                                        py: 1,
+                                        borderBottom: idx < mockNotifications.length - 1 ? '1px solid #e0e0e0' : 'none',
+                                        color: 'text.primary',
+                                    }}>
+                                        {msg}
+                                    </Box>
+                                ))}
+                                {notifications.length === 0 && (
+                                    <Typography variant="caption" color="text.secondary">All notifications viewed</Typography>
+                                )}
+                            </Box>
+                        )}
+                    </Box>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', ml: 2, gap: 1.5 }}>
-                        <Box sx={{ textAlign: 'right', display: { xs: 'none', sm: 'block' } }}>
+                    {/* Profile Dropdown */}
+                    <Box ref={profileRef} sx={{ display: 'flex', alignItems: 'center', ml: 2, gap: 1.5, position: 'relative' }}>
+                        <Box sx={{ textAlign: 'right', display: { xs: 'none', sm: 'block' }, cursor: 'pointer' }} onClick={handleProfileClick}>
                             <Typography variant="subtitle2" sx={{ lineHeight: 1 }}>Admin Root</Typography>
                             <Typography variant="caption" color="text.secondary">Software Engineer</Typography>
                         </Box>
@@ -86,16 +160,30 @@ const Header = ({ onMenuClick }) => {
                                 height: 40,
                                 bgcolor: 'primary.main',
                                 fontWeight: 700,
-                                fontSize: '0.9rem'
+                                fontSize: '0.9rem',
+                                cursor: 'pointer'
                             }}
+                            onClick={handleProfileClick}
                         >
                             AR
                         </Avatar>
-                        <Tooltip title="Logout">
-                            <IconButton onClick={handleLogout} color="inherit" sx={{ ml: 1 }}>
-                                <LogoutIcon sx={{ fontSize: 20 }} />
-                            </IconButton>
-                        </Tooltip>
+                        {profileOpen && (
+                            <Box sx={{
+                                position: 'absolute',
+                                top: '110%',
+                                right: 0,
+                                minWidth: 180,
+                                bgcolor: 'background.paper',
+                                boxShadow: 3,
+                                borderRadius: 2,
+                                p: 1,
+                                zIndex: 1201,
+                            }}>
+                                <Box sx={{ py: 1, cursor: 'pointer', color: 'text.primary', fontWeight: 600 }} onClick={() => { setProfileOpen(false); navigate('/admin/profile'); }}>View Profile</Box>
+                                <Box sx={{ py: 1, cursor: 'pointer', color: 'text.primary', fontWeight: 600 }} onClick={() => { setProfileOpen(false); navigate('/settings'); }}>Settings</Box>
+                                <Box sx={{ py: 1, cursor: 'pointer', color: 'error.main', fontWeight: 600 }} onClick={() => { setProfileOpen(false); handleLogout(); }}>Logout</Box>
+                            </Box>
+                        )}
                     </Box>
                 </Box>
             </Toolbar>
