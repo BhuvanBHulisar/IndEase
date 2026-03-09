@@ -41,6 +41,8 @@ import {
 
 import StatCard from '../components/StatCard';
 
+import socket from '../services/socket';
+
 const Dashboard = () => {
 
     const [loading, setLoading] = useState(true);
@@ -92,6 +94,13 @@ const Dashboard = () => {
     useEffect(() => {
         fetchData();
         fetchJobDistribution();
+        socket.on('new_job_created', (data) => {
+            console.log('New job notification:', data);
+            alert(data.message);
+        });
+        return () => {
+            socket.off('new_job_created');
+        };
     }, []);
 
     return (

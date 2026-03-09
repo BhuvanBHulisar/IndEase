@@ -45,7 +45,6 @@ import {
     Visibility,
     FlashOn
 } from '@mui/icons-material';
-import adminApi from '../api/adminApi';
 import { socket } from '../utils/socket';
 
 const Jobs = () => {
@@ -89,7 +88,8 @@ const Jobs = () => {
 
     const handleStatusChange = async (id, newStatus) => {
         try {
-            await adminApi.patch(`/api/admin/jobs/${id}/status`, { status: newStatus });
+            const response = await api.patch(`/admin/jobs/${id}/status`, { status: newStatus });
+            console.log('API Response:', response.data);
             setToast({ open: true, message: `Job ${id} status pushed to ${newStatus}`, severity: 'success' });
             fetchJobs();
         } catch (err) {

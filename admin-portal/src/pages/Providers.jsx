@@ -33,7 +33,6 @@ import {
     PauseCircle,
     Block
 } from '@mui/icons-material';
-import adminApi from '../api/adminApi';
 
 const Providers = () => {
     const [loading, setLoading] = useState(true);
@@ -73,12 +72,11 @@ const Providers = () => {
 
     const updateStatus = async (status) => {
         try {
-            // Hypothetical status update route
-            await adminApi.patch(`/api/admin/users/${selectedProvider.id}/status`, { status });
+            const response = await api.patch(`/admin/users/${selectedProvider.id}/status`, { status });
+            console.log('API Response:', response.data);
             fetchProviders();
         } catch (err) {
             console.error('Status update failed');
-            // For demo purposes, we manually update the list if backend fails
             setProviders(prev => prev.map(p => p.id === selectedProvider.id ? { ...p, status } : p));
         }
         handleMenuClose();

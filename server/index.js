@@ -1,22 +1,3 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-
-const app = express();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Test route
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'Backend running' });
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
@@ -35,10 +16,21 @@ import chatRoutes from './routes/chatRoutes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import machineRoutes from './routes/machineRoutes.js';
 import { saveMessage } from './controllers/chatController.js';
-
 import adminRouter from './routes/admin.js';
+import notificationsRoutes from './routes/notifications.routes.js';
+
 const app = express();
-const httpServer = createServer(app);
+const server = createServer(app);
+
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    }
+});
+
+app.set('socketio', io);
+global.io = io; // For controllers to access without req object
 
 // 1. GLOBAL MIDDLEWARE
 app.use(helmet());
@@ -64,16 +56,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // 2. SOCKET INITIALIZATION
-const io = new Server(httpServer, {
-    cors: {
-        origin: ["http://localhost:5173", "http://localhost:5174"],
-        methods: ["GET", "POST"],
-        credentials: true
-    },
-    transports: ["websocket", "polling"]
-});
-app.set('socketio', io);
-global.io = io; // For controllers to access without req object
+// ...existing code...
 
 // 3. ROUTES
 app.use('/api/auth', authRoutes);
@@ -83,6 +66,7 @@ app.use('/api/machines', machineRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRouter);
+app.use('/api/admin/notifications', notificationsRoutes);
 
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'Industrial Core Operational' });
@@ -90,8 +74,10 @@ app.get('/api/health', (req, res) => {
 
 // 4. REAL-TIME SIGNALS
 io.on('connection', (socket) => {
-    console.log(`[Socket] Identity connected: ${socket.id}`);
-
+    console.log('Socket connected:', socket.id);
+    socket.on('disconnect', () => {
+        console.log('Socket disconnected:', socket.id);
+    });
     socket.on('identify', (userId) => {
         socket.join(`user_${userId}`);
         console.log(`[Socket] Registered user room: user_${userId}`);
@@ -107,34 +93,17 @@ io.on('connection', (socket) => {
         // Broadcast to all (for demo simplicity)
         io.emit('new_message', saved);
     });
-
-    socket.on('disconnect', () => {
-        console.log(`[Socket] Identity severed`);
-    });
 });
-
-// 5. ERROR HANDLING
-app.use(errorHandler);
-
-// 6. STARTUP
-const PORT = process.env.PORT || 5000;
 
 async function startServer() {
     try {
-        await db.query('SELECT 1');
-        console.log('[Database] Integrity probe successful');
-
-        httpServer.listen(PORT, () => {
-            console.log(`
-  🚀 ORIGINODE SECURE API V2.1
-  --------------------------------
-  📡 Base Station : http://localhost:${PORT}
-  🌍 Environment  : ${process.env.NODE_ENV || 'development'}
-  --------------------------------
-  `);
+        await db.query('SELECT NOW()');
+        console.log('Database connection verified');
+        server.listen(process.env.PORT || 5000, () => {
+            console.log('Server running on port', process.env.PORT || 5000);
         });
-    } catch (err) {
-        console.error('[Startup] Critical system failure:', err.message);
+    } catch (error) {
+        console.error('[Startup] Critical system failure:', error.message);
         process.exit(1);
     }
 }

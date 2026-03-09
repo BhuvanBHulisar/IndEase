@@ -19,20 +19,15 @@ import {
 } from '@mui/icons-material';
 import { ColorModeContext } from '../theme';
 import { useNavigate } from 'react-router-dom';
+import socket from '../services/socket';
+import api from '../services/api';
 
 const Header = ({ onMenuClick }) => {
     const theme = useTheme();
     const colorMode = useContext(ColorModeContext);
     const navigate = useNavigate();
 
-    // Mock notifications
-    const mockNotifications = [
-        'New provider registered',
-        'New job request submitted',
-        'Payment processed successfully',
-        'System update completed'
-    ];
-    const [notifications, setNotifications] = useState(mockNotifications);
+    const [notifications, setNotifications] = useState([]);
     const [notifOpen, setNotifOpen] = useState(false);
     const notifRef = useRef(null);
 
@@ -71,6 +66,20 @@ const Header = ({ onMenuClick }) => {
     const handleProfileClick = () => {
         setProfileOpen((open) => !open);
     };
+
+    useEffect(() => {
+        // Fetch initial notifications from API
+        api.get('/admin/notifications').then(res => {
+            setNotifications(res.data.map(n => n.message));
+        });
+        // Listen for real-time notifications
+        socket.on('admin_notification', (data) => {
+            setNotifications(prev => [data.message, ...prev]);
+        });
+        return () => {
+            socket.off('admin_notification');
+        };
+    }, []);
 
     return (
         <AppBar
@@ -132,16 +141,15 @@ const Header = ({ onMenuClick }) => {
                                 zIndex: 1201,
                             }}>
                                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Notifications</Typography>
-                                {mockNotifications.map((msg, idx) => (
+                                {notifications.length > 0 ? notifications.map((notification, idx) => (
                                     <Box key={idx} sx={{
                                         py: 1,
-                                        borderBottom: idx < mockNotifications.length - 1 ? '1px solid #e0e0e0' : 'none',
+                                        borderBottom: idx < notifications.length - 1 ? '1px solid #e0e0e0' : 'none',
                                         color: 'text.primary',
                                     }}>
-                                        {msg}
+                                        {notification.message || notification}
                                     </Box>
-                                ))}
-                                {notifications.length === 0 && (
+                                )) : (
                                     <Typography variant="caption" color="text.secondary">All notifications viewed</Typography>
                                 )}
                             </Box>

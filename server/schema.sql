@@ -104,16 +104,13 @@ CREATE TABLE IF NOT EXISTS expert_schedules (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 9. PERSISTENT NOTIFICATIONS
+-- 9. ADMIN NOTIFICATIONS
 CREATE TABLE IF NOT EXISTS notifications (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(50),
     message TEXT NOT NULL,
-    type VARCHAR(50), -- 'job_update', 'payment', 'chat', 'system'
     is_read BOOLEAN DEFAULT FALSE,
-    link VARCHAR(255), -- Deep link to a specific job/screen
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 10. SUPPORT TICKETS

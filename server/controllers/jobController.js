@@ -5,7 +5,7 @@ import * as notificationController from './notificationController.js';
 // @route   POST /api/jobs/broadcast
 export const broadcastJob = async (req, res) => {
     const { machineId, issueDescription, priority, videoUrl } = req.body;
-
+    const io = req.app.get('socketio') || global.io;
     try {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,11 +23,25 @@ export const broadcastJob = async (req, res) => {
             );
 
             const newJob = result.rows[0];
-            const io = req.app.get('socketio') || global.io;
             if (io) {
                 io.to('radar_room').emit('new_signal', {
                     ...newJob,
                     machine_name: machine.rows[0].name
+                });
+                // 3. Insert admin notification and emit event
+                await db.query(
+                    'INSERT INTO notifications (type, message) VALUES ($1, $2)',
+                    ['new_job', 'New service request created']
+                );
+                io.emit('admin_notification', {
+                    type: 'new_job',
+                    message: 'New service request created'
+                });
+                // Emit new_job_created event for Admin Portal
+                io.emit('new_job_created', {
+                    type: 'new_job',
+                    message: 'New service request created',
+                    jobId: newJob.id
                 });
             }
             return res.status(201).json(newJob);
@@ -42,7 +56,6 @@ export const broadcastJob = async (req, res) => {
                 status: 'broadcast',
                 created_at: new Date()
             };
-            const io = req.app.get('socketio') || global.io;
             if (io) {
                 io.to('radar_room').emit('new_signal', {
                     ...mockJob,
@@ -128,7 +141,7 @@ export const getProducerStats = async (req, res) => {
 export const acceptJob = async (req, res) => {
     const jobId = req.params.id;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
+    const io = req.app.get('socketio') || global.io;
     try {
         if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
             const result = await db.query(
@@ -141,7 +154,6 @@ export const acceptJob = async (req, res) => {
             }
 
             const acceptedJob = result.rows[0];
-            const io = req.app.get('socketio') || global.io;
             if (io) {
                 io.emit(`status_update_${acceptedJob.id}`, { status: 'accepted', producer_id: req.user.id });
             }
@@ -292,6 +304,18 @@ export const createInvoice = async (req, res) => {
                 'payment',
                 `/workspace/${jobId}`
             );
+        }
+
+        // 3. Insert admin notification and emit event
+        await db.query(
+            'INSERT INTO notifications (type, message) VALUES ($1, $2)',
+            ['new_job', 'New service request created']
+        );
+        if (io) {
+            io.emit('admin_notification', {
+                type: 'new_job',
+                message: 'New service request created'
+            });
         }
 
         res.json({ id: jobId, quoted_cost: amount, status: 'payment_pending' });

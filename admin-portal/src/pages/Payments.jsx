@@ -40,7 +40,6 @@ import {
     ArrowUpward,
     ArrowDownward
 } from '@mui/icons-material';
-import adminApi from '../api/adminApi';
 
 const Payments = () => {
     const [loading, setLoading] = useState(true);

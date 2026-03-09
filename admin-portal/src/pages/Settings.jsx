@@ -38,7 +38,6 @@ import {
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import Avatar from '@mui/material/Avatar';
 import PercentIcon from '@mui/icons-material/Percent';
-import adminApi from '../api/adminApi';
 
 const Settings = () => {
     const [loading, setLoading] = useState(false);
@@ -63,8 +62,8 @@ const Settings = () => {
     const handleSave = async () => {
         setLoading(true);
         try {
-            // Hypothetical update settings route
-            await adminApi.patch('/api/admin/settings', platformSettings);
+            const response = await api.patch('/admin/settings', platformSettings);
+            console.log('API Response:', response.data);
             setToast({ open: true, message: 'Global platform settings updated successfully', severity: 'success' });
         } catch (err) {
             setToast({ open: true, message: 'Administrative override failed. Check logs.', severity: 'error' });

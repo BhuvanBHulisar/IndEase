@@ -38,7 +38,6 @@ import {
     FilterList,
     MoreHoriz
 } from '@mui/icons-material';
-import adminApi from '../api/adminApi';
 
 const Users = () => {
     const [loading, setLoading] = useState(true);
@@ -67,7 +66,8 @@ const Users = () => {
 
     const handleRoleChange = async (id, newRole) => {
         try {
-            await adminApi.patch(`/api/admin/users/${id}/role`, { role: newRole });
+            const response = await api.patch(`/admin/users/${id}/role`, { role: newRole });
+            console.log('API Response:', response.data);
             setToast({ open: true, message: `User role updated to ${newRole}`, severity: 'success' });
             fetchUsers();
         } catch (err) {
