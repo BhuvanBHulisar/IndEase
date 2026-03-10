@@ -1,5 +1,6 @@
 import api from '../services/api';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { socket } from '../utils/socket';
 import {
     Box,
     Typography,
@@ -14,8 +15,6 @@ import {
     Button,
     Grid,
     Divider,
-    Menu,
-    MenuItem,
     CircularProgress,
     Table,
     TableBody,
@@ -23,49 +22,92 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    TablePagination
+    TablePagination,
+    Snackbar,
+    Alert,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions
 } from '@mui/material';
 import {
     Search,
     FilterAlt,
     GetApp,
-    MonetizationOn,
-    AccountBalance,
-    History,
     CheckCircle,
-    Error,
     Schedule,
-    Payments as PaymentsIcon,
     ReceiptLong,
     ArrowUpward,
-    ArrowDownward
+    LockOpen,
+    AccountBalanceWallet
 } from '@mui/icons-material';
 
 const Payments = () => {
     const [loading, setLoading] = useState(true);
     const [payments, setPayments] = useState([]);
+    const [metrics, setMetrics] = useState(null);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+    const [releaseDialog, setReleaseDialog] = useState({ open: false, txnId: null });
+    const [releasing, setReleasing] = useState(false);
     const theme = useTheme();
 
-    const fetchPayments = async () => {
+    const fetchPayments = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await api.get('/payments');
-            console.log('Payments API response:', response.data);
+            const response = await api.get('/admin/payments');
             setPayments(response.data);
         } catch (err) {
-            console.error('Error fetching payments:', err);
             setPayments([]);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    const fetchMetrics = useCallback(async () => {
+        try {
+            const response = await api.get('/admin/dashboard/metrics');
+            setMetrics(response.data);
+        } catch (err) {
+            // silently fail — cards will show 0
+        }
+    }, []);
 
     useEffect(() => {
         fetchPayments();
-    }, []);
+        fetchMetrics();
+
+        // Real-time socket listener for payment updates
+        const handlePaymentUpdate = () => {
+            fetchPayments();
+            fetchMetrics();
+        };
+
+        socket.on('payment_update', handlePaymentUpdate);
+
+        return () => {
+            socket.off('payment_update', handlePaymentUpdate);
+        };
+    }, [fetchPayments, fetchMetrics]);
+
+    const handleRelease = async () => {
+        if (!releaseDialog.txnId) return;
+        setReleasing(true);
+        try {
+            await api.patch(`/admin/payments/release/${releaseDialog.txnId}`);
+            setSnackbar({ open: true, message: 'Escrow released — funds dispatched to expert', severity: 'success' });
+            fetchPayments();
+            fetchMetrics();
+        } catch (err) {
+            setSnackbar({ open: true, message: err.response?.data?.error || 'Failed to release escrow', severity: 'error' });
+        } finally {
+            setReleasing(false);
+            setReleaseDialog({ open: false, txnId: null });
+        }
+    };
 
     const handleChangePage = (event, newPage) => setPage(newPage);
     const handleChangeRowsPerPage = (event) => {
@@ -75,24 +117,38 @@ const Payments = () => {
 
     const getStatusChip = (status) => {
         switch (status) {
-            case 'paid': return <Chip label="SUCCESS" size="small" color="success" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
-            case 'pending': return <Chip label="PENDING" size="small" color="warning" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
-            case 'failed': return <Chip label="FAILED" size="small" color="error" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
-            default: return <Chip label={status.toUpperCase()} size="small" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
+            case 'escrow':
+                return <Chip label="ESCROW" size="small" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem', bgcolor: '#fef3c7', color: '#92400e' }} />;
+            case 'completed':
+                return <Chip label="COMPLETED" size="small" color="success" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
+            case 'paid':
+                return <Chip label="PAID" size="small" color="success" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
+            case 'pending':
+                return <Chip label="PENDING" size="small" color="warning" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
+            case 'failed':
+                return <Chip label="FAILED" size="small" color="error" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
+            default:
+                return <Chip label={(status || 'UNKNOWN').toUpperCase()} size="small" sx={{ fontWeight: 800, px: 0.5, borderRadius: 1.5, fontSize: '0.65rem' }} />;
         }
     };
 
     const filteredPayments = payments.filter(p =>
-        (p.id || '').toLowerCase().includes(search.toLowerCase()) ||
-        (p.consumer || '').toLowerCase().includes(search.toLowerCase())
+        (p.id || '').toString().toLowerCase().includes(search.toLowerCase()) ||
+        (p.consumer_name || p.consumer || '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.expert_name || p.provider || '').toLowerCase().includes(search.toLowerCase())
     );
+
+    // Compute stat card values from server metrics or fallback to local computation
+    const liveInflow = metrics?.total_revenue ?? payments.reduce((a, b) => a + (b.base_amount || b.total_amount || 0), 0);
+    const netCommission = metrics?.platform_earnings ?? payments.reduce((a, b) => a + (b.platform_fee || 0), 0);
+    const pendingEscrow = metrics?.pending_escrow ?? payments.filter(p => p.status === 'escrow').reduce((a, b) => a + (b.expert_amount || 0), 0);
 
     return (
         <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 800 }}>Financial Ledger</Typography>
-                    <Typography variant="body2" color="text.secondary">Detailed audit trail of all marketplace transactions and tax liabilities</Typography>
+                    <Typography variant="body2" color="text.secondary">Escrow payment audit trail — commission, GST, and expert payouts</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1.5 }}>
                     <Button variant="outlined" startIcon={<FilterAlt />}>Advanced Filter</Button>
@@ -100,13 +156,14 @@ const Payments = () => {
                 </Box>
             </Box>
 
+            {/* ─── Stat Cards ─── */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={4}>
                     <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, display: 'flex', alignItems: 'center', gap: 2, border: `1px solid ${theme.palette.divider}` }}>
                         <Avatar sx={{ bgcolor: 'success.light', color: 'success.dark' }}><ArrowUpward /></Avatar>
                         <Box>
                             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>LIVE INFLOW</Typography>
-                            <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{payments.filter(p => p.status === 'paid').reduce((a, b) => a + b.amount, 0).toLocaleString()}</Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{Number(liveInflow).toLocaleString()}</Typography>
                         </Box>
                     </Paper>
                 </Grid>
@@ -115,7 +172,7 @@ const Payments = () => {
                         <Avatar sx={{ bgcolor: 'secondary.light', color: 'secondary.dark' }}><ReceiptLong /></Avatar>
                         <Box>
                             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>NET COMMISSION</Typography>
-                            <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{payments.filter(p => p.status === 'paid').reduce((a, b) => a + (b.commission || 0), 0).toLocaleString()}</Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{Number(netCommission).toLocaleString()}</Typography>
                         </Box>
                     </Paper>
                 </Grid>
@@ -124,12 +181,13 @@ const Payments = () => {
                         <Avatar sx={{ bgcolor: 'warning.light', color: 'warning.dark' }}><Schedule /></Avatar>
                         <Box>
                             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>PENDING ESCROW</Typography>
-                            <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{payments.filter(p => p.status === 'pending').reduce((a, b) => a + b.amount, 0).toLocaleString()}</Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{Number(pendingEscrow).toLocaleString()}</Typography>
                         </Box>
                     </Paper>
                 </Grid>
             </Grid>
 
+            {/* ─── Transaction Table ─── */}
             <Paper
                 elevation={0}
                 sx={{
@@ -141,10 +199,10 @@ const Payments = () => {
                 <Box sx={{ p: 2.5, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}>
                     <TextField
                         size="small"
-                        placeholder="Search by Transaction ID or Email..."
+                        placeholder="Search by Transaction ID, Consumer, or Expert..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        sx={{ width: 400 }}
+                        sx={{ width: 420 }}
                         InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">
@@ -160,34 +218,81 @@ const Payments = () => {
                     <Table stickyHeader>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 800, bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc' }}>TXN ID</TableCell>
-                                <TableCell sx={{ fontWeight: 800, bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc' }}>Consumer / Provider</TableCell>
-                                <TableCell sx={{ fontWeight: 800, bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc' }}>Base Amount</TableCell>
-                                <TableCell sx={{ fontWeight: 800, bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc' }}>Platform Fee</TableCell>
-                                <TableCell sx={{ fontWeight: 800, bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc' }}>Tax (%)</TableCell>
-                                <TableCell sx={{ fontWeight: 800, bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc' }}>Status</TableCell>
-                                <TableCell sx={{ fontWeight: 800, bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc' }}>Date</TableCell>
+                                {['TXN ID', 'Consumer / Expert', 'Base Amount', 'Platform Fee', 'GST', 'Expert Payout', 'Status', 'Date', 'Action'].map((col) => (
+                                    <TableCell key={col} sx={{ fontWeight: 800, bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc' }}>
+                                        {col}
+                                    </TableCell>
+                                ))}
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 5 }}><CircularProgress /></TableCell></TableRow>
-                            ) : filteredPayments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((txn) => (
-                                <TableRow key={txn.id} hover>
-                                    <TableCell><Typography variant="body2" sx={{ fontWeight: 700, opacity: 0.6 }}>{txn.id}</Typography></TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{txn.consumer?.split('@')[0]}</Typography>
-                                        <Typography variant="caption" color="text.secondary">→ {txn.producer?.split('@')[0] || 'Unassigned'}</Typography>
+                                <TableRow>
+                                    <TableCell colSpan={9} align="center" sx={{ py: 5 }}>
+                                        <CircularProgress />
                                     </TableCell>
-                                    <TableCell><Typography variant="body2" sx={{ fontWeight: 700 }}>₹{txn.amount?.toLocaleString()}</Typography></TableCell>
-                                    <TableCell><Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 600 }}>+₹{txn.commission || 0}</Typography></TableCell>
-                                    <TableCell><Typography variant="body2" color="text.secondary">GST (₹{txn.gst || 0})</Typography></TableCell>
-                                    <TableCell>{getStatusChip(txn.status)}</TableCell>
-                                    <TableCell><Typography variant="caption">{new Date(txn.created_at).toLocaleString()}</Typography></TableCell>
                                 </TableRow>
-                            ))}
-                            {filteredPayments.length === 0 && !loading && (
-                                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 5, color: 'text.secondary' }}>No transactions found for the current filter.</TableCell></TableRow>
+                            ) : (
+                                <>
+                                    {filteredPayments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((txn) => (
+                                        <TableRow key={txn.id} hover>
+                                            <TableCell>
+                                                <Typography variant="body2" sx={{ fontWeight: 700, opacity: 0.6, fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                                                    {(txn.id || '').toString().substring(0, 8)}…
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{txn.consumer_name || txn.consumer || '—'}</Typography>
+                                                <Typography variant="caption" color="text.secondary">→ {txn.expert_name || txn.provider || 'Unassigned'}</Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" sx={{ fontWeight: 700 }}>₹{(txn.base_amount || txn.total_amount || 0).toLocaleString()}</Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 600 }}>+₹{(txn.platform_fee || 0).toLocaleString()}</Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" color="text.secondary">₹{(txn.tax || txn.gst_amount || 0).toLocaleString()}</Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>₹{(txn.expert_amount || 0).toLocaleString()}</Typography>
+                                            </TableCell>
+                                            <TableCell>{getStatusChip(txn.status)}</TableCell>
+                                            <TableCell>
+                                                <Typography variant="caption">{txn.created_at ? new Date(txn.created_at).toLocaleString() : '—'}</Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                {txn.status === 'escrow' && (
+                                                    <Tooltip title="Release escrow to expert">
+                                                        <IconButton
+                                                            size="small"
+                                                            color="success"
+                                                            onClick={() => setReleaseDialog({ open: true, txnId: txn.id })}
+                                                            sx={{
+                                                                bgcolor: 'success.light',
+                                                                '&:hover': { bgcolor: 'success.main', color: '#fff' }
+                                                            }}
+                                                        >
+                                                            <LockOpen fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                                {txn.status === 'completed' && (
+                                                    <Tooltip title="Funds released">
+                                                        <CheckCircle fontSize="small" sx={{ color: 'success.main', opacity: 0.6 }} />
+                                                    </Tooltip>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {!loading && filteredPayments.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={9} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                                                No transactions found for the current filter.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </>
                             )}
                         </TableBody>
                     </Table>
@@ -204,6 +309,42 @@ const Payments = () => {
                     sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
                 />
             </Paper>
+
+            {/* ─── Release Confirmation Dialog ─── */}
+            <Dialog open={releaseDialog.open} onClose={() => setReleaseDialog({ open: false, txnId: null })}>
+                <DialogTitle sx={{ fontWeight: 700 }}>Release Escrow Funds</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        This action will release the held funds to the expert's account and mark the transaction as <strong>completed</strong>. This cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button onClick={() => setReleaseDialog({ open: false, txnId: null })} disabled={releasing}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="success"
+                        onClick={handleRelease}
+                        disabled={releasing}
+                        startIcon={releasing ? <CircularProgress size={16} color="inherit" /> : <AccountBalanceWallet />}
+                    >
+                        {releasing ? 'Releasing…' : 'Confirm Release'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ─── Snackbar ─── */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert severity={snackbar.severity} variant="filled" sx={{ width: '100%', borderRadius: 3 }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };

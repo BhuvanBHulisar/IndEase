@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
+import * as financeController from '../controllers/financeController.js';
+import auth from '../middleware/auth.js';
 const router = express.Router();
-const financeController = require('../controllers/financeController');
-const auth = require('../middleware/auth');
 
 /**
  * FINANCIAL & CLEARANCE ROUTES
@@ -27,4 +27,4 @@ router.get('/history', auth, financeController.getHistory);
 // @desc    Get data for charts
 router.get('/chart-data', auth, financeController.getChartData);
 
-module.exports = router;
+export default router;

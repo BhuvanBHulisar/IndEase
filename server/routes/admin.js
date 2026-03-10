@@ -1,20 +1,21 @@
 import express from 'express';
 import db from '../config/db.js';
+import * as paymentController from '../controllers/paymentController.js';
+import { adminOnly } from '../middleware/adminAuth.js';
 
 const router = express.Router();
 
-// Middleware to ensure admin role (already defined elsewhere)
-import { adminOnly } from '../middleware/adminAuth.js';
+// All routes require admin authentication
 router.use(adminOnly);
 
-// ---------- Summary ----------
+// ────────────── Summary ──────────────
 router.get('/summary', async (req, res) => {
     try {
         const { rows: revenueRows } = await db.query(
-            `SELECT COALESCE(SUM(total_price),0) AS totalRevenue FROM transactions WHERE status='paid'`
+            `SELECT COALESCE(SUM(COALESCE(base_amount, provider_price, amount)),0) AS totalRevenue FROM transactions WHERE status IN ('escrow','completed','paid')`
         );
         const { rows: pendingRows } = await db.query(
-            `SELECT COALESCE(SUM(total_price),0) AS pendingPayout FROM transactions WHERE status='pending'`
+            `SELECT COALESCE(SUM(COALESCE(expert_amount, provider_payout, 0)),0) AS pendingPayout FROM transactions WHERE status='escrow'`
         );
         const { rows: jobsRows } = await db.query(
             `SELECT COUNT(*) AS totalJobs FROM service_requests`
@@ -31,7 +32,7 @@ router.get('/summary', async (req, res) => {
     }
 });
 
-// ---------- Users ----------
+// ────────────── Users ──────────────
 router.get('/users', async (req, res) => {
     try {
         const { rows } = await db.query(
@@ -57,7 +58,7 @@ router.patch('/users/:id/role', async (req, res) => {
     }
 });
 
-// ---------- Jobs ----------
+// ────────────── Jobs ──────────────
 router.get('/jobs', async (req, res) => {
     try {
         const { rows } = await db.query(
@@ -80,7 +81,6 @@ router.patch('/jobs/:id/status', async (req, res) => {
     if (!status) return res.status(400).json({ error: 'Missing status' });
     try {
         await db.query(`UPDATE service_requests SET status=$1 WHERE id=$2`, [status, id]);
-        // Emit socket updates if needed (optional)
         if (global.io) {
             const jobRes = await db.query(
                 `SELECT consumer_id, producer_id FROM service_requests WHERE id=$1`,
@@ -99,21 +99,13 @@ router.patch('/jobs/:id/status', async (req, res) => {
     }
 });
 
-// ---------- Payments ----------
-router.get('/payments', async (req, res) => {
-    try {
-        const { rows } = await db.query(
-            `SELECT t.id, t.amount, t.status, t.created_at, cu.email AS consumer, pu.email AS producer
-       FROM transactions t
-       LEFT JOIN users cu ON t.consumer_id = cu.id
-       LEFT JOIN users pu ON t.producer_id = pu.id
-       ORDER BY t.created_at DESC`
-        );
-        res.json(rows);
-    } catch (err) {
-        console.error('Admin payments error:', err);
-        res.status(500).json({ error: 'Failed to fetch payments' });
-    }
-});
+// ────────────── Payments (Escrow Ledger) ──────────────
+router.get('/payments', paymentController.getAllPayments);
+
+// Release escrow → completed
+router.patch('/payments/release/:id', paymentController.releasePayment);
+
+// Dashboard metrics (revenue, commission, escrow)
+router.get('/dashboard/metrics', paymentController.getMetrics);
 
 export default router;

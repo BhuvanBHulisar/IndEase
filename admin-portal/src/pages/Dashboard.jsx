@@ -82,10 +82,9 @@ const Dashboard = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/analytics/overview');
+            const response = await api.get('/admin/dashboard/metrics');
             setSummary(response.data);
         } catch (err) {
-            console.error('Error fetching dashboard summary:', err);
             setSummary(null);
         } finally {
             setLoading(false);
@@ -95,14 +94,30 @@ const Dashboard = () => {
     useEffect(() => {
         fetchData();
         fetchJobDistribution();
+
+        // Real-time: new job created
         socket.on('new_job_created', (data) => {
             const message = (data && data.message) ? data.message : 'New job created';
             setSnackbar({ open: true, message });
             fetchData();
             fetchJobDistribution();
         });
+
+        // Real-time: payment/escrow updates (new escrow, release, etc.)
+        socket.on('payment_update', (data) => {
+            const event = data?.event || 'payment_update';
+            const messages = {
+                'new_escrow': '💰 New payment received — held in escrow',
+                'escrow_released': '✅ Escrow released — funds dispatched to expert',
+                'payment_verified': '🔐 Payment verified and secured in escrow'
+            };
+            setSnackbar({ open: true, message: messages[event] || 'Payment ledger updated' });
+            fetchData();
+        });
+
         return () => {
             socket.off('new_job_created');
+            socket.off('payment_update');
         };
     }, []);
 
@@ -145,39 +160,36 @@ const Dashboard = () => {
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
                         title="Total Revenue"
-                        value={`₹${summary?.totalRevenue?.toLocaleString() || '0'}`}
+                        value={`₹${summary?.total_revenue?.toLocaleString() || '0'}`}
                         icon={<MonetizationOnIcon sx={{ fontSize: 26 }} />}
                         color={theme.palette.primary.main}
                         loading={loading}
                     />
                 </Grid>
-
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
-                        title="Total Users"
-                        value={summary?.totalUsers || '0'}
-                        icon={<Group sx={{ fontSize: 26 }} />}
-                        color="#8b5cf6"
-                        loading={loading}
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
-                        title="Professional Providers"
-                        value={summary?.totalProviders || '0'}
+                        title="Platform Earnings"
+                        value={`₹${summary?.platform_earnings?.toLocaleString() || '0'}`}
                         icon={<VerifiedUser sx={{ fontSize: 26 }} />}
                         color="#10b981"
                         loading={loading}
                     />
                 </Grid>
-
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
-                        title="Pending Payouts"
-                        value={`₹${summary?.pendingPayouts?.toLocaleString() || '0'}`}
+                        title="GST Collected"
+                        value={`₹${summary?.gst_collected?.toLocaleString() || '0'}`}
+                        icon={<Group sx={{ fontSize: 26 }} />}
+                        color="#8b5cf6"
+                        loading={loading}
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                    <StatCard
+                        title="Pending Escrow"
+                        value={`₹${summary?.pending_escrow?.toLocaleString() || '0'}`}
                         icon={<PendingActions sx={{ fontSize: 26 }} />}
-                        color="#ef4444"
+                        color={theme.palette.warning.main}
                         loading={loading}
                     />
                 </Grid>
@@ -261,12 +273,14 @@ const Dashboard = () => {
 
                                         <Bar dataKey="jobs" radius={[0, 4, 4, 0]} barSize={20}>
 
-                                            {jobDistribution.map((entry, index) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={theme.palette.primary.main}
-                                                />
-                                            ))}
+                                            {jobDistribution.map((entry, index) => {
+                                                return (
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={theme.palette.primary.main}
+                                                    />
+                                                );
+                                            })}
 
                                         </Bar>
 
@@ -309,7 +323,6 @@ const Dashboard = () => {
             </Snackbar>
 
         </Box>
-
     );
 };
 

@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import * as reviewController from '../controllers/reviewController.js';
+import auth from '../middleware/auth.js';
+
 const router = express.Router();
-const reviewController = require('../controllers/reviewController');
-const auth = require('../middleware/auth');
 
 // @route   POST api/reviews
 // @desc    Submit a review for an expert
@@ -11,4 +12,4 @@ router.post('/', auth, reviewController.createReview);
 // @desc    Get all reviews for a producer
 router.get('/:producerId', auth, reviewController.getProducerReviews);
 
-module.exports = router;
+export default router;

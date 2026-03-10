@@ -1,8 +1,8 @@
-const db = require('../db');
+import db from '../config/db.js';
 
 // @desc    Search legacy manufacturer database
 // @route   GET /api/legacy/search?q=query
-exports.searchLegacy = async (req, res) => {
+export const searchLegacy = async (req, res) => {
     try {
         const { q } = req.query;
         if (!q) return res.json([]);
@@ -38,7 +38,7 @@ exports.searchLegacy = async (req, res) => {
 };
 
 // @desc    Seed legacy database with initial records (Dev Only)
-exports.seedLegacy = async (req, res) => {
+export const seedLegacy = async (req, res) => {
     try {
         const records = [
             ['Hydra-Tech Germany', '1970-1995', 'Dissolved', 'Berlin Industrial Corp', 'Hydraulics'],

@@ -1,8 +1,8 @@
-const db = require('../db');
+import db from '../config/db.js';
 
 // @desc    Submit a new support ticket
 // @route   POST /api/support/tickets
-exports.createTicket = async (req, res) => {
+export const createTicket = async (req, res) => {
     const userId = req.user.id;
     const { subject, description } = req.body;
 
@@ -40,7 +40,7 @@ exports.createTicket = async (req, res) => {
 
 // @desc    Get all tickets for current user
 // @route   GET /api/support/tickets
-exports.getMyTickets = async (req, res) => {
+export const getMyTickets = async (req, res) => {
     try {
         const userId = req.user.id;
         const result = await db.query(

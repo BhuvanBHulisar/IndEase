@@ -1,7 +1,7 @@
-const Razorpay = require('razorpay');
-const crypto = require('crypto');
-const db = require('../db');
-const notificationController = require('./notificationController');
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+import db from '../config/db.js';
+import * as notificationController from './notificationController.js';
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -10,7 +10,7 @@ const razorpay = new Razorpay({
 });
 
 // @desc    Initiate a payment order
-exports.createOrder = async (req, res) => {
+export const createOrder = async (req, res) => {
     const { requestId } = req.body;
 
     try {
@@ -52,7 +52,7 @@ exports.createOrder = async (req, res) => {
 
 // @desc    Verify payment signature (Secure Webhook/Callback)
 // @route   POST /api/finance/verify
-exports.verifyPayment = async (req, res) => {
+export const verifyPayment = async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
     try {
@@ -127,7 +127,7 @@ exports.verifyPayment = async (req, res) => {
 
 // @desc    Get dashboard financial stats
 // @route   GET /api/finance/stats
-exports.getStats = async (req, res) => {
+export const getStats = async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role;
 
@@ -185,7 +185,7 @@ exports.getStats = async (req, res) => {
 
 // @desc    Get recent transactions
 // @route   GET /api/finance/history
-exports.getHistory = async (req, res) => {
+export const getHistory = async (req, res) => {
     try {
         const userId = req.user.id;
         const role = req.user.role;
@@ -234,7 +234,7 @@ exports.getHistory = async (req, res) => {
 
 // @desc    Get chart data for revenue/spending trends
 // @route   GET /api/finance/chart-data
-exports.getChartData = async (req, res) => {
+export const getChartData = async (req, res) => {
     try {
         const userId = req.user.id;
         const role = req.user.role;

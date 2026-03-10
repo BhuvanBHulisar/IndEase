@@ -1,8 +1,8 @@
-const db = require('../db');
+import db from '../config/db.js';
 
 // @desc    Get expert profile metadata
 // @route   GET /api/profile
-exports.getProfile = async (req, res) => {
+export const getProfile = async (req, res) => {
     try {
         const userId = req.user.id;
         const role = req.user.role;
@@ -70,7 +70,7 @@ exports.getProfile = async (req, res) => {
 
 // @desc    Update expert profile
 // @route   PATCH /api/profile
-exports.updateProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
     const { first_name, last_name, phone, dob, photo_url, organization, location, tax_id, skills, service_radius, status } = req.body;
     const userId = req.user.id;
     const role = req.user.role;
@@ -127,7 +127,7 @@ exports.updateProfile = async (req, res) => {
 
 // @desc    Request Industrial Verification
 // @route   PATCH /api/profile/verify
-exports.verifyProfile = async (req, res) => {
+export const verifyProfile = async (req, res) => {
     try {
         const userId = req.user.id;
         // In a real app, we'd handle file upload here.
@@ -141,7 +141,7 @@ exports.verifyProfile = async (req, res) => {
 };
 // @desc    Add a skill to expert profile
 // @route   POST /api/profile/skills
-exports.addSkill = async (req, res) => {
+export const addSkill = async (req, res) => {
     const { skill } = req.body;
     const userId = req.user.id;
 
@@ -159,7 +159,7 @@ exports.addSkill = async (req, res) => {
 
 // @desc    Remove a skill from expert profile
 // @route   DELETE /api/profile/skills/:skill
-exports.removeSkill = async (req, res) => {
+export const removeSkill = async (req, res) => {
     const { skill } = req.params;
     const userId = req.user.id;
 

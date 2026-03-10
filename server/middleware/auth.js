@@ -1,11 +1,11 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 /**
  * AUTH MIDDLEWARE
  * Purpose: Verification of JWT for high-security industrial endpoints.
  * This ensures that only authenticated nodes/experts can access specific telemetry.
  */
-module.exports = function (req, res, next) {
+const auth = function (req, res, next) {
     // 1. Extract token from header (Standard: x-auth-token)
     const token = req.header('x-auth-token');
 
@@ -37,3 +37,5 @@ module.exports = function (req, res, next) {
         res.status(401).json({ message: 'Security token is invalid or expired.' });
     }
 };
+
+export default auth;

@@ -1,8 +1,8 @@
-const db = require('../db');
+import db from '../config/db.js';
 
 // @desc    Submit a review for a completed job
 // @route   POST /api/reviews
-exports.createReview = async (req, res) => {
+export const createReview = async (req, res) => {
     const { requestId, rating, comment } = req.body;
     const consumerId = req.user.id; // From auth middleware
 
@@ -59,7 +59,7 @@ exports.createReview = async (req, res) => {
 
 // @desc    Get reviews for a producer
 // @route   GET /api/reviews/:producerId
-exports.getProducerReviews = async (req, res) => {
+export const getProducerReviews = async (req, res) => {
     const { producerId } = req.params;
 
     try {

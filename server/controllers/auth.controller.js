@@ -161,32 +161,41 @@ export const login = async (req, res) => {
         }
 
         const normalizedEmail = email.trim().toLowerCase();
-        // Query admins table
-        const adminRes = await db.query('SELECT id, name, email, password FROM admins WHERE LOWER(email) = $1', [normalizedEmail]);
+        
+        // Query users table (admin users have role='admin')
+        const userRes = await db.query(
+            'SELECT id, email, role, password_hash, first_name, last_name FROM users WHERE LOWER(email) = $1',
+            [normalizedEmail]
+        );
 
-        if (adminRes.rows.length === 0) {
-            console.log('[Auth] Login failed: No such admin -', normalizedEmail);
+        if (userRes.rows.length === 0) {
+            console.log('[Auth] Login failed: No such user -', normalizedEmail);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        const admin = adminRes.rows[0];
-        const isMatch = await bcrypt.compare(password, admin.password);
+        const user = userRes.rows[0];
+        const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             console.log('[Auth] Login failed: Password mismatch for', normalizedEmail);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         // Generate JWT token
-        const token = generateAccessToken({ id: admin.id, email: admin.email, role: 'admin', name: admin.name });
-        console.log('[Auth] Login successful for', normalizedEmail);
+        const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+        const token = generateAccessToken({ id: user.id, email: user.email, role: user.role, name });
+        console.log('[Auth] Login successful for', normalizedEmail, '(role:', user.role + ')');
+        
+        const userData = {
+            id: user.id,
+            name,
+            email: user.email,
+            role: user.role
+        };
+        
         res.json({
             token,
-            admin: {
-                id: admin.id,
-                name: admin.name,
-                email: admin.email,
-                role: 'admin'
-            }
+            user: userData,
+            admin: userData  // alias for admin portal compatibility
         });
     } catch (err) {
         console.error('[Auth] Login exception:', err.message);

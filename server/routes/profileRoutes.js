@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import * as profileController from '../controllers/profileController.js';
+import auth from '../middleware/auth.js';
+
 const router = express.Router();
-const profileController = require('../controllers/profileController');
-const auth = require('../middleware/auth');
 
 /**
  * IDENTITY & PROFILE ROUTES
@@ -24,4 +25,4 @@ router.post('/skills', auth, profileController.addSkill);
 // @desc    Remove skill from expert arsenal
 router.delete('/skills/:skill', auth, profileController.removeSkill);
 
-module.exports = router;
+export default router;

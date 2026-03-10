@@ -1,9 +1,10 @@
-const express = require('express');
+import express from 'express';
+import * as legacyController from '../controllers/legacyController.js';
+import auth from '../middleware/auth.js';
+
 const router = express.Router();
-const legacyController = require('../controllers/legacyController');
-const auth = require('../middleware/auth');
 
 router.get('/search', auth, legacyController.searchLegacy);
 router.post('/seed', auth, legacyController.seedLegacy); // Optional: helper
 
-module.exports = router;
+export default router;

@@ -12,6 +12,7 @@ import passport from './config/passport.js';
 import authRoutes from './routes/auth.routes.js';
 import paymentRoutes from './routes/payment.js';
 import jobRoutes from './routes/jobRoutes.js';
+import financeRoutes from './routes/financeRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import machineRoutes from './routes/machineRoutes.js';
@@ -63,12 +64,13 @@ app.use('/auth', authRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/machines', machineRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/finance', financeRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/notifications', notificationsRoutes);
 
 app.get('/api/health', (req, res) => {
-    res.status(200).json({ status: 'Industrial Core Operational' });
+    res.status(200).json({ status: 'ok' });
 });
 
 // 5. ERROR HANDLING
@@ -97,12 +99,28 @@ io.on('connection', (socket) => {
     });
 });
 
-async function startServer() {
+async function startServer(retries = 5) {
+    const PORT = process.env.PORT || 5000;
     try {
         await db.query('SELECT NOW()');
         console.log('Database connection verified');
-        server.listen(process.env.PORT || 5000, () => {
-            console.log('Server running on port', process.env.PORT || 5000);
+
+        server.on('error', (err) => {
+            if (err.code === 'EADDRINUSE' && retries > 0) {
+                console.log(`Port ${PORT} busy, retrying in 1s... (${retries} attempts left)`);
+                setTimeout(() => {
+                    server.close();
+                    server.listen(PORT);
+                }, 1000);
+                retries--;
+            } else if (err.code === 'EADDRINUSE') {
+                console.error(`Port ${PORT} is still in use after retries. Kill the process manually: npx kill-port ${PORT}`);
+                process.exit(1);
+            }
+        });
+
+        server.listen(PORT, () => {
+            console.log('Server running on port', PORT);
         });
     } catch (error) {
         console.error('[Startup] Critical system failure:', error.message);

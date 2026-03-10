@@ -64,20 +64,32 @@ const Login = () => {
         setLoading(true);
         setError('');
 
-        // Mock authentication logic
         const { email, password } = formData;
-        setTimeout(() => {
-            if (email === 'admin@originode.com' && password === 'admin123') {
-                // Simulate storing user info
-                localStorage.setItem('adminToken', 'mock-token');
-                localStorage.setItem('adminUser', JSON.stringify({ email, role: 'admin' }));
+        
+        try {
+            const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            const res = await axios.post(`${baseURL}/api/auth/login`, { email, password });
+            
+            if (res.data?.token) {
+                // Backend returns { token, admin: { id, name, email, role } }
+                const user = res.data.admin || res.data.user;
+                if (user && user.role !== 'admin') {
+                    setError('Access denied. Admin role required.');
+                    setLoading(false);
+                    return;
+                }
+                localStorage.setItem('adminToken', res.data.token);
+                localStorage.setItem('adminUser', JSON.stringify(user || { email, role: 'admin' }));
                 window.dispatchEvent(new Event('storage'));
-                navigate('/'); // Redirect to dashboard
+                navigate('/');
             } else {
-                setError('Incorrect email or password.');
+                setError('Invalid login response.');
             }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Incorrect email or password.');
+        } finally {
             setLoading(false);
-        }, 700); // Simulate async delay
+        }
     };
 
     return (
