@@ -16,6 +16,31 @@ function PopupModal({ title = 'Support Ticket Submitted', message, onClose }) {
   );
 }
 import { GoogleLogin } from '@react-oauth/google';
+
+// Material UI
+import {
+  LocationOn as LocationIcon,
+  Email as EmailIcon,
+  LocalPhone as PhoneIcon,
+  Verified as VerifiedIcon,
+  Assignment as AssignmentIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Close as CloseIcon,
+  Info as InfoIcon,
+  GetApp as DownloadIcon
+} from '@mui/icons-material';
+
+// Modern SaaS Dashboard Components
+import DashboardLayout from './layouts/DashboardLayout';
+import FleetView from './components/FleetView';
+import MessagesView from './components/MessagesView';
+import HistoryView from './components/HistoryView';
+import LegacySearchView from './components/LegacySearchView';
+import ProfileView from './components/ProfileView';
+import { SupportView, SettingsView } from './components/SupportSettingsView';
+import ProducerDashboard from './components/ProducerDashboard';
+
 import api from './api';
 import { io } from 'socket.io-client';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
@@ -302,6 +327,7 @@ function App() {
 
   // [NEW] FETCH FINANCIAL STATS
   useEffect(() => {
+    if (view !== 'dashboard') return;
     if (activeTab === 'earnings' || activeTab === 'history' || (activeTab === 'fleet' && role === 'consumer')) {
       const fetchFinanceData = async () => {
         try {
@@ -320,10 +346,11 @@ function App() {
 
       fetchFinanceData();
     }
-  }, [activeTab]);
+  }, [activeTab, view, role]);
 
   // [NEW] FETCH SUPPORT TICKETS
   useEffect(() => {
+    if (view !== 'dashboard') return;
     if (activeTab === 'help' || activeTab === 'support') {
       const fetchTickets = async () => {
         try {
@@ -339,6 +366,7 @@ function App() {
 
   // [NEW] FETCH EXPERT SCHEDULE
   useEffect(() => {
+    if (view !== 'dashboard') return;
     if (activeTab === 'schedule' && role === 'producer') {
       const fetchSchedule = async () => {
         try {
@@ -1074,29 +1102,18 @@ function App() {
 
 
   // 3. Send Message Handler
-  const handleSendMessage = () => {
-    if (newMessage.trim() && socket) {
+  const handleSendMessage = (text) => {
+    const msgToSubmit = text || newMessage;
+    if (msgToSubmit.trim() && socket) {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       if (!user) return;
-
-      // Optimistic UI Update (optional, but good for UX)
-      /* 
-      const tempMsg = {
-        id: 'temp-' + Date.now(),
-        chatId: activeChatId,
-        sender: role === 'consumer' ? 'user' : 'expert',
-        text: newMessage,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, tempMsg]);
-      */
 
       // Emit to Server
       socket.emit('send_message', {
         requestId: activeChatId,
         senderId: user.id,
-        text: newMessage
+        text: msgToSubmit
       });
 
       setNewMessage('');
@@ -2207,1750 +2224,179 @@ www.originode.com
   );
 
 
-  // [NEW] VIEW 3: CONSUMER DASHBOARD
-  if (view === 'dashboard' && role === 'consumer') {
-    return (
-      <div className="dashboard-wrapper consumer-theme">
-        <aside className="side-nav">
-
-          <div className="profile-sidebar-summary" onClick={() => setActiveTab('profile')}>
-            {userPhoto ? <img src={userPhoto} className="nav-avatar-img" alt="User" /> : <div className="nav-avatar-circle">{firstInitial}{lastInitial}</div>}
-            <div className="nav-user-details">
-              <span className="nav-name">{firstName} {lastName} {isVerified && "✓"}</span>
-              <span className="nav-email-small">{email || 'admin@originode.com'}</span>
-            </div>
-          </div>
-
-          <nav className="nav-links">
-            <div className={`nav-item ${activeTab === 'fleet' ? 'active' : ''}`} onClick={() => setActiveTab('fleet')}>Fleet</div>
-            <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>Messages {chats.some(c => c.unread > 0) && <span className="nav-badge" style={{ background: 'var(--error-red)', padding: '2px 6px', borderRadius: '10px', fontSize: '0.7rem' }}>1</span>}</div>
-            <div className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Service History</div>
-            <div className={`nav-item ${activeTab === 'legacy' ? 'active' : ''}`} onClick={() => setActiveTab('legacy')}>Legacy Search</div>
-            <div className="nav-divider"></div>
-            <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>Profile</div>
-            <div className={`nav-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => setActiveTab('help')}>Help & Support</div>
-            <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings</div>
-            <div className="nav-item logout-btn-item" onClick={handleLogout}>Logout</div>
-          </nav>
-        </aside>
-
-
-        <main className="dashboard-content">
-          <header className="dashboard-top-bar">
-            <div className="breadcrumb-info">origiNode / {activeTab.toUpperCase()}</div>
-            <div className="top-bar-actions" ref={notifRef}>
-              {/* NOTIFICATION BELL WITH DROPDOWN TRIGGER */}
-              <div className="notif-bell-container" onClick={() => setShowNotifDropdown(!showNotifDropdown)}>
-                <span className="bell-icon">🔔</span>
-                {notifications.some(n => !n.read) && <span className="notif-ping"></span>}
-              </div>
-
-              {/* [NEW] NOTIFICATION DROPDOWN MENU */}
-              {showNotifDropdown && (
-                <div className="notif-dropdown animate-fade">
-                  <div className="dropdown-header">
-                    <h4>Notifications</h4>
-                    <button className="btn-small-text" onClick={handleClearNotifs}>Clear History</button>
-                  </div>
-                  <div className="dropdown-body">
-                    {notifications.length > 0 ? notifications.map(n => (
-                      <div key={n.id} className={`notif-drop-item ${!n.read ? 'unread' : ''}`}>
-                        <div className={`notif-indicator ${n.type}`}></div>
-                        <div className="notif-drop-content">
-                          <p>{n.msg}</p>
-                          <span>{n.time}</span>
-                        </div>
-                      </div>
-                    )) : <div className="empty-notif" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>No new alerts</div>}
-                  </div>
-                </div>
-              )}
-            </div>
-          </header>
-
-          {activeTab === 'fleet' ? (
-
-
-            <React.Fragment>
-              <header className="content-header">
-                <div>
-                  <h2>Industrial Fleet Overview</h2>
-                  <p style={{ color: '#64748b', margin: 0 }}>Monitor real-time status and health of your machinery.</p>
-                </div>
-                <div className="header-actions">
-                  <div className="continuity-badge">
-                    <span className="pulse-dot"></span>
-                    <span>System Continuity: <strong>{avgContinuity}%</strong></span>
-                  </div>
-                  <button className="btn btn-primary" onClick={() => setShowAddMachineModal(true)}>+ Add Machine Node</button>
-                </div>
-              </header>
-
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-icon-bg info">
-                    <span className="icon">🏭</span>
-                  </div>
-                  <div className="stat-info">
-                    <h4>Active Nodes</h4>
-                    <p className="stat-value">{activeNodesCount}</p>
-                    <span className="stat-trend positive">↑ Connected</span>
-                  </div>
-                </div>
-                <div className="stat-card critical">
-                  <div className="stat-icon-bg alert">
-                    <span className="icon">⚠️</span>
-                  </div>
-                  <div className="stat-info">
-                    <h4>Critical Issues</h4>
-                    <p className="stat-value">{criticalIssuesCount}</p>
-                    <span className="stat-trend negative">Attention Required</span>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon-bg success">
-                    <span className="icon">💰</span>
-                  </div>
-                  <div className="stat-info">
-                    <h4>Total Investment</h4>
-                    <p className="stat-value">₹{Number(earningsStats.totalSpent || 0).toLocaleString()}</p>
-                    <span className="stat-trend neutral">Managed via Escrow</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* [NEW] FLEET SPENDING TREND */}
-              <div className="glass-panel spending-trend-container" style={{ margin: '20px 0', padding: '20px', background: 'white' }}>
-                <h4 className="section-title" style={{ marginBottom: '15px', color: 'var(--navy-dark)', fontSize: '1.1rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Maintenance Spending Trend</h4>
-                <div style={{ width: '100%', height: 260 }}>
-                  <ResponsiveContainer>
-                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} />
-                      <YAxis tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={v => `₹${v}`} width={60} />
-                      <Tooltip
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', background: '#fff', color: '#0f172a' }}
-                        formatter={(value) => [`₹${value}`, 'Spent']}
-                      />
-                      <Area type="monotone" dataKey="value" stroke="#16A34A" strokeWidth={3} fillOpacity={0.25} fill="#16A34A" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <section className="node-gallery">
-                <div className="section-header" style={{ alignItems: 'flex-end' }}>
-                  <div style={{ flex: 1 }}>
-                    <h3>My Machines</h3>
-                    <div style={{ marginTop: '10px', position: 'relative', maxWidth: '300px' }}>
-                      <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
-                      <input
-                        type="text"
-                        placeholder="Search fleet..."
-                        className="table-search"
-                        style={{ width: '100%', paddingLeft: '32px' }}
-                        value={fleetSearch}
-                        onChange={(e) => setFleetSearch(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="filter-tabs">
-                    <span className={`filter-tab ${activeFilter === 'All' ? 'active' : ''}`} onClick={() => setActiveFilter('All')}>All</span>
-                    <span className={`filter-tab ${activeFilter === 'Operational' ? 'active' : ''}`} onClick={() => setActiveFilter('Operational')}>Operational</span>
-                    <span className={`filter-tab ${activeFilter === 'Maintenance' ? 'active' : ''}`} onClick={() => setActiveFilter('Maintenance')}>Maintenance</span>
-                  </div>
-                </div>
-
-                <div className="node-grid">
-                  {filteredMachines.length > 0 ? filteredMachines.map(machine => (
-                    <div key={machine.id} className="node-card">
-                      <div className="node-image-placeholder active">
-                        <span className="node-emoji">⚙️</span>
-                        <div className={`status-overlay ${machine.condition_score > 50 ? 'operational' : 'maintenance'}`}>
-                          {machine.condition_score > 50 ? 'Online' : 'Maintenance'}
-                        </div>
-                      </div>
-                      <div className="node-content">
-                        <div className="node-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <h4 style={{ margin: 0 }}>{machine.name}</h4>
-                          <button
-                            className="btn-icon-label"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteMachine(machine.id); }}
-                            style={{
-                              color: '#ef4444',
-                              background: 'transparent',
-                              border: 'none',
-                              fontSize: '1.2rem',
-                              cursor: 'pointer',
-                              padding: '4px',
-                              borderRadius: '4px'
-                            }}
-                            title="Decommission Node"
-                            onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                        <p className="node-model">{machine.machine_type} • {machine.oem || 'Unknown OEM'}</p>
-                        <div className="node-metrics">
-                          <div className="metric">
-                            <span className="label">Year</span>
-                            <span className="value">{machine.model_year}</span>
-                          </div>
-                          <div className="metric">
-                            <span className="label">Condition</span>
-                            <span className="value">{machine.condition_score}%</span>
-                          </div>
-                        </div>
-                        {/* [NEW] DYNAMIC HEALTH BAR */}
-                        <div className="health-bar-container" style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', marginTop: '10px' }}>
-                          <div className="health-bar-fill" style={{
-                            width: `${machine.condition_score}%`,
-                            height: '100%',
-                            background: machine.condition_score > 70 ? 'var(--sage-green)' : (machine.condition_score > 30 ? '#f59e0b' : '#ef4444'),
-                            borderRadius: '2px',
-                            transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
-                          }}></div>
-                        </div>
-                        <div style={{ marginTop: '15px' }}>
-                          <button className="btn-small btn-alert" style={{ width: '100%' }}
-                            onClick={() => { setActiveJobMachine(machine); setDiagnosisStep(1); setShowDiagnosisModal(true); }}>
-                            Request Service
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="empty-state-machine" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#64748b', background: '#f8fafc', borderRadius: '12px' }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🏭</div>
-                      <h3>No Machines Registered</h3>
-                      <p>Add your first industrial node to begin monitoring.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            </React.Fragment>
-
-          ) : activeTab === 'messages' ? (
-            <div className="messages-view animate-fade">
-              <aside className="messages-sidebar">
-                <div className="chat-search-bar">
-                  <input type="text" className="table-search" placeholder="Search chats..." style={{ padding: '8px 12px', fontSize: '0.85rem' }} />
-                </div>
-                <div className="chat-list">
-                  {chats.map(chat => (
-                    <div key={chat.id} className={`chat-item ${activeChatId === chat.id ? 'active' : ''}`} onClick={() => setActiveChatId(chat.id)}>
-                      <div className="chat-avatar">{chat.avatar}</div>
-                      <div className="chat-info">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <h4 className="chat-name">{chat.name}</h4>
-                          <span className="chat-time">{chat.time}</span>
-                        </div>
-                        <p className="chat-preview" style={chat.unread ? { fontWeight: '700', color: 'var(--navy-dark)' } : {}}>{chat.lastMsg}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </aside>
-
-              <main className="chat-window">
-                <header className="chat-header">
-                  <div className="chat-partner-info">
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--navy-dark)' }}>{chats.find(c => c.id == activeChatId)?.name}</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--sage-green)', fontWeight: '600' }}>● Online</span>
-                  </div>
-                  <button className="btn-icon-label" style={{ fontSize: '0.8rem' }} onClick={() => {
-                    const chat = chats.find(c => c.id == activeChatId);
-                    if (chat) {
-                      console.log('Opening profile for:', chat);
-                      setSelectedExpert({ name: chat.name, avatar: chat.avatar });
-                      setShowExpertProfileModal(true);
-                    } else {
-                      console.error('Chat not found for ID:', activeChatId);
-                    }
-                  }}>View Profile</button>
-                </header>
-
-                <div className="chat-body">
-                  {messages.filter(m => m.chatId === activeChatId).map(msg => (
-                    <div key={msg.id} className={`message-bubble ${msg.sender === 'user' ? 'sent' : 'received'}`}>
-                      {msg.type === 'invoice' ? (
-                        <div className="invoice-message-card">
-                          <div className="invoice-header">INVOICE REQUEST</div>
-                          <div className="invoice-body">
-                            <div className="invoice-row"><span>Service:</span> <strong>{msg.desc}</strong></div>
-                            <div className="invoice-total"><span>Total:</span> <span>{msg.amount}</span></div>
-                            {role === 'consumer' && (
-                              <button type="button" className="btn-pay-now" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePayment(msg.amount, msg.desc); }}>Pay Now</button>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        msg.text
-                      )}
-                      <span className="message-time">{msg.time}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="chat-input-area">
-                  <input
-                    type="text"
-                    className="chat-input"
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  />
-                  <button className="btn btn-primary" style={{ padding: '0 20px' }} onClick={handleSendMessage}>Send</button>
-                </div>
-              </main>
-            </div>
-          ) : activeTab === 'history' ? (
-            <div className="history-view">
-              <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h2>Service Ledger <small>Historical Maintenance Records</small></h2>
-                </div>
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                  <div className="search-bar-container">
-                    <input
-                      type="text"
-                      placeholder="Search Ledger..."
-                      className="table-search"
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <button className="btn-icon-label" onClick={handleExportCSV}>Export CSV</button>
-                </div>
-              </header>
-
-              <div className="history-timeline-container">
-                {filteredHistory.length > 0 ? (
-                  <div className="timeline-feed">
-                    {filteredHistory.map((item) => (
-                      <div key={item.id} className="timeline-row animate-fade">
-                        {/* Date Column */}
-                        <div className="timeline-date-col">
-                          <span className="t-month">{(item.date || '').split(' ')[0] || ''}</span>
-                          <span className="t-day">{(item.date || '').split(' ')[1] ? item.date.split(' ')[1].replace(',', '') : ''}</span>
-                          <span className="t-year">{(item.date || '').split(' ')[2] || ''}</span>
-                        </div>
-
-                        {/* Connector Column */}
-                        <div className="timeline-connector">
-                          <div className={`timeline-dot ${item.status}`}></div>
-                          <div className="timeline-line"></div>
-                        </div>
-
-                        {/* content Card */}
-                        <div className="timeline-content-card">
-                          <div className="t-card-header">
-                            <div>
-                              <h4>{item.action}</h4>
-                              <span className="t-machine-name">{item.machine}</span>
-                            </div>
-                            <div className="t-cost-tag">{item.cost}</div>
-                          </div>
-
-                          <div className="t-card-body">
-                            <div className="t-info-item">
-                              <span className="icon">👷</span>
-                              <span>{item.expert}</span>
-                            </div>
-                            <div className="t-info-item">
-                              <span className="icon">📄</span>
-                              <span>Invoice #INV-{2020 + item.id}</span>
-                            </div>
-                          </div>
-
-                          <div className="t-card-footer">
-                            <span className={`status-badge-pill ${item.status}`}>{item.status}</span>
-                            <button className="btn-text-small" onClick={() => { setSelectedReport(item); setShowReportModal(true); }}>View Report →</button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-state-history">
-                    <div className="empty-icon">📂</div>
-                    <h3>No Records Found</h3>
-                    <p>Try adjusting your search filters.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : activeTab === 'legacy' ? (
-            <div className="legacy-search-view">
-              <header className="content-header">
-                <h2>Legacy Lookup <small>Trace original manufacturers</small></h2>
-              </header>
-              <div className="search-interface-card">
-                <p>Enter the machine name, manufacturer ID, or serial number found on the metal nameplate.</p>
-                <div className="search-input-group">
-                  <input
-                    type="text"
-                    className="legacy-input"
-                    placeholder="e.g. Hydra-Tech or TEXT-40..."
-                    onChange={(e) => setLegacyQuery(e.target.value)}
-                  />
-                  <button className="btn btn-primary" onClick={handleLegacySearch}>Search Source</button>
-                </div>
-              </div>
-              <div className="results-grid">
-                {legacyResults.length > 0 ? legacyResults.map(item => (
-                  <div key={item.id} className="result-card">
-                    <div className={`status-tag ${item.status.toLowerCase()}`}>{item.status}</div>
-                    <h3>{item.name}</h3>
-                    <p><strong>Operating Years:</strong> {item.years}</p>
-                    <p><strong>Current Support:</strong> {item.replacement}</p>
-                    <button className="btn-small" onClick={() => handleRequestSpecs(item)}>Request Specialist Specs</button>
-                  </div>
-                )) : (
-                  <div className="empty-search">
-                    <p>Enter a manufacturer name to trace the source.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : activeTab === 'profile' ? (
-            <div className="full-screen-profile animate-fade">
-              <div className="profile-hero-banner">
-                <div className="profile-photo-section">
-                  <div className="large-avatar-container">
-                    {userPhoto ? <img src={userPhoto} className="profile-main-img" alt="Profile" /> : <div className="large-avatar-placeholder">{firstInitial}{lastInitial}</div>}
-                    <div className="photo-controls">
-                      <button className="btn-icon-label" onClick={() => fileInputRef.current.click()}>Upload Photo</button>
-                      <button className="btn-icon-label" onClick={startCamera}>Take Selfie</button>
-                      {userPhoto && <button className="btn-icon-label btn-remove" onClick={() => setUserPhoto(null)}>Remove</button>}
-                      <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} hidden accept="image/*" />
-                    </div>
-                  </div>
-                  <div className="profile-header-text">
-                    <h2 className="full-user-name">{(firstName || lastName) ? `${firstName} ${lastName}` : "Industrial Account User"} {isVerified && <span className="verified-badge">✓</span>}</h2>
-                    <p className="full-user-org">{extraInfo || "No Organization Linked"}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="identity-settings-list" style={{ position: 'relative' }}>
-                {!isEditingProfile && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
-                    <button className="btn-text-action" onClick={() => setIsEditingProfile(true)}>Edit Profile</button>
-                  </div>
-                )}
-                <div className="setting-row">
-                  <div className="setting-info">
-                    <h4>Name</h4>
-                    {!isEditingProfile ? (
-                      <p>{(firstName || lastName) ? `${firstName} ${lastName}` : "Not Set"}</p>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                        <input className="std-input" value={firstName} onChange={e => setFirstName(e.target.value)} />
-                        <input className="std-input" value={lastName} onChange={e => setLastName(e.target.value)} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="setting-row">
-                  <div className="setting-info">
-                    <h4>Organization</h4>
-                    {!isEditingProfile ? (
-                      <p>{extraInfo || "Not Set"}</p>
-                    ) : (
-                      <input className="std-input" style={{ width: '100%', marginTop: '5px' }} value={extraInfo} onChange={e => setExtraInfo(e.target.value)} />
-                    )}
-                  </div>
-                </div>
-
-                <div className="setting-row">
-                  <div className="setting-info">
-                    <h4>Phone</h4>
-                    {!isEditingProfile ? (
-                      <p>{phone || "Not Set"}</p>
-                    ) : (
-                      <input className="std-input" style={{ width: '100%', marginTop: '5px' }} value={phone} onChange={e => setPhone(e.target.value)} />
-                    )}
-                  </div>
-                </div>
-
-                <div className="setting-row">
-                  <div className="setting-info">
-                    <h4>Location</h4>
-                    {!isEditingProfile ? (
-                      <p>{location || "Not Set"}</p>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                        <select
-                          className="std-input"
-                          style={{ flex: 1, background: 'white' }}
-                          value={selectedState}
-                          onChange={e => {
-                            const newState = e.target.value;
-                            setSelectedState(newState);
-                            const firstCity = INDIAN_LOCATIONS.find(l => l.state === newState)?.cities[0] || '';
-                            setSelectedCity(firstCity);
-                            setLocation(`${firstCity}, ${newState}`);
-                          }}
-                        >
-                          <option value="">Select State</option>
-                          {INDIAN_LOCATIONS.map(loc => (
-                            <option key={loc.state} value={loc.state}>{loc.state}</option>
-                          ))}
-                        </select>
-                        <select
-                          className="std-input"
-                          style={{ flex: 1, background: 'white' }}
-                          value={selectedCity}
-                          onChange={e => {
-                            const newCity = e.target.value;
-                            setSelectedCity(newCity);
-                            setLocation(`${newCity}, ${selectedState}`);
-                          }}
-                          disabled={!selectedState}
-                        >
-                          <option value="">Select City / District</option>
-                          {INDIAN_LOCATIONS.find(l => l.state === selectedState)?.cities.map(city => (
-                            <option key={city} value={city}>{city}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="setting-row">
-                  <div className="setting-info">
-                    <h4>Tax ID</h4>
-                    {!isEditingProfile ? (
-                      <p>{taxId || "Not Set"}</p>
-                    ) : (
-                      <input className="std-input" style={{ width: '100%', marginTop: '5px' }} value={taxId} onChange={e => setTaxId(e.target.value)} />
-                    )}
-                  </div>
-                </div>
-
-                <div className="setting-row">
-                  <div className="setting-info">
-                    <h4>Date of Birth</h4>
-                    {!isEditingProfile ? (
-                      <p>{dob || "Not Set"}</p>
-                    ) : (
-                      <input type="date" className="std-input" style={{ width: '100%', marginTop: '5px' }} value={dob} onChange={e => setDob(e.target.value)} />
-                    )}
-                  </div>
-                </div>
-
-                <div className="document-upload-card">
-                  <span className="doc-upload-icon">📄</span>
-                  <p className="doc-upload-text">Industrial Verification</p>
-                  <p className="doc-upload-hint">Upload factory license or certification to get verified.</p>
-                  <button className="btn btn-primary" onClick={() => docInputRef.current.click()}>Choose Document</button>
-                  <input type="file" ref={docInputRef} onChange={handleDocVerify} hidden accept=".pdf,image/*" />
-                </div>
-
-                {isEditingProfile && (
-                  <div style={{ display: 'flex', justifyContent: 'center', margin: '30px 0' }}>
-                    <button className="btn btn-primary" style={{ padding: '12px 60px', fontSize: '1rem', background: 'var(--sage-green)' }} onClick={handleSaveConsumerProfile}>Save Industrial Changes</button>
-                  </div>
-                )}
-
-                <div className="setting-row danger-row">
-                  <div className="setting-info"><h4 className="danger-text">Purge Data</h4><p>Wipe all industrial nodes and historical records.</p></div>
-                  <button className="btn btn-danger" onClick={() => setShowDeleteModal(true)}>Delete Account</button>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'help' ? (
-            <div className="support-view animate-fade" style={{ paddingTop: '20px' }}>
-              <div className="help-quick-actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
-                <div className="action-card-mini glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', background: 'white' }}>
-                  <span style={{ fontSize: '2rem' }}>📞</span>
-                  <div>
-                    <h4 style={{ margin: 0, color: 'var(--navy-dark)' }}>Book Expert Call</h4>
-                    <button className="btn-small-text" style={{ padding: 0, color: 'var(--sage-green)', fontWeight: 'bold' }} onClick={() => setShowCallModal(true)}>Book Now →</button>
-                  </div>
-                </div>
-                <div className="action-card-mini glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', background: 'white' }}>
-                  <span style={{ fontSize: '2rem' }}>📄</span>
-                  <div>
-                    <h4 style={{ margin: 0, color: 'var(--navy-dark)' }}>Technical Library</h4>
-                    <button className="btn-small-text" style={{ padding: 0, color: 'var(--sage-green)', fontWeight: 'bold' }} onClick={() => setShowDocModal(true)}>Explore →</button>
-                  </div>
-                </div>
-              </div>
-              <div className="support-grid glass-panel" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
-                {/* Left Column: Contact Form */}
-                <div className="support-form-section">
-                  <h3 className="panel-title" style={{ borderLeft: '4px solid var(--sage-green)', color: 'var(--navy-dark)' }}>Report an Issue</h3>
-                  <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>Describe the machine fault or account issue you are facing.</p>
-
-                  <div className="input-group" style={{ marginBottom: '15px' }}>
-                    <label className="field-label" style={{ display: 'block', marginBottom: '5px', fontWeight: '700', color: '#64748b' }}>Subject</label>
-                    <select className="std-input"
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                      value={supportTicket.subject}
-                      onChange={(e) => setSupportTicket({ ...supportTicket, subject: e.target.value })}
-                    >
-                      <option>Machine Diagnosis Error</option>
-                      <option>Expert Connection Issue</option>
-                      <option>Billing / Invoice Dispute</option>
-                      <option>Account Verification</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-
-                  <div className="input-group" style={{ marginBottom: '15px' }}>
-                    <label className="field-label" style={{ display: 'block', marginBottom: '5px', fontWeight: '700', color: '#64748b' }}>Description</label>
-                    <textarea className="std-input" rows="5"
-                      placeholder="Please provide details..."
-                      style={{ width: '100%', resize: 'none', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                      value={supportTicket.description}
-                      onChange={(e) => setSupportTicket({ ...supportTicket, description: e.target.value })}
-                    ></textarea>
-                  </div>
-
-                  <button className="btn-primary" onClick={handleSubmitSupportTicket}>Submit Ticket</button>
-                  {showSupportPopup && (
-                    <PopupModal message={supportPopupMsg} onClose={() => setShowSupportPopup(false)} />
-                  )}
-                </div>
-
-                {/* Right Column: FAQs & Direct Contact */}
-                <div className="support-info-section" style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: '40px' }}>
-                  <h3 className="panel-title" style={{ borderLeft: '4px solid var(--sage-green)', color: 'var(--navy-dark)' }}>Quick Solutions</h3>
-                  <div className="faq-list" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '30px' }}>
-                    <div className="faq-item">
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--navy-dark)', margin: '0 0 5px' }}>How do I upload a video?</h4>
-                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Go to 'Get Diagnosis', select 'Video Analysis', and upload your file.</p>
-                    </div>
-                    <div className="faq-item">
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--navy-dark)', margin: '0 0 5px' }}>Is my machine data private?</h4>
-                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Yes, all diagnostics are encrypted and only shared with experts you approve.</p>
-                    </div>
-                  </div>
-
-                  <div className="direct-contact-box" style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px' }}>
-                    <h4 style={{ margin: '0 0 10px', color: 'var(--sage-green)' }}>Emergency Contact</h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                      <span>📞</span>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)' }}>+91 1800-ORIGI-HELP</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span>✉️</span>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)' }}>support@originode.com</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* [NEW] MY TICKETS SECTION */}
-              <div className="support-history glass-panel" style={{ marginTop: '30px' }}>
-                <h3 className="panel-title" style={{ borderLeft: '4px solid var(--sage-green)', color: 'var(--navy-dark)' }}>My Recent Tickets</h3>
-                {myTickets.length > 0 ? (
-                  <table className="data-table" style={{ width: '100%', marginTop: '15px' }}>
-                    <thead>
-                      <tr>
-                        <th>Ticket ID</th>
-                        <th>Subject</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {myTickets.map(t => (
-                        <tr key={t.id}>
-                          <td style={{ fontFamily: 'monospace', color: '#64748b' }}>#{String(t.id).substring(0, 8)}</td>
-                          <td style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>{t.subject}</td>
-                          <td><span className={`status-pill ${t.status === 'open' ? 'pending' : 'completed'}`}>{t.status || 'open'}</span></td>
-                          <td>{t.created_at ? new Date(t.created_at).toLocaleDateString() : 'Just now'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p style={{ color: '#64748b', padding: '20px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', marginTop: '15px' }}>No previous tickets found.</p>
-                )}
-              </div>
-            </div>
-          ) : activeTab === 'settings' ? (
-            <div className="settings-view animate-fade">
-              <header className="content-header glass-header">
-                <div>
-                  <h2 className="tech-title">CONTROL CENTER</h2>
-                  <p className="tech-subtitle">Industrial Terminal Preferences & Security Protocols</p>
-                </div>
-              </header>
-
-              <div className="glass-panel settings-section">
-                <h3 className="panel-title">Interface Configuration</h3>
-                <div className="settings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Dark Mode (Beta)</span>
-                      <small style={{ color: '#64748b' }}>Enable high-contrast dark theme for night missions.</small>
-                    </div>
-                    <label className="toggle-switch">
-                      <input type="checkbox" checked={isDarkMode} onChange={() => setIsDarkMode(!isDarkMode)} />
-                      <span className="slider round"></span>
-                    </label>
-                  </div>
-                  {/* System Language option removed as per request */}
-                </div>
-              </div>
-
-              <div className="glass-panel settings-section" style={{ marginTop: '25px' }}>
-                <h3 className="panel-title">Security & Access</h3>
-                <div className="settings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Two-Factor Auth</span>
-                      <small style={{ color: '#64748b' }}>Biological or token-based verification protocols.</small>
-                    </div>
-                    <label className="toggle-switch">
-                      <input type="checkbox" checked={isTwoFactorEnabled} onChange={() => setIsTwoFactorEnabled(!isTwoFactorEnabled)} />
-                      <span className="slider round"></span>
-                    </label>
-                  </div>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Network Visibility</span>
-                      <small style={{ color: '#64748b' }}>Manage your industrial node broadcast range.</small>
-                    </div>
-                    <select className="custom-select-v3" value={profileVisibility} onChange={(e) => setProfileVisibility(e.target.value)} style={{ width: 'auto' }}>
-                      <option value="Public">Public Network</option>
-                      <option value="Private">Private Mesh</option>
-                      <option value="Partners">Partners Only</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-panel settings-section" style={{ marginTop: '25px', borderColor: '#fecaca' }}>
-                <h3 className="panel-title" style={{ color: '#dc2626', borderLeftColor: '#dc2626' }}>Storage & Identity</h3>
-                <div className="settings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Local Cache</span>
-                      <small style={{ color: '#64748b' }}>Clear temporary files and diagnosis logs.</small>
-                    </div>
-                    <button className="btn-small-outline" style={{ width: 'auto' }}>Clear Data</button>
-                  </div>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: '#dc2626', display: 'block' }}>Purge Identity</span>
-                      <small style={{ color: '#64748b' }}>Permanently delete node account and history.</small>
-                    </div>
-                    <button className="btn-small-danger" onClick={() => setShowDeleteModal(true)} style={{ width: 'auto' }}>Delete</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="animate-fade" style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>
-              <h2>Section Under Development</h2>
-              <p>This module will be available in the next update.</p>
-            </div>
-          )}
-        </main>
-        {/* [REMOVED] Redundant PaymentModal replaced by premium CheckoutModal in sharedModals */}
-        {showPaymentSuccess && (
-          <div className="modal-overlay">
-            <div className="confirm-modal" style={{ width: '350px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '15px', color: 'var(--sage-green)' }}>✅</div>
-              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.4rem' }}>Payment Successful</h3>
-              <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.5' }}>Your transaction has been securely processed. A receipt has been sent to your email.</p>
-              <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={() => { setShowPaymentSuccess(false); setShowReviewModal(true); }}>Done</button>
-            </div>
-          </div>
-        )}
-
-        {showSaveSuccessModal && (
-          <div className="modal-overlay">
-            <div className="confirm-modal animate-fade" style={{ width: '380px', textAlign: 'center', padding: '35px', background: 'white', borderRadius: '15px', boxShadow: '0 15px 35px rgba(0,0,0,0.2)' }}>
-              <div style={{ width: '70px', height: '70px', background: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                <span style={{ fontSize: '2.5rem', color: '#10b981' }}>✓</span>
-              </div>
-              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.5rem', fontWeight: '800' }}>IDENTITY SAVED</h3>
-              <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>Your professional industrial profile has been successfully synchronized with the origiNode network.</p>
-              <button className="btn btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: '700', borderRadius: '10px', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)' }} onClick={() => setShowSaveSuccessModal(false)}>Acknowledge & Close</button>
-            </div>
-          </div>
-        )}
-
-        {showNoChangesModal && (
-          <div className="modal-overlay">
-            <div className="confirm-modal animate-fade" style={{ width: '380px', textAlign: 'center', padding: '35px', background: 'white', borderRadius: '15px', boxShadow: '0 15px 35px rgba(0,0,0,0.2)' }}>
-              <div style={{ width: '70px', height: '70px', background: '#fefce8', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                <span style={{ fontSize: '2.5rem', color: '#eab308' }}>ℹ️</span>
-              </div>
-              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.5rem', fontWeight: '800' }}>NO CHANGES</h3>
-              <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>The current profile information is already synchronized. No new updates were detected.</p>
-              <button className="btn btn-secondary" style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: '700', borderRadius: '10px' }} onClick={() => setShowNoChangesModal(false)}>Back to Profile</button>
-            </div>
-          </div>
-        )}
-
-        {/* [NEW] REVIEW MODAL */}
-        {showReviewModal && (
-          <div className="modal-overlay">
-            <div className="confirm-modal" style={{ width: '400px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>⭐</div>
-              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '5px', fontSize: '1.4rem' }}>Rate Your Experience</h3>
-              <p style={{ color: '#64748b', marginBottom: '20px' }}>How was the service provided by the expert?</p>
-
-              <div className="rating-stars" style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px', fontSize: '2rem', cursor: 'pointer' }}>
-                {[1, 2, 3, 4, 5].map(star => (
-                  <span
-                    key={star}
-                    style={{ color: star <= reviewData.rating ? 'var(--amber-gold)' : '#e2e8f0', transition: 'color 0.2s' }}
-                    onClick={() => setReviewData({ ...reviewData, rating: star })}
-                  >
-                    ★
-                  </span>
-                ))}
-              </div>
-
-              <textarea
-                className="std-input"
-                rows="3"
-                placeholder="Share your feedback (optional)..."
-                value={reviewData.comment}
-                onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
-                style={{ width: '100%', marginBottom: '20px', resize: 'none' }}
-              ></textarea>
-
-              <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={handleSubmitReview}>Submit Review</button>
-              <button className="btn-small-text" style={{ marginTop: '15px', color: '#94a3b8' }} onClick={() => setShowReviewModal(false)}>Skip Feedback</button>
-            </div>
-          </div>
-        )}
-
-        {/* [NEW] EXPERT PROFILE MODAL */}
-        {showExpertProfileModal && selectedExpert && (
-          <div className="modal-overlay">
-            <div className="confirm-modal" style={{ width: '400px', padding: '0', overflow: 'hidden' }}>
-              <div style={{ background: 'var(--navy-dark)', padding: '30px 20px', textAlign: 'center', color: 'white' }}>
-                <div style={{ width: '80px', height: '80px', background: 'var(--amber-gold)', borderRadius: '50%', color: 'black', fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px', fontWeight: 'bold' }}>
-                  {selectedExpert.avatar}
-                </div>
-                <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{selectedExpert.name}</h2>
-                <p style={{ margin: '5px 0 0', opacity: 0.8 }}>Certified Industry Specialist</p>
-              </div>
-              <div style={{ padding: '25px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
-                  <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--navy-dark)' }}>4.9/5</div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Rating</div>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--sage-green)' }}>98%</div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Job Success</div>
-                  </div>
-                </div>
-
-                <h4 style={{ fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', marginBottom: '10px' }}>Specializations</h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
-                  {['Hydraulics', 'Pneumatics', 'PLC Systems', 'Safety Audits'].map(s => (
-                    <span key={s} style={{ background: '#e2e8f0', color: '#475569', padding: '5px 10px', borderRadius: '15px', fontSize: '0.8rem' }}>{s}</span>
-                  ))}
-                </div>
-
-                <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowExpertProfileModal(false)}>Close Profile</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {sharedModals}
-      </div>
-    );
-  }
-
-
-
-  // [NEW] VIEW 4: PRODUCER DASHBOARD (SERVICE REQUESTS)
-  if (view === 'dashboard' && role === 'producer') {
-    return (
-      <div className="dashboard-wrapper producer-theme">
-        <aside className="side-nav">
-
-          <div className="profile-sidebar-summary" style={{ background: 'var(--navy-dark)' }}>
-            <div className="nav-avatar-circle" style={{ background: 'var(--amber-gold)', color: 'black' }}>{getExpertInitials()}</div>
-            <div className="nav-user-details">
-              <span className="nav-name" style={{ color: 'white' }}>{profileData.name}</span>
-              <span className="nav-email-small" style={{ color: '#94a3b8' }}>Verified Specialist</span>
-            </div>
-          </div>
-
-          <nav className="nav-links">
-            <div className={`nav-item ${activeTab === 'fleet' || activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
-              Service Board
-              {radarJobs.length > 0 && <span className="nav-badge" style={{ background: 'var(--error-red)', marginLeft: 'auto' }}>{radarJobs.length}</span>}
-            </div>
-            <div className={`nav-item ${activeTab === 'pro-messages' ? 'active' : ''}`} onClick={() => setActiveTab('pro-messages')}>
-              Client Messages
-              {producerChats.some(c => c.unread > 0) && <span className="nav-badge" style={{ background: 'var(--amber-gold)', marginLeft: 'auto', color: 'black' }}>!</span>}
-            </div>
-            <div className={`nav-item ${activeTab === 'earnings' ? 'active' : ''}`} onClick={() => setActiveTab('earnings')}>Earnings Report</div>
-            <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Expert Profile</div>
-            <div className="nav-divider" style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '10px 0' }}></div>
-            <div className={`nav-item ${activeTab === 'schedule' ? 'active' : ''}`} onClick={() => setActiveTab('schedule')}>Operations Schedule</div>
-            <div className={`nav-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Parts Inventory</div>
-            <div className={`nav-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>Help & Support</div>
-            <div className={`nav-item ${activeTab === 'platform-settings' ? 'active' : ''}`} onClick={() => setActiveTab('platform-settings')}>Platform Settings</div>
-            <div className="nav-item logout-btn-item" onClick={handleLogout}>Logout</div>
-          </nav>
-        </aside>
-
-        <main className="dashboard-content">
-          <header className="dashboard-top-bar">
-            {/* ... restored standard header content ... */}
-            <div className="breadcrumb-info">origiNode / EXPERT TERMINAL</div>
-            <div className="top-bar-actions" ref={notifRef}>
-              <div className="status-badge-pill operational">● Available for Work</div>
-              <div className="notif-bell-container" onClick={() => setShowNotifDropdown(!showNotifDropdown)}>
-                <span className="bell-icon">🔔</span>
-                {(notifications || []).some(n => !n.read) && <span className="notif-ping"></span>}
-              </div>
-
-              {/* NOTIFICATION DROP DOWN */}
-              {showNotifDropdown && (
-                <div className="notif-dropdown animate-fade">
-                  <div className="dropdown-header">
-                    <h4>Notifications</h4>
-                    <button className="btn-small-text" onClick={handleClearNotifs}>Clear History</button>
-                  </div>
-                  <div className="dropdown-body">
-                    {(notifications || []).length > 0 ? notifications.map(n => (
-                      <div key={n.id} className={`notif-drop-item ${!n.read ? 'unread' : ''}`}>
-                        <div className={`notif-indicator ${n.type}`}></div>
-                        <div className="notif-drop-content">
-                          <p>{n.msg}</p>
-                          <span>{n.time}</span>
-                        </div>
-                      </div>
-                    )) : <div className="empty-notif" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>No new alerts</div>}
-                  </div>
-                </div>
-              )}
-            </div>
-          </header>
-
-          {activeTab === 'requests' || activeTab === 'fleet' ? (
-            // ... existing Service Board view ...
-            <div className="animate-fade">
-              <header className="content-header glass-header">
-                <div>
-                  <h2 className="tech-title">JOB COMMAND CENTER</h2>
-                  <p className="tech-subtitle">Active Signal Monitoring & Job Queue</p>
-                </div>
-                <div className="header-actions">
-                  <div className="tech-stat-group">
-                    <div className="tech-stat-item">
-                      <span className="label">SIGNAL STRENGTH</span>
-                      <span className="value text-success">EXCELLENT</span>
-                    </div>
-                    <div className="tech-stat-divider"></div>
-                    <div className="tech-stat-item">
-                      <span className="label">QUEUE LOAD</span>
-                      <span className="value">{(radarJobs || []).length} REQUESTS</span>
-                    </div>
-                    <div className="tech-stat-divider"></div>
-                    <div className="tech-stat-item">
-                      <span className="label">EST. EARNINGS</span>
-                      <span className="value text-amber">₹78.5K</span>
-                    </div>
-                  </div>
-                </div>
-              </header>
-              <div className="service-board-grid">
-                {Array.isArray(radarJobs) && radarJobs.length > 0 ? radarJobs.map(req => {
-                  // Stable distance from job ID hash
-                  const distHash = String(req.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-                  const dist = 5 + (distHash % 45);
-                  return (
-                    <div key={req.id} className={`job-card ${req.priority || 'normal'}`}>
-                      <div className="job-card-header">
-                        <div className="client-badge">
-                          <div className="client-avatar">
-                            {req.client_name ? (req.client_name[0] || 'C') + (req.client_name[1] || '') : 'C'}
-                          </div>
-                          <div className="client-meta">
-                            <h4>{req.client_name || "Unknown Client"}</h4>
-                            <span>Ticket #{String(req.id || '').substring(0, 6).toUpperCase()} • {req.created_at ? new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</span>
-                          </div>
-                        </div>
-                        <div className="job-value">{getJobEstValue(req.id)}</div>
-                      </div>
-                      <div className="job-card-body">
-                        {req.priority === 'critical' && <div className="priority-banner">⚠️ IMMEDIATE ATTENTION REQUIRED</div>}
-                        <div className="machine-spec">
-                          <span className="icon">⚙️</span>
-                          <span className="name">{req.machine_name || 'Unknown Machine'}</span>
-                        </div>
-                        <p className="issue-desc">"{req.issue_description || 'No description provided'}"</p>
-                        <div className="job-tags">
-                          <span className="job-tag">{req.priority || 'Normal'}</span>
-                          <span className="job-tag">Repair</span>
-                          {req.video_url && <span className="job-tag">Has Video</span>}
-                          <span className="job-dist">📍 {dist}km</span>
-                        </div>
-                      </div>
-                      <div className="job-card-footer">
-                        <button className="btn-job-action decline" onClick={() => handleDeclineJob(req.id)}>DECLINE</button>
-                        <button className="btn-job-action accept" onClick={() => handleAcceptJob(req.id)}>ACCEPT ASSIGNMENT</button>
-                      </div>
-                    </div>
-                  );
-                }) : (
-                  <div className="empty-state-container animate-fade" style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-                    {/* Top Row: Welcome & Quick Stats */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 2fr) 1fr 1fr 1fr', gap: '20px' }}>
-                      <div className="glass-panel" style={{ padding: '25px', display: 'flex', flexDirection: 'column', justifyContent: 'center', border: '1px solid #e2e8f0', background: 'white' }}>
-                        <h3 style={{ fontSize: '1.5rem', marginBottom: '10px', color: 'var(--navy-dark)' }}>Welcome back, {profileData?.name || "Expert"}</h3>
-                        <p style={{ color: '#64748b' }}>Your terminal is actively monitoring for new service requests.</p>
-                      </div>
-                      <div className="glass-panel" style={{ padding: '25px', textAlign: 'center', border: '1px solid #e2e8f0', background: 'white' }}>
-                        <h4 style={{ color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>Earnings (This Week)</h4>
-                        <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--navy-dark)' }}>₹{producerDashStats.earnings.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="glass-panel" style={{ padding: '25px', textAlign: 'center', border: '1px solid #e2e8f0', background: 'white' }}>
-                        <h4 style={{ color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>Completed Jobs</h4>
-                        <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--navy-dark)' }}>{producerDashStats.completedJobs}</p>
-                      </div>
-                      <div className="glass-panel" style={{ padding: '25px', textAlign: 'center', border: '1px solid #e2e8f0', background: 'white' }}>
-                        <h4 style={{ color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>Expert Rating</h4>
-                        <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--navy-dark)' }}>⭐ {producerDashStats.rating.toFixed(1)}</p>
-                      </div>
-                    </div>
-
-                    {/* Bottom Row: Active Jobs & Upcoming Schedule */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
-
-                      {/* Active Assignments */}
-                      <div className="glass-panel" style={{ padding: '25px', border: '1px solid #e2e8f0', background: 'white' }}>
-                        <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--navy-dark)' }}>
-                          Current Assignments
-                          <span style={{ fontSize: '0.8rem', background: '#eef2ff', color: '#4f46e5', padding: '6px 12px', borderRadius: '12px', fontWeight: 'bold' }}>
-                            {producerChats.length} Active
-                          </span>
-                        </h4>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                          {producerChats.length > 0 ? producerChats.slice(0, 3).map(chat => (
-                            <div key={chat.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px', cursor: 'pointer', border: '1px solid #e2e8f0', transition: 'transform 0.2s', ':hover': { transform: 'scale(1.02)' } }} onClick={() => { setActiveChatId(chat.id); setActiveTab('pro-messages'); }}>
-                              <div style={{ width: '45px', height: '45px', background: 'var(--navy-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', fontWeight: 'bold', fontSize: '1.2rem' }}>{chat.avatar}</div>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                  <strong style={{ color: 'var(--navy-dark)' }}>{chat.name}</strong>
-                                  <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '8px', background: chat.status === 'payment_pending' ? '#fef3c7' : '#dcfce7', color: chat.status === 'payment_pending' ? '#b45309' : '#166534', fontWeight: 'bold' }}>
-                                    {chat.status === 'payment_pending' ? 'INVOICED' : 'IN PROGRESS'}
-                                  </span>
-                                </div>
-                                <div style={{ fontSize: '0.85rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>{chat.lastMsg}</div>
-                              </div>
-                            </div>
-                          )) : (
-                            <div style={{ textAlign: 'center', color: '#64748b', padding: '20px', fontSize: '0.9rem' }}>No active assignments currently.</div>
-                          )}
-
-                          {producerChats.length > 3 && (
-                            <button className="btn-small-text" style={{ marginTop: '10px', alignSelf: 'center', color: 'var(--navy-primary)' }} onClick={() => setActiveTab('pro-messages')}>Review all assignments →</button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Upcoming Schedule */}
-                      <div className="glass-panel" style={{ padding: '25px', border: '1px solid #e2e8f0', background: 'white' }}>
-                        <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--navy-dark)' }}>
-                          Upcoming Schedule
-                          <button className="btn-small-text" onClick={() => setActiveTab('schedule')} style={{ color: 'var(--navy-primary)' }}>Manage ⚙️</button>
-                        </h4>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px', borderLeft: '4px solid var(--sage-green)', borderTop: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
-                            <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', textAlign: 'center', minWidth: '65px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                              <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.5px', marginBottom: '2px' }}>Tomorrow</div>
-                              <div style={{ fontSize: '1.2rem', color: 'var(--navy-dark)', fontWeight: 'bold' }}>09:00</div>
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 'bold', color: 'var(--navy-dark)', marginBottom: '6px', fontSize: '0.95rem' }}>Routine Maintenance: Line 4 Motors</div>
-                              <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <span>📍 Solaris Power</span>
-                                <span style={{ width: '4px', height: '4px', background: '#cbd5e1', borderRadius: '50%' }}></span>
-                                <span>15km away</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px', borderLeft: '4px solid #facc15', borderTop: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
-                            <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', textAlign: 'center', minWidth: '65px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                              <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.5px', marginBottom: '2px' }}>Friday</div>
-                              <div style={{ fontSize: '1.2rem', color: 'var(--navy-dark)', fontWeight: 'bold' }}>14:30</div>
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 'bold', color: 'var(--navy-dark)', marginBottom: '6px', fontSize: '0.95rem' }}>Follow-up: Hydraulic Pressure Reset</div>
-                              <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <span>📍 Apex Manufacturing</span>
-                                <span style={{ width: '4px', height: '4px', background: '#cbd5e1', borderRadius: '50%' }}></span>
-                                <span>22km away</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : activeTab === 'inventory' ? (
-            <div className="inventory-view animate-fade">
-              <header className="content-header glass-header">
-                <div>
-                  <h2 className="tech-title">PARTS INVENTORY</h2>
-                  <p className="tech-subtitle">Toolkit & Spare Parts Ledger</p>
-                </div>
-                <div className="header-actions">
-                  <button className="btn-primary" onClick={() => alert("Order Requisition Form Opening...")}>+ Requisition Order</button>
-                </div>
-              </header>
-
-              <div className="inventory-grid">
-                {[
-                  { name: "Hydraulic Seals (Series A)", stock: 12, status: "Good", cat: "Consumables" },
-                  { name: "PLC Logic Controller", stock: 2, status: "Low Stock", cat: "Electronics" },
-                  { name: "Torque Wrench Set", stock: 1, status: "Available", cat: "Tools" },
-                  { name: "Industrial Fuse (Amps)", stock: 45, status: "Good", cat: "Consumables" },
-                  { name: "Lubricant (Grade 4)", stock: 5, status: "Critical", cat: "Fluids" },
-                ].map((part, idx) => (
-                  <div key={idx} className="part-card glass-panel">
-                    <div className="part-icon">{part.cat === 'Tools' ? '🔧' : part.cat === 'Electronics' ? '📟' : '🔩'}</div>
-                    <div className="part-info">
-                      <h4>{part.name}</h4>
-                      <span className="part-cat">{part.cat}</span>
-                    </div>
-                    <div className="part-stock">
-                      <span className="stock-count">{part.stock}</span>
-                      <span className={`stock-status ${part.status === 'Critical' || part.status === 'Low Stock' ? 'red' : 'green'}`}>{part.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : activeTab === 'schedule' ? (
-            <div className="schedule-view animate-fade">
-              <header className="content-header glass-header">
-                <div>
-                  <h2 className="tech-title">OPERATIONS SCHEDULE</h2>
-                  <p className="tech-subtitle">Weekly Operational Planning</p>
-                </div>
-                <div className="header-actions" style={{ gap: '15px' }}>
-                  <div className="date-nav">
-                    <button className="btn-icon">◀</button>
-                    <span style={{ fontWeight: '700', color: 'var(--navy-dark)' }}>Feb 19 - Feb 25, 2026</span>
-                    <button className="btn-icon">▶</button>
-                  </div>
-                </div>
-              </header>
-
-              <div className="glass-panel schedule-container" style={{ position: 'relative' }}>
-                <div className="schedule-grid">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="day-col">
-                      <div className="day-header">{day}</div>
-                      <div className="day-slots">
-                        {/* CURRENT SLOTS */}
-                        {weeklySchedule.filter(s => s.day_of_week === day).map((slot, sIdx) => (
-                          <div
-                            key={sIdx}
-                            className={`schedule-card ${slot.slot_type}`}
-                            style={slot.start_time ? { top: `${(parseInt(slot.start_time.split(':')[0]) - 8) * 60}px` } : {}}
-                          >
-                            <span className="time">{slot.start_time} - {slot.end_time}</span>
-                            <h4>{slot.title}</h4>
-                            <p>{slot.description}</p>
-                          </div>
-                        ))}
-
-                        {/* AI SUGGESTED SLOTS */}
-                        {suggestedSlots.filter(s => s.day_of_week === day).map((slot, sIdx) => (
-                          <div
-                            key={`suggested-${sIdx}`}
-                            className="schedule-card suggested animate-pulse-subtle"
-                            style={slot.start_time ? { top: `${(parseInt(slot.start_time.split(':')[0]) - 8) * 60}px` } : {}}
-                          >
-                            <div className="ai-badge">AI PROP</div>
-                            <span className="time">{slot.start_time} - {slot.end_time}</span>
-                            <h4>{slot.title}</h4>
-                            <p>{slot.description}</p>
-                            <div className="suggested-actions">
-                              <button className="btn-confirm-mini" onClick={() => {
-                                setWeeklySchedule([...weeklySchedule, slot]);
-                                setSuggestedSlots(suggestedSlots.filter(s => s !== slot));
-                                api.post('/schedule', slot);
-                              }}>Accept</button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {suggestedSlots.length > 0 && (
-                  <div className="ai-suggestion-footer animate-slide-up">
-                    <div className="ai-insight">
-                      <span className="icon">🧠</span>
-                      <span>AI found <strong>{suggestedSlots.length} optimal windows</strong> for pending industrial signals.</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button className="btn-secondary-dark" onClick={() => setSuggestedSlots([])}>Discard</button>
-                      <button className="btn-primary-tech" onClick={handleConfirmAISchedule}>Synchronize All Proposals</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : activeTab === 'support' ? (
-            <div className="support-view animate-fade">
-              <header className="content-header glass-header">
-                <div>
-                  <h2 className="tech-title">HELP & SUPPORT</h2>
-                  <p className="tech-subtitle">24/7 Expert Assistance Center</p>
-                </div>
-              </header>
-
-              <div className="support-grid glass-panel" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
-                {/* Left Column: Contact Form */}
-                <div className="support-form-section">
-                  <h3 className="panel-title">Report an Issue</h3>
-                  <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>Describe the technical or account issue you are facing.</p>
-
-                  <div className="input-group" style={{ marginBottom: '15px' }}>
-                    <label className="field-label">Subject</label>
-                    <select className="std-input" style={{ width: '100%' }}>
-                      <option>Payment / Payout Issue</option>
-                      <option>Technical Glitch (App)</option>
-                      <option>Job Dispute</option>
-                      <option>Account Verification</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-
-                  <div className="input-group" style={{ marginBottom: '15px' }}>
-                    <label className="field-label">Description</label>
-                    <textarea className="std-input" rows="5" placeholder="Please provide details..." style={{ width: '100%', resize: 'none' }}></textarea>
-                  </div>
-
-                  <button className="btn-primary" onClick={() => alert("Ticket #9920 Created! Support team will contact you shortly.")}>Submit Ticket</button>
-                </div>
-
-                {/* Right Column: FAQs & Direct Contact */}
-                <div className="support-info-section" style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: '40px' }}>
-                  <h3 className="panel-title">Quick Solutions</h3>
-                  <div className="faq-list" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '30px' }}>
-                    <div className="faq-item">
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--navy-dark)', margin: '0 0 5px' }}>My payout is pending?</h4>
-                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Payouts are processed every Wednesday. Please check your bank details.</p>
-                    </div>
-                    <div className="faq-item">
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--navy-dark)', margin: '0 0 5px' }}>How to decline a job?</h4>
-                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Use the 'Decline' button on the Job Card. Repeated declines may affect score.</p>
-                    </div>
-                  </div>
-
-                  <div className="direct-contact-box" style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px' }}>
-                    <h4 style={{ margin: '0 0 10px', color: 'var(--navy-primary)' }}>Emergency Contact</h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                      <span>📞</span>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)' }}>+91 1800-ORIGI-HELP</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span>✉️</span>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)' }}>support@originode.com</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'platform-settings' ? (
-            <div className="settings-view animate-fade">
-              <header className="content-header glass-header">
-                <div>
-                  <h2 className="tech-title">PLATFORM CONFIGURATION</h2>
-                  <p className="tech-subtitle">System Preferences & Privacy Controls</p>
-                </div>
-              </header>
-              <div className="glass-panel settings-section">
-                <h3 className="panel-title">General Preferences</h3>
-                <div className="settings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Dark Mode (Beta)</span>
-                      <small style={{ color: '#64748b' }}>Enable high-contrast dark theme for night shifts.</small>
-                    </div>
-                    <div className="toggle-switch"></div>
-                  </div>
-                  {/* Language dropdown removed as per request */}
-                </div>
-              </div>
-
-              <div className="glass-panel settings-section" style={{ marginTop: '25px' }}>
-                <h3 className="panel-title">Notification Channels</h3>
-                <div className="settings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>SMS Alerts</span>
-                      <small style={{ color: '#64748b' }}>Receive critical job offers via SMS.</small>
-                    </div>
-                    <div className="toggle-switch active"></div>
-                  </div>
-                  <div className="setting-item toggle-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <div>
-                      <span style={{ fontWeight: '700', color: 'var(--navy-dark)', display: 'block' }}>Email Summaries</span>
-                      <small style={{ color: '#64748b' }}>Daily earnings reports and weekly stats.</small>
-                    </div>
-                    <div className="toggle-switch active"></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-panel settings-section" style={{ marginTop: '25px', borderColor: '#fecaca' }}>
-                <h3 className="panel-title" style={{ color: '#dc2626', borderLeftColor: '#dc2626' }}>Danger Zone</h3>
-                <div className="settings-grid">
-                  <button className="btn-secondary" style={{ color: '#dc2626', borderColor: '#fecaca', width: '100%' }} onClick={() => alert("Are you sure? This action cannot be undone.")}>Request Account Deletion</button>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'pro-messages' ? (
-            <div className="messages-view animate-fade">
-              <aside className="messages-sidebar">
-                <div className="chat-search-bar">
-                </div>
-                <div className="chat-list">
-                  {producerChats.length > 0 ? producerChats.map(chat => (
-                    <div key={chat.id} className={`chat-item ${activeChatId === chat.id ? 'active' : ''}`} onClick={() => setActiveChatId(chat.id)}>
-                      <div className="chat-avatar">{chat.avatar}</div>
-                      <div className="chat-info">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <h4 className="chat-name">{chat.name}</h4>
-                          <span className="chat-time">{chat.time}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <p className="chat-preview" style={chat.unread ? { fontWeight: '700', color: 'var(--navy-dark)' } : {}}>{chat.lastMsg}</p>
-                          {chat.status && <span style={{ fontSize: '0.65rem', background: chat.status === 'accepted' ? '#dcfce7' : '#fef3c7', color: chat.status === 'accepted' ? '#166534' : '#92400e', padding: '2px 6px', borderRadius: '8px', fontWeight: '700', whiteSpace: 'nowrap', marginLeft: '4px' }}>{chat.status.toUpperCase()}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  )) : (
-                    <div style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
-                      <p style={{ fontSize: '1.5rem', marginBottom: '8px' }}>💬</p>
-                      <p>No active jobs yet.<br />Accept a job to start chatting.</p>
-                    </div>
-                  )}
-                </div>
-              </aside>
-
-              <main className="chat-window">
-                <header className="chat-header">
-                  <div className="chat-partner-info">
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--navy-dark)' }}>{producerChats.find(c => c.id === activeChatId)?.name}</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--sage-green)', fontWeight: '600' }}>● Key Account</span>
-                  </div>
-                  <button className="btn-icon-label" style={{ fontSize: '0.8rem' }}>View Contract</button>
-                </header>
-
-                <div className="chat-body">
-                  {messages.filter(m => m.chatId === activeChatId).map(msg => (
-                    <div key={msg.id} className={`message-bubble ${msg.sender === 'expert' ? 'sent' : 'received'}`}>
-                      {/* INVOICE LOGIC REUSED IF NEEDED OR JUST TEXT */}
-                      {msg.type === 'invoice' ? (
-                        <div className="invoice-message-card">
-                          <div className="invoice-header">INVOICE SENT</div>
-                          <div className="invoice-body">
-                            <div className="invoice-row"><span>Service:</span> <strong>{msg.desc}</strong></div>
-                            <div className="invoice-total"><span>Total:</span> <span>{msg.amount}</span></div>
-                          </div>
-                        </div>
-                      ) : (
-                        msg.text
-                      )}
-                      <span className="message-time">{msg.time}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="chat-input-area">
-                  <button className="btn-icon" onClick={() => setShowInvoiceCreator(true)} title="Create Invoice" style={{ marginRight: '10px', fontSize: '1.2rem', cursor: 'pointer', background: 'none', border: 'none' }}>🧾</button>
-                  <input
-                    type="text"
-                    className="chat-input"
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  />
-                  <button className="btn btn-primary" style={{ padding: '0 20px' }} onClick={handleSendMessage}>Send</button>
-                </div>
-              </main>
-            </div>
-          ) : activeTab === 'earnings' ? (
-            <div className="earnings-view animate-fade">
-              <header className="content-header glass-header">
-                <div>
-                  <h2 className="tech-title">FINANCIAL PERFORMANCE</h2>
-                  <p className="tech-subtitle">Revenue Streams & Payout History</p>
-                </div>
-                <div className="header-actions">
-                  <button className="btn-secondary" onClick={handleExportCSV}>Export CSV</button>
-                </div>
-              </header>
-
-              <div className="earnings-stats-grid">
-                <div className="stat-card">
-                  <div className="stat-label">TOTAL REVENUE (YTD)</div>
-                  <div className="stat-value">₹{earningsStats.totalRevenue.toLocaleString()}</div>
-                  <div className="stat-trend positive">▲ 12.5% vs last month</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">PENDING PAYOUT</div>
-                  <div className="stat-value">₹{earningsStats.pendingPayout.toLocaleString()}</div>
-                  <div className="stat-sub">Next payout: Feb 21</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">AVG. TICKET VALUE</div>
-                  <div className="stat-value">₹{earningsStats.avgTicket}</div>
-                  <div className="stat-trend neutral">─ Stable</div>
-                </div>
-              </div>
-
-              {/* [NEW] ANALYTICS CHART */}
-              <div className="glass-panel analytics-chart-container" style={{ marginBottom: '25px', padding: '20px', background: 'white' }}>
-                <h3 className="section-title" style={{ marginBottom: '20px' }}>Revenue Analytics</h3>
-                <div style={{ width: '100%', height: 300 }}>
-                  <ResponsiveContainer>
-                    <AreaChart data={chartData}>
-                      <defs>
-                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--navy-primary)" stopOpacity={0.1} />
-                          <stop offset="95%" stopColor="var(--navy-primary)" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => `₹${value}`} />
-                      <Tooltip
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                        formatter={(value) => [`₹${value}`, 'Revenue']}
-                      />
-                      <Area type="monotone" dataKey="value" stroke="var(--navy-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="transactions-section glass-panel">
-                <h3 className="section-title">Recent Transactions</h3>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Client</th>
-                      <th>Service ID</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactionHistory.length > 0 ? (
-                      transactionHistory.map(tx => (
-                        <tr key={tx.id}>
-                          <td>{tx.date}</td>
-                          <td style={{ fontWeight: '600', color: 'var(--navy-dark)' }}>{tx.client}</td>
-                          <td style={{ fontFamily: 'monospace', color: '#64748b' }}>{tx.service}</td>
-                          <td>
-                            <span className={`status-pill ${tx.status.toLowerCase()}`}>{tx.status}</span>
-                          </td>
-                          <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--navy-dark)' }}>{tx.amount}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No transactions recorded yet.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : activeTab === 'settings' ? (
-            <div className="profile-view animate-fade">
-              <header className="content-header glass-header">
-                <div>
-                  <h2 className="tech-title">EXPERT PROFILE</h2>
-                  <p className="tech-subtitle">Manage Credentials & specialized skills</p>
-                </div>
-                {!isEditingProfile && (
-                  <div className="header-actions">
-                    <button className="btn-secondary" onClick={() => setIsEditingProfile(true)}>Edit Profile</button>
-                  </div>
-                )}
-              </header>
-
-              <div className="profile-grid">
-                {/* ID Card / Main Info */}
-                <div className="glass-panel profile-card">
-                  <div className="profile-header-visual">
-                    <div className="profile-avatar-large">{getExpertInitials()}</div>
-                    <div className="verification-badge">✔ VERIFIED EXPERT</div>
-                  </div>
-                  <div className="profile-info-body">
-                    {isEditingProfile ? (
-                      <div className="edit-mode-inputs">
-                        <label>Display Name</label>
-                        <input
-                          type="text"
-                          value={profileData.name}
-                          onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                          className="std-input"
-                        />
-                        <label>Professional Role</label>
-                        <input
-                          type="text"
-                          value={profileData.role}
-                          onChange={(e) => setProfileData({ ...profileData, role: e.target.value })}
-                          className="std-input"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <h3>{profileData.name}</h3>
-                        <p className="role-text">{profileData.role}</p>
-                      </>
-                    )}
-
-                    <div className="profile-meta-row" style={isEditingProfile ? { flexDirection: 'column', gap: '10px' } : {}}>
-                      {isEditingProfile ? (
-                        <>
-                          <div className="edit-field-row">
-                            <span>🆔 ID:</span>
-                            <input type="text" value={profileData.id} onChange={(e) => setProfileData({ ...profileData, id: e.target.value })} className="std-input compact" />
-                          </div>
-                          <div className="edit-field-row">
-                            <span>📍 Location:</span>
-                            <input type="text" value={profileData.location} onChange={(e) => setProfileData({ ...profileData, location: e.target.value })} className="std-input compact" />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <span>🆔 {profileData.id}</span>
-                          <span>📍 {profileData.location}</span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Contact Info Section (New Request) */}
-                    <div className="profile-contact-section" style={{ borderTop: '1px solid #e2e8f0', width: '100%', padding: '15px 0', marginBottom: '15px' }}>
-                      <h4 style={{ fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase', marginBottom: '10px' }}>Contact Details</h4>
-                      {isEditingProfile ? (
-                        <div className="edit-contact-grid">
-                          <input type="email" value={profileData.email} onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} className="std-input" placeholder="Email" />
-                          <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} className="std-input" placeholder="Phone" />
-                        </div>
-                      ) : (
-                        <div className="contact-display">
-                          <div className="contact-item">📧 {profileData.email}</div>
-                          <div className="contact-item">📞 {profileData.phone}</div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="profile-stats-row">
-                      <div className="p-stat"><strong>4.9</strong><span>Rating</span></div>
-                      <div className="p-stat"><strong>142</strong><span>Jobs</span></div>
-                      <div className="p-stat"><strong>98%</strong><span>Success</span></div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Skills & Certifications */}
-                <div className="glass-panel skills-card">
-                  <h3 className="panel-title">Technical Specializations</h3>
-                  <div className="skills-tags-container">
-                    {(profileData.skills || []).map(skill => (
-                      <span key={skill} className="tech-tag">
-                        {skill}
-                        {isEditingProfile && <button onClick={() => handleRemoveSkill(skill)} style={{ marginLeft: '8px', background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 'bold' }}>×</button>}
-                      </span>
-                    ))}
-                    {isEditingProfile && (
-                      <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '10px' }}>
-                        <input
-                          type="text"
-                          className="std-input compact"
-                          placeholder="Add new skill..."
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              handleAddSkill(e.target.value);
-                              e.target.value = '';
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <h3 className="panel-title" style={{ marginTop: '25px' }}>Certifications</h3>
-                  <div className="cert-list">
-                    <div className="cert-item">
-                      <span className="cert-icon">📜</span>
-                      <div className="cert-details">
-                        <h4>Certified Automation Professional (CAP)</h4>
-                        <span>Issued: Jan 2024 • Valid until: 2027</span>
-                      </div>
-                      <span className="cert-status valid">Valid</span>
-                    </div>
-                    <div className="cert-item">
-                      <span className="cert-icon">⚡</span>
-                      <div className="cert-details">
-                        <h4>High Voltage Safety Level 3</h4>
-                        <span>Issued: Mar 2023 • Valid until: 2025</span>
-                      </div>
-                      <span className="cert-status valid">Valid</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Account Settings Section */}
-              <div className="glass-panel settings-section" style={{ marginTop: '25px' }}>
-                <h3 className="panel-title">Account Settings</h3>
-                <div className="settings-grid">
-                  <div className="setting-item">
-                    <label>Availability Status</label>
-                    <select className="std-input">
-                      <option>Available for Work</option>
-                      <option>Busy / On Job</option>
-                      <option>Offline</option>
-                    </select>
-                  </div>
-                  <div className="setting-item">
-                    <label>Service Radius (km)</label>
-                    <input type="range" min="10" max="100" value={serviceRadius} onChange={(e) => setServiceRadius(e.target.value)} className="range-slider" />
-                    <span className="range-value">{serviceRadius} km</span>
-                  </div>
-                  <div className="setting-item">
-                    <label>Critical Alerts</label>
-                    <div style={{ display: 'flex', alignItems: 'center', height: '38px' }}>
-                      <span style={{ marginRight: '10px', fontSize: '0.8rem', color: '#64748b' }}>Off</span>
-                      <div className="toggle-switch active"></div>
-                      <span style={{ marginLeft: '10px', fontSize: '0.8rem', color: 'var(--navy-primary)', fontWeight: 'bold' }}>On</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {isEditingProfile && (
-                <div style={{ display: 'flex', justifyContent: 'center', margin: '40px 0' }}>
-                  <button
-                    className="btn btn-primary"
-                    style={{ padding: '14px 60px', fontSize: '1.1rem', borderRadius: '12px', boxShadow: '0 8px 25px rgba(15, 23, 42, 0.2)', background: 'var(--sage-green)' }}
-                    onClick={handleSaveExpertProfile}
-                  >
-                    Save Expert Identity
-                  </button>
-                </div>
-              )}
-
-            </div>
-          ) : (
-            <div className="animate-fade" style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>
-              <h2>Section Under Development</h2>
-              <p>This module will be available in the next update.</p>
-            </div>
-          )}
-        </main>
-
-        {/* [NEW] INVOICE CREATOR MODAL */}
-        {showInvoiceCreator && (
-          <div className="modal-overlay">
-            <div className="confirm-modal" style={{ width: '350px', padding: '25px' }}>
-              <h3>Create Invoice</h3>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Amount (₹)</label>
-                <input type="number" className="std-input" value={invoiceData.amount} onChange={e => setInvoiceData({ ...invoiceData, amount: e.target.value })} style={{ width: '100%' }} />
-              </div>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Description</label>
-                <input type="text" className="std-input" value={invoiceData.desc} onChange={e => setInvoiceData({ ...invoiceData, desc: e.target.value })} style={{ width: '100%' }} />
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSendInvoice}>Send Invoice</button>
-                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowInvoiceCreator(false)}>Cancel</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* [NEW] REVIEW SUCCESS MODAL */}
-        {showReviewSuccess && (
-          <div className="modal-overlay">
-            <div className="confirm-modal animate-fade-in-up" style={{ width: '350px', padding: '30px', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '15px', color: 'var(--sage-green)' }}>✓</div>
-              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px' }}>Review Submitted!</h3>
-              <p style={{ color: '#64748b', marginBottom: '25px' }}>Thank you for your feedback. We appreciate your input.</p>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowReviewSuccess(false)}>Done</button>
-            </div>
-          </div>
-        )}
-
-        {/* [NEW] INVOICE SUCCESS MODAL */}
-        {showInvoiceSuccess && (
-          <div className="modal-overlay">
-            <div className="confirm-modal animate-fade-in-up" style={{ width: '350px', padding: '30px', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '15px', color: 'var(--sage-green)' }}>✓</div>
-              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px' }}>Invoice Sent!</h3>
-              <p style={{ color: '#64748b', marginBottom: '25px' }}>Your invoice has been successfully sent to the client.</p>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowInvoiceSuccess(false)}>Done</button>
-            </div>
-          </div>
-        )}
-
-        {/* Book Expert Modal */}
-        {showBookExpertModal && (
-          <div className="modal-overlay">
-            <div className="confirm-modal" style={{ width: '350px', padding: '30px', textAlign: 'center' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '15px', color: 'var(--sage-green)' }}>📅</div>
-              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px' }}>Expert Booked!</h3>
-              <p style={{ color: '#64748b', marginBottom: '25px' }}>Your request to book an expert has been received. You will be notified when the expert confirms the appointment.</p>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowBookExpertModal(false)}>OK</button>
-            </div>
-          </div>
-        )}
-
-        {showPaymentReceived && (
-          <div className="modal-overlay">
-            <div className="confirm-modal" style={{ width: '400px', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', borderTop: '5px solid var(--sage-green)' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '15px' }}>💰</div>
-              <h3 style={{ color: 'var(--navy-dark)', marginBottom: '5px', fontSize: '1.4rem' }}>Payment Received!</h3>
-              <p style={{ color: 'var(--sage-green)', fontWeight: '700', fontSize: '1.2rem', margin: '0 0 15px 0' }}>Job Completed</p>
-              <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.5' }}>Funds have been deposited to your escrow wallet. You can withdraw them in the Earnings tab.</p>
-              <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', justifyContent: 'center' }} onClick={() => setShowPaymentReceived(false)}>Acknowledge</button>
-            </div>
-          </div>
-        )
+    // --- VIEW 3: UNIFIED MODERN DASHBOARD ---
+  if (view === 'dashboard') {
+    const renderContent = () => {
+      if (role === 'consumer') {
+        switch (activeTab) {
+          case 'fleet':
+            return (
+              <FleetView
+                machines={machines}
+                notifications={notifications}
+                earningsStats={earningsStats}
+                chartData={chartData}
+                avgContinuity={avgContinuity}
+                setShowAddMachineModal={setShowAddMachineModal}
+                onDecommission={handleDeleteMachine}
+              />
+            );
+          case 'messages':
+            return (
+              <MessagesView
+                chats={chats}
+                activeChatId={activeChatId}
+                setActiveChatId={setActiveChatId}
+                chatHistory={messages}
+                onSendMessage={handleSendMessage}
+                currentUser={{ id: 'user', name: firstName }}
+              />
+            );
+          case 'history':
+            return (
+              <HistoryView
+                serviceHistory={transactionHistory}
+                onDownloadReport={handleDownloadReport}
+                onViewReport={(item) => { setSelectedReport(item); setShowReportModal(true); }}
+              />
+            );
+          case 'legacy':
+            return (
+              <LegacySearchView
+                results={legacyResults}
+                onSearch={handleLegacySearch}
+                onRequestSpecs={handleRequestSpecs}
+              />
+            );
+          case 'profile':
+            return (
+              <ProfileView
+                user={{ firstName, lastName, extraInfo, phone, taxId, userPhoto }}
+                isEditing={isEditingProfile}
+                setIsEditing={setIsEditingProfile}
+                onSave={handleSaveConsumerProfile}
+                onPhotoUpload={handlePhotoUpload}
+                onStartCamera={startCamera}
+                onDeleteIdentity={() => setShowDeleteModal(true)}
+              />
+            );
+          case 'help':
+            return <SupportView onSubmitTicket={handleSubmitSupportTicket} />;
+          case 'settings':
+            return (
+              <SettingsView
+                is2FA={isTwoFactorEnabled}
+                set2FA={setIsTwoFactorEnabled}
+                visibility={profileVisibility}
+                setVisibility={setProfileVisibility}
+                onDeleteAccount={() => setShowDeleteModal(true)}
+              />
+            );
+          default:
+            return <FleetView machines={machines} notifications={notifications} earningsStats={earningsStats} chartData={chartData} avgContinuity={avgContinuity} setShowAddMachineModal={setShowAddMachineModal} onDecommission={handleDeleteMachine} />;
         }
+      } else {
+        // Producer views
+        switch (activeTab) {
+          case 'requests':
+            return (
+              <ProducerDashboard
+                stats={producerDashStats}
+                radarJobs={radarJobs}
+                user={{ firstName, lastName, photo: userPhoto, id: profileData.id }}
+                onAcceptJob={handleAcceptJob}
+                onViewDetails={() => {}}
+              />
+            );
+          case 'pro-messages':
+            return (
+                <MessagesView
+                  chats={producerChats}
+                  activeChatId={activeChatId}
+                  setActiveChatId={setActiveChatId}
+                  chatHistory={messages}
+                  onSendMessage={handleSendMessage}
+                  currentUser={{ id: 'expert', name: firstName }}
+                />
+              );
+          case 'earnings':
+          case 'history':
+            return (
+              <div className="space-y-12">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Revenue (INR)</p>
+                    <h3 className="text-4xl font-extrabold text-slate-900">₹{producerDashStats.earnings.toLocaleString()}</h3>
+                  </div>
+                  <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Jobs Completed</p>
+                    <h3 className="text-4xl font-extrabold text-slate-900">{producerDashStats.completedJobs}</h3>
+                  </div>
+                  <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Expert Rating</p>
+                    <h3 className="text-4xl font-extrabold text-slate-900">{producerDashStats.rating.toFixed(1)}/5.0</h3>
+                  </div>
+                </div>
+                <HistoryView serviceHistory={transactionHistory} onDownloadReport={handleDownloadReport} onViewReport={(item) => { setSelectedReport(item); setShowReportModal(true); }} />
+              </div>
+            );
+          case 'profile':
+              return (
+                <ProfileView
+                  user={{ 
+                    firstName: profileData.name ? profileData.name.split(' ')[0] : firstName, 
+                    lastName: profileData.name ? (profileData.name.split(' ')[1] || '') : lastName, 
+                    extraInfo: profileData.role, 
+                    phone: profileData.phone, 
+                    taxId: profileData.id, 
+                    userPhoto: userPhoto 
+                  }}
+                  isEditing={isEditingProfile}
+                  setIsEditing={setIsEditingProfile}
+                  onSave={handleSaveConsumerProfile}
+                  onPhotoUpload={handlePhotoUpload}
+                  onStartCamera={startCamera}
+                  onDeleteIdentity={() => setShowDeleteModal(true)}
+                  isProducer={true}
+                />
+              );
+          case 'help':
+          case 'support':
+              return <SupportView onSubmitTicket={handleSubmitSupportTicket} />;
+          case 'platform-settings':
+          case 'settings':
+              return (
+                <SettingsView
+                  is2FA={isTwoFactorEnabled}
+                  set2FA={setIsTwoFactorEnabled}
+                  visibility={profileVisibility}
+                  setVisibility={setProfileVisibility}
+                  onDeleteAccount={() => setShowDeleteModal(true)}
+                />
+              );
+          default:
+            return <ProducerDashboard stats={producerDashStats} radarJobs={radarJobs} user={{ firstName, lastName, photo: userPhoto, id: profileData.id }} onAcceptJob={handleAcceptJob} />;
+        }
+      }
+    };
 
+    return (
+      <DashboardLayout
+        role={role}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        user={{ firstName, lastName, photo: userPhoto, email }}
+        notifications={notifications}
+        onLogout={handleLogout}
+        onClearNotifs={handleClearNotifs}
+      >
+        <div className="animate-fade-in">
+          {renderContent()}
+        </div>
         {sharedModals}
-      </div >
+      </DashboardLayout>
     );
   }
-  // End of modal logic
-
 
   // --- RETURN: LOGIN / SIGNUP / LANDING VIEW ---
   return (

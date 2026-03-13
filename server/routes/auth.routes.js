@@ -12,17 +12,18 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 router.get('/google/callback',
     (req, res, next) => {
         console.log('[Route] /auth/google/callback hit');
+        const clientUrl = process.env.CLIENT_URL || 'http://localhost:5176';
         passport.authenticate('google', {
             session: true,
-            failureRedirect: 'http://localhost:5173/login?error=google_auth_failed'
+            failureRedirect: `${clientUrl}/login?error=google_auth_failed`
         }, (err, user, info) => {
             if (err) {
                 console.error('[Route] Google callback error:', err);
-                return res.redirect('http://localhost:5173/login?error=google_auth_failed');
+                return res.redirect(`${clientUrl}/login?error=google_auth_failed`);
             }
             if (!user) {
                 console.error('[Route] Google callback: No user');
-                return res.redirect('http://localhost:5173/login?error=google_auth_failed');
+                return res.redirect(`${clientUrl}/login?error=google_auth_failed`);
             }
             req.user = user;
             next();

@@ -108,4 +108,17 @@ router.patch('/payments/release/:id', paymentController.releasePayment);
 // Dashboard metrics (revenue, commission, escrow)
 router.get('/dashboard/metrics', paymentController.getMetrics);
 
+// ────────────── Analytics ──────────────
+router.get('/analytics/job-distribution', async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT status, COUNT(*) AS count FROM service_requests GROUP BY status`
+        );
+        res.json({ categories: rows });
+    } catch (err) {
+        console.error('Job distribution error:', err);
+        res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+});
+
 export default router;

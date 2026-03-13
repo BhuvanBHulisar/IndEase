@@ -19,13 +19,14 @@ import machineRoutes from './routes/machineRoutes.js';
 import { saveMessage } from './controllers/chatController.js';
 import adminRouter from './routes/admin.js';
 import notificationsRoutes from './routes/notifications.routes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 
 const app = express();
 const server = createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:5173", "http://localhost:5174"],
+        origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5176"],
         methods: ['GET', 'POST']
     }
 });
@@ -36,7 +37,7 @@ global.io = io; // For controllers to access without req object
 // 1. GLOBAL MIDDLEWARE
 app.use(helmet());
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5176"],
     credentials: true
 }));
 app.use(morgan('dev'));
@@ -66,8 +67,11 @@ app.use('/api/machines', machineRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/admin', adminRouter);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin/notifications', notificationsRoutes);
+app.use('/api/analytics', adminRouter); // For /api/analytics/job-distribution
+app.use('/api/admin', adminRouter);
+app.use('/api/reviews', reviewRoutes);
 
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok' });

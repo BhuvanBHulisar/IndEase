@@ -22,28 +22,28 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: var(--bg-input);
+    background: #f8fafc;
     color: #94a3b8;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
     font-size: 0.9rem;
-    border: 2px solid var(--border-color);
+    border: 2px solid #cbd5e1;
     transition: all 0.3s ease;
 }
 
 .step-item.active .step-circle {
-    background: var(--navy-primary);
+    background: #2563eb;
     color: white;
-    border-color: var(--navy-primary);
-    box-shadow: 0 4px 10px rgba(30, 90, 153, 0.2);
+    border-color: #2563eb;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
 }
 
 .producer-theme .step-item.active .step-circle {
-    background: var(--amber-gold);
-    color: var(--navy-dark);
-    border-color: var(--amber-gold);
+    background: #f59e0b;
+    color: #0f172a;
+    border-color: #f59e0b;
 }
 
 .step-label {
@@ -54,7 +54,7 @@
 }
 
 .step-item.active .step-label {
-    color: var(--navy-dark);
+    color: #0f172a;
 }
 
 .step-line {
@@ -70,11 +70,11 @@
 }
 
 .step-line.filled {
-    background: var(--navy-primary);
+    background: #2563eb;
 }
 
 .producer-theme .step-line.filled {
-    background: var(--amber-gold);
+    background: #f59e0b;
 }
 
 /* Modern Input Fields */
@@ -128,8 +128,8 @@
 
 .input-field-modern input:focus {
     background: white;
-    border-color: var(--navy-primary);
-    box-shadow: 0 0 0 3px rgba(30, 90, 153, 0.1);
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
     outline: none;
 }
 
@@ -169,7 +169,7 @@
     border: 2px solid #e2e8f0;
     background: white;
     font-weight: 700;
-    color: var(--navy-primary);
+    color: #2563eb;
 }
 
 .producer-theme .otp-input-box-enhanced {
@@ -177,7 +177,7 @@
 }
 
 .otp-input-box-enhanced:focus {
-    border-color: var(--navy-primary);
+    border-color: #2563eb;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
     outline: none;
 }
@@ -195,7 +195,7 @@
 .btn-text-only {
     background: none;
     border: none;
-    color: var(--navy-primary);
+    color: #2563eb;
     font-weight: 700;
     cursor: pointer;
     text-decoration: underline;

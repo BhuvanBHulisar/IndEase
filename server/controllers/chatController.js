@@ -4,6 +4,12 @@ import db from '../config/db.js';
 // @route   GET /api/chat/:requestId
 export const getChatHistory = async (req, res) => {
     const requestId = req.params.requestId;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidRegex.test(requestId)) {
+        console.log('[Chat] Skipping DB retrieval for mock/invalid UUID:', requestId);
+        return res.json([]);
+    }
 
     try {
         // 1. Check if user is part of this request (Consumer or assigned Producer)
