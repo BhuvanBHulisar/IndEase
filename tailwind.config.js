@@ -7,6 +7,8 @@ export default {
   theme: {
     extend: {
       colors: {
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
         primary: {
           DEFAULT: '#2563EB',
           foreground: '#FFFFFF',
@@ -15,16 +17,15 @@ export default {
           DEFAULT: '#22C55E',
           foreground: '#FFFFFF',
         },
-        background: '#F8FAFC',
         card: {
-          DEFAULT: '#FFFFFF',
-          foreground: '#0F172A',
+          DEFAULT: 'var(--bg-surface)',
+          foreground: 'var(--text-primary)',
         },
         muted: {
-          DEFAULT: '#F1F5F9',
-          foreground: '#64748B',
+          DEFAULT: 'var(--bg-elevated)',
+          foreground: 'var(--text-secondary)',
         },
-        border: '#E2E8F0',
+        border: 'var(--border)',
       },
       borderRadius: {
         xl: '0.75rem',

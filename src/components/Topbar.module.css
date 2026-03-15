@@ -1,0 +1,95 @@
+.topbar {
+  height: 64px;
+  background: #0B1220;
+  border-bottom: 1px solid #1F2937;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-search {
+  position: relative;
+  width: 320px;
+}
+.topbar-search-input {
+  width: 100%;
+  background: #111827;
+  border: 1px solid #1F2937;
+  border-radius: 10px;
+  padding: 10px 16px 10px 40px;
+  color: #E5E7EB;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.topbar-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.topbar-bell-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.topbar-bell-btn:hover {
+  background: rgba(255,255,255,0.04);
+}
+.topbar-bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #0B1220;
+}
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.topbar-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+.topbar-user-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #E5E7EB;
+}

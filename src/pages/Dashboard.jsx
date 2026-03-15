@@ -4,6 +4,8 @@ import PageHeader from '../components/PageHeader';
 import StatsCards from '../components/StatsCards';
 import DashboardGrid from '../components/DashboardGrid';
 import QuickActions from '../components/QuickActions';
+import { Button } from '../components/ui/base';
+import { Plus } from 'lucide-react';
 
 const Dashboard = ({ activeTab, setActiveTab, user, notifications, onLogout, onClearNotifs, machines }) => (
   <AppLayout
@@ -15,34 +17,15 @@ const Dashboard = ({ activeTab, setActiveTab, user, notifications, onLogout, onC
     onClearNotifs={onClearNotifs}
   >
     <PageHeader
-      title="Fleet Overview"
-      subtitle="Track and manage your machines efficiently."
+      title="Fleet Node Matrix"
+      subtitle="Comprehensive diagnostic oversight of your active industrial assets."
       action={
-        <button
-          style={{
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-            color: '#fff',
-            borderRadius: 12,
-            padding: '10px 22px',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: 14,
-            cursor: 'pointer',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.3)';
-          }}
+        <Button
+          className="rounded-2xl h-14 px-8 bg-primary text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 border-none"
         >
-          + Add Machine
-        </button>
+          <Plus size={18} strokeWidth={3} />
+          Initialize Machine
+        </Button>
       }
     />
     <StatsCards machines={machines} />

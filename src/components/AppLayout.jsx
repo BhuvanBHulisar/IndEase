@@ -1,41 +1,37 @@
 import React from 'react';
-import Sidebar from '../components/Sidebar';
-import Topbar from '../components/Topbar';
+import Sidebar from './Sidebar';
+import Topbar from './Topbar';
+import { cn } from './ui/base';
 
-const AppLayout = ({ children, activeTab, setActiveTab, user, notifications, onLogout, onClearNotifs }) => (
-  <div
-    style={{
-      display: 'flex',
-      minHeight: '100vh',
-      fontFamily: 'Inter, system-ui, sans-serif',
-      background: '#f8fafc', // Light grey background like target design
-    }}
-  >
-    <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={onLogout} />
-    
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: 0,
-      }}
-    >
-      <Topbar user={user} notifications={notifications} onClearNotifs={onClearNotifs} />
+const AppLayout = ({ 
+  children, 
+  user, 
+  notifications, 
+  activeTab, 
+  setActiveTab, 
+  onLogout 
+}) => {
+  return (
+    <div className="flex min-h-screen bg-slate-50 font-sans selection:bg-blue-100 selection:text-blue-900">
+      {/* Sidebar Integration */}
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onLogout={onLogout} 
+      />
       
-      <main
-        style={{
-          flex: 1,
-          padding: '32px 48px', // Proper padding from target design
-          overflowY: 'auto',
-          maxWidth: '1200px', // Limit width for better reading
-          width: '100%',
-        }}
-      >
-        {children}
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        <Topbar user={user} notifications={notifications} />
+        
+        <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <div className="max-w-[1600px] mx-auto p-8 lg:p-12 w-full animate-fade-in">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default AppLayout;

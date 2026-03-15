@@ -1,339 +1,134 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, ChevronDown, Check, Trash2, X } from 'lucide-react';
+import { Search, Bell, ChevronDown, UserCircle, Command, Sparkles, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from './ui/base';
 
-const Topbar = ({ user, notifications = [], onClearNotifs, onMarkRead }) => {
-  const [showNotifs, setShowNotifs] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+const Topbar = ({ user, notifications = [] }) => {
+  const [showNotif, setShowNotif] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const notifRef = useRef(null);
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const firstName = user?.firstName || 'User';
+  const initial = firstName.charAt(0).toUpperCase();
 
-  const unreadCount = (notifications || []).filter(n => !n.read).length;
-
-  // Use actual user data from props
-  const displayName = user
-    ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'User'
-    : 'User';
-  const initials = user
-    ? `${(user.firstName || user.email || 'U')[0].toUpperCase()}${(user.lastName || '')[0]?.toUpperCase() || ''}`
-    : 'U';
-
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (notifRef.current && !notifRef.current.contains(event.target)) {
-        setShowNotifs(false);
-      }
+    const handleClick = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   return (
-    <header
-      className="dashboard-topbar"
-      style={{
-        height: '72px',
-        background: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 32px',
-        borderBottom: '1px solid #e2e8f0',
-        flexShrink: 0,
-        position: 'sticky',
-        top: 0,
-        zIndex: 40,
-      }}
-    >
-      {/* Search Bar */}
-      <div style={{ position: 'relative', width: '320px' }}>
-        <Search
-          size={18}
-          style={{
-            position: 'absolute',
-            left: '12px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: '#94a3b8',
-            pointerEvents: 'none',
-          }}
-        />
+    <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 flex items-center justify-between px-10 sticky top-0 z-[100]">
+      {/* Smart Search Bar */}
+      <div className="relative group w-full max-w-xl">
+        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+          <Search size={18} className={cn("transition-colors", isSearchFocused ? "text-[var(--primary)]" : "text-slate-400")} />
+        </div>
         <input
           type="text"
-          placeholder="Search..."
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '10px 16px 10px 40px',
-            borderRadius: '20px',
-            border: '1px solid #e2e8f0',
-            background: '#f8fafc',
-            fontSize: '14px',
-            outline: 'none',
-            color: '#0f172a',
-            transition: 'border-color 0.2s, box-shadow 0.2s',
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = '#2563eb';
-            e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.08)';
-            e.target.style.background = '#ffffff';
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = '#e2e8f0';
-            e.target.style.boxShadow = 'none';
-            e.target.style.background = '#f8fafc';
-          }}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
+          placeholder="Command center search... (Alt + K)"
+          className="w-full h-12 bg-slate-100/50 border border-slate-200/80 rounded-xl pl-12 pr-12 text-slate-900 font-bold text-sm focus:bg-white focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary)]/5 transition-all outline-none placeholder:text-slate-400 placeholder:font-medium"
         />
+        <div className="absolute inset-y-0 right-4 flex items-center gap-1.5 pointer-events-none">
+           <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm">
+             <Command size={10} className="text-slate-400" />
+             <span className="text-[10px] font-black text-slate-500">K</span>
+           </div>
+        </div>
       </div>
 
-      {/* Right Section */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-        {/* Notification Bell */}
-        <div style={{ position: 'relative' }} ref={notifRef}>
+      {/* Action Cluster */}
+      <div className="flex items-center gap-4">
+        {/* Support Sparkle */}
+        <button className="hidden lg:flex items-center gap-2 px-4 py-2 bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--accent-light)] rounded-xl hover:bg-emerald-100 transition-all group">
+           <Sparkles size={14} className="group-hover:rotate-12 transition-transform" />
+           <span className="text-[10px] font-black uppercase tracking-widest">Priority Assist</span>
+        </button>
+
+        <div className="w-px h-8 bg-slate-200 mx-2 hidden md:block" />
+
+        {/* Notifications Dropdown */}
+        <div ref={notifRef} className="relative">
           <button
-            onClick={() => setShowNotifs(!showNotifs)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              padding: '8px',
-              borderRadius: '8px',
-              transition: 'background 0.2s',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+            onClick={() => setShowNotif(!showNotif)}
+            className={cn(
+              "w-12 h-12 flex items-center justify-center rounded-xl transition-all relative group",
+              showNotif ? "bg-[var(--primary)] text-white shadow-xl shadow-[var(--primary)]/20" : "bg-slate-50 border border-slate-200 hover:bg-slate-100"
+            )}
           >
-            <Bell size={20} color="#64748b" />
+            <Bell size={20} strokeWidth={showNotif ? 2.5 : 2} className={cn("transition-colors", showNotif ? "text-white" : "text-slate-500 group-hover:text-[var(--primary)]")} />
             {unreadCount > 0 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '4px',
-                  right: '4px',
-                  minWidth: '18px',
-                  height: '18px',
-                  borderRadius: '9px',
-                  background: '#ef4444',
-                  color: '#fff',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 4px',
-                  border: '2px solid #fff',
-                }}
-              >
-                {unreadCount > 9 ? '9+' : unreadCount}
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--danger)] text-white text-[10px] font-black rounded-lg flex items-center justify-center border-2 border-white shadow-sm">
+                {unreadCount}
               </span>
             )}
           </button>
 
-          {/* Notifications Dropdown */}
-          {showNotifs && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                marginTop: '8px',
-                width: '380px',
-                background: '#ffffff',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.12)',
-                zIndex: 100,
-                overflow: 'hidden',
-                animation: 'fadeInUp 0.2s ease',
-              }}
-            >
-              {/* Header */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '16px 20px',
-                borderBottom: '1px solid #f1f5f9',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
-                    Notifications
-                  </h4>
-                  {unreadCount > 0 && (
-                    <span style={{
-                      background: '#eff6ff',
-                      color: '#2563eb',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                    }}>
-                      {unreadCount} new
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {notifications.length > 0 && (
-                    <button
-                      onClick={() => { onClearNotifs && onClearNotifs(); }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: '#ef4444',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Trash2 size={14} /> Clear All
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setShowNotifs(false)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                    }}
-                  >
-                    <X size={16} color="#94a3b8" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Notification List */}
-              <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
-                {notifications.length === 0 ? (
-                  <div style={{
-                    padding: '40px 20px',
-                    textAlign: 'center',
-                    color: '#94a3b8',
-                  }}>
-                    <Bell size={32} color="#cbd5e1" style={{ marginBottom: '12px' }} />
-                    <p style={{ fontSize: '14px', fontWeight: 500, margin: 0 }}>
-                      No notifications yet
-                    </p>
-                    <p style={{ fontSize: '12px', margin: '4px 0 0', color: '#cbd5e1' }}>
-                      You're all caught up!
-                    </p>
-                  </div>
-                ) : (
-                  notifications.slice(0, 10).map((notif) => {
-                    const typeColors = {
-                      critical: { bg: '#fef2f2', icon: '🔴', border: '#fecaca' },
-                      warning: { bg: '#fffbeb', icon: '🟡', border: '#fed7aa' },
-                      success: { bg: '#ecfdf5', icon: '🟢', border: '#bbf7d0' },
-                      info: { bg: '#eff6ff', icon: '🔵', border: '#bfdbfe' },
-                      system: { bg: '#f8fafc', icon: '⚙️', border: '#e2e8f0' },
-                    };
-                    const tc = typeColors[notif.type] || typeColors.info;
-
-                    return (
-                      <div
-                        key={notif.id}
-                        onClick={() => onMarkRead && onMarkRead(notif.id)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '12px',
-                          padding: '14px 20px',
-                          borderBottom: '1px solid #f8fafc',
-                          cursor: 'pointer',
-                          background: notif.read ? '#fff' : '#f8fafc',
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = notif.read ? '#fff' : '#f8fafc'}
-                      >
-                        <div style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '10px',
-                          background: tc.bg,
-                          border: `1px solid ${tc.border}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '14px',
-                          flexShrink: 0,
-                        }}>
-                          {tc.icon}
+          <AnimatePresence>
+            {showNotif && (
+              <motion.div 
+                initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                className="absolute right-0 mt-4 w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black/5"
+              >
+                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">System Alerts</h3>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-black text-[var(--primary)] bg-[var(--accent-soft)] px-3 py-1 rounded-lg border border-[var(--accent-light)]">{unreadCount} Active</span>
+                    </div>
+                 </div>
+                 
+                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                    {notifications.length > 0 ? (
+                      notifications.map((n, i) => (
+                        <div key={i} className="px-6 py-5 border-b border-slate-50 hover:bg-slate-50/80 transition-all cursor-pointer group flex gap-4">
+                           <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] flex items-center justify-center shrink-0">
+                              <AlertCircle size={18} className="text-[var(--primary)]" />
+                           </div>
+                           <div className="flex flex-col gap-1 flex-1">
+                              <p className="text-sm text-slate-700 font-bold group-hover:text-slate-900 transition-colors leading-tight">{n.message}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{n.time || 'A moment ago'}</p>
+                           </div>
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{
-                            margin: 0,
-                            fontSize: '13px',
-                            fontWeight: notif.read ? 500 : 600,
-                            color: '#1e293b',
-                            lineHeight: 1.4,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {notif.msg}
-                          </p>
-                          <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>
-                            {notif.time}
-                          </span>
-                        </div>
-                        {!notif.read && (
-                          <div style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: '#2563eb',
-                            flexShrink: 0,
-                            marginTop: '6px',
-                          }} />
-                        )}
+                      ))
+                    ) : (
+                      <div className="p-16 text-center">
+                         <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <Bell className="text-slate-200" size={32} />
+                         </div>
+                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No Active Alerts</p>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
+                    )}
+                 </div>
+                 
+                 <button className="w-full py-4 bg-white hover:bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest transition-all border-t border-slate-100">
+                    Enter Alert Management Terminal
+                 </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* User Avatar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            cursor: 'pointer',
-          }}
-        >
-          <div
-            style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #2563eb, #1e40af)',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '13px',
-              fontWeight: 700,
-              letterSpacing: '0.02em',
-            }}
-          >
-            {initials}
+        {/* User Identity Segment */}
+        <div className="flex items-center gap-3 pl-4 border-l border-slate-200 ml-2 group cursor-pointer">
+          <div className="relative">
+             <div className="w-12 h-12 rounded-xl bg-[var(--primary)] flex items-center justify-center text-white font-black text-xs shadow-lg shadow-[var(--primary)]/20 group-hover:scale-105 transition-transform">
+               {initial}
+             </div>
+             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[var(--success)] border-2 border-white rounded-full" />
           </div>
-          <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-            {displayName}
-          </span>
-          <ChevronDown size={16} color="#64748b" />
+          <div className="hidden xl:flex flex-col">
+            <div className="flex items-center gap-1.5">
+               <span className="text-sm font-black text-slate-900 leading-none">{firstName}</span>
+               <ChevronDown size={12} className="text-slate-400 group-hover:text-slate-900 transition-colors" />
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Super User</span>
+          </div>
         </div>
       </div>
     </header>

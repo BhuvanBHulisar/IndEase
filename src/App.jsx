@@ -1,35 +1,70 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
+// Helper component for reports
+function ReportField({ label, value }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+      <p className="text-sm font-black text-slate-900 tracking-tight">{value}</p>
+    </div>
+  );
+}
+
 // Simple popup modal for feedback
 function PopupModal({ title = 'Support Ticket Submitted', message, onClose }) {
   return (
-    <div className="modal-overlay" style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(1px)' }}>
-      <div className="confirm-modal animate-fade" style={{ width: '350px', textAlign: 'center', padding: '35px', background: 'white', borderRadius: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-        <div style={{ width: '70px', height: '70px', background: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-          <span style={{ fontSize: '2.5rem', color: '#10b981' }}>✓</span>
+    <div className="modal-overlay">
+      <div className="premium-modal animate-fade-in" style={{ maxWidth: '400px' }}>
+        <div className="p-10 text-center space-y-6">
+           <div className="w-20 h-20 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-sm">
+              <CheckCircle className="w-10 h-10 text-[var(--success)]" strokeWidth={3} />
+           </div>
+           <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">{title}</h3>
+              <p className="text-slate-500 font-medium text-sm leading-relaxed">{message}</p>
+           </div>
+           <button 
+              className="main-action-btn h-12 rounded-xl text-[10px]" 
+              onClick={onClose}
+           >
+              Acknowledge
+           </button>
         </div>
-        <h3 style={{ color: 'var(--navy-dark)', marginBottom: '10px', fontSize: '1.3rem', fontWeight: '800' }}>{title}</h3>
-        <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>{message}</p>
-        <button className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: '700', borderRadius: '10px' }} onClick={onClose}>OK</button>
       </div>
     </div>
   );
 }
 import { GoogleLogin } from '@react-oauth/google';
 
-// Material UI
+// Material-style icons from Lucide
 import {
-  LocationOn as LocationIcon,
-  Email as EmailIcon,
-  LocalPhone as PhoneIcon,
-  Verified as VerifiedIcon,
-  Assignment as AssignmentIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-  Close as CloseIcon,
+  MapPin as LocationIcon,
+  Mail as EmailIcon,
+  Phone as PhoneIcon,
+  ShieldCheck as VerifiedIcon,
+  ClipboardList as AssignmentIcon,
+  CheckCircle2 as CheckCircleIcon,
+  XCircle as CancelIcon,
+  X as CloseIcon,
   Info as InfoIcon,
-  GetApp as DownloadIcon
-} from '@mui/icons-material';
+  Download as DownloadIcon,
+  ChevronRight,
+  Shield,
+  Zap,
+  Globe,
+  Settings,
+  Cpu,
+  Fingerprint,
+  HardDrive,
+  Trash2,
+  AlertCircle,
+  Play,
+  FileText,
+  CreditCard,
+  Lock,
+  ArrowRight,
+  CheckCircle,
+} from 'lucide-react';
 
 // Modern SaaS Dashboard Components
 import DashboardLayout from './layouts/DashboardLayout';
@@ -41,7 +76,7 @@ import ProfileView from './components/ProfileView';
 import { SupportView, SettingsView } from './components/SupportSettingsView';
 import ProducerDashboard from './components/ProducerDashboard';
 
-import api from './api';
+import api from './services/api';
 import { io } from 'socket.io-client';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import './App.css';
@@ -1859,44 +1894,97 @@ www.originode.com
     ? email.includes('@')
     : (email.includes('@') && password.length >= 8);
 
-  // VIEW 1: ANIMATED SPLASH SCREEN
+  // VIEW 1: PROFESSIONAL LANDING PAGE
   if (view === 'landing') {
     return (
-      <div className="app">
-        <header className="app-header">
-          <div className="branding-section">
-            <h1 className="app-name">origiNode</h1>
-            <p className="tagline">tracing the source to keep your business moving</p>
-          </div>
+      <div className="landing-page">
+        <div className="landing-grid-bg" />
+        <div className="landing-gradient" />
+        
+        <nav className="landing-nav">
+           <div className="landing-logo">origiNode</div>
+           <div className="flex items-center gap-8">
+              <button 
+                className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors"
+                onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(true); }}
+              >
+                Log In
+              </button>
+              <button 
+                className="h-11 px-8 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-900/10"
+                onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(false); }}
+              >
+                Get Started
+              </button>
+           </div>
+        </nav>
 
-          <div className="auth-portal">
-            <div className="auth-card">
-              <h2>Machine Owner</h2>
-              <p>Find original owners or expert repair services.</p>
-              <div className="btn-group">
-                <button className="btn btn-primary" onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(true); setSignupStep(1); }}>
-                  Consumer Login
-                </button>
-                <button className="btn btn-outline" onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(false); setSignupStep(1); }}>
-                  Create Account
-                </button>
+        <main className="hero-section">
+           <div className="hero-content">
+              <div className="hero-pill">
+                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />
+                 Specialist Network v4.2 Live
               </div>
-            </div>
+              <h1 className="hero-title">Industrial Intelligence.</h1>
+              <p className="hero-subtitle">
+                 Synchronizing machine nodes with a global expert ecosystem. Management, maintenance, and telemetric signals for modern infrastructure.
+              </p>
+           </div>
 
-            <div className="auth-card">
-              <h2>Repair Expert</h2>
-              <p>Connect with industries and provide repair support.</p>
-              <div className="btn-group">
-                <button className="btn btn-secondary" onClick={() => { setView('auth'); setRole('producer'); setIsLogin(true); setSignupStep(1); }}>
-                  Producer Login
-                </button>
-                <button className="btn btn-outline" onClick={() => { setView('auth'); setRole('producer'); setIsLogin(false); setSignupStep(1); }}>
-                  Join as Expert
-                </button>
+           <div className="role-platforms">
+              <div className="role-card group">
+                 <div className="role-icon-wrap">
+                    <Cpu size={28} strokeWidth={2.5} />
+                 </div>
+                 <span className="role-tag">Management Module</span>
+                 <h2 className="role-name">Fleet Operator</h2>
+                 <p className="role-desc">
+                    Register industrial assets, track maintenance cycles, and query verified experts through the origiNode mesh.
+                 </p>
+                 <div className="flex flex-col gap-4">
+                    <button 
+                      className="main-action-btn"
+                      onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(true); setSignupStep(1); }}
+                    >
+                      Enter Operator Portal
+                      <ArrowRight size={16} strokeWidth={3} />
+                    </button>
+                    <button 
+                      className="secondary-action-btn"
+                      onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(false); setSignupStep(1); }}
+                    >
+                      Provision Workspace
+                    </button>
+                 </div>
               </div>
-            </div>
-          </div>
-        </header>
+
+              <div className="role-card group">
+                 <div className="role-icon-wrap">
+                    <Shield size={28} strokeWidth={2.5} />
+                 </div>
+                 <span className="role-tag">Partner Network</span>
+                 <h2 className="role-name">Service Expert</h2>
+                 <p className="role-desc">
+                    Resolve high-fidelity service requests, manage technical dispatches, and scale your industrial repair firm.
+                 </p>
+                 <div className="flex flex-col gap-4">
+                    <button 
+                      className="main-action-btn bg-[var(--primary)] hover:bg-blue-700 shadow-blue-500/10"
+                      onClick={() => { setView('auth'); setRole('producer'); setIsLogin(true); setSignupStep(1); }}
+                    >
+                      Access Service Terminal
+                      <ArrowRight size={16} strokeWidth={3} />
+                    </button>
+                    <button 
+                      className="secondary-action-btn"
+                      onClick={() => { setView('auth'); setRole('producer'); setIsLogin(false); setSignupStep(1); }}
+                    >
+                      Join Provider Program
+                    </button>
+                 </div>
+              </div>
+           </div>
+        </main>
       </div>
     );
   }
@@ -1906,101 +1994,110 @@ www.originode.com
     <>
       {showCheckoutModal && checkoutDetails && (
         <div className="modal-overlay">
-          <div className="confirm-modal checkout-modal animate-fade-in-up">
-            <div className="checkout-header">
-              <div className="icon-wrap">💳</div>
-              <h3 style={{ margin: 0, fontSize: '1.5rem' }}>Secure Checkout</h3>
-              <p style={{ margin: '5px 0 0', opacity: 0.8, fontSize: '0.9rem' }}>Review your service transaction</p>
+          <div className="premium-modal" style={{ maxWidth: '480px' }}>
+            <div className="modal-header-premium border-b border-slate-50">
+               <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center mb-8 shadow-xl">
+                  <CreditCard size={24} strokeWidth={2.5} />
+               </div>
+               <h3 className="text-3xl font-black text-slate-900 tracking-tight">Secure Checkout</h3>
+               <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">Protocol Version 4.02 // Encrypted</p>
+               <button className="modal-close-btn" onClick={() => setShowCheckoutModal(false)}>
+                  <CloseIcon fontSize="small" />
+               </button>
             </div>
-            <div className="checkout-body">
-              <div className="checkout-summary-item">
-                <span style={{ color: '#64748b' }}>Service Price</span>
-                <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.providerPrice}</strong>
-              </div>
-              <div className="checkout-summary-item">
-                <span style={{ color: '#64748b' }}>Platform Service Fee ({checkoutDetails.commissionPercentage}%)</span>
-                <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.commission}</strong>
-              </div>
-              <div className="checkout-summary-item">
-                <span style={{ color: '#64748b' }}>Tax (GST 18%)</span>
-                <strong style={{ color: 'var(--navy-dark)' }}>₹{checkoutDetails.gst}</strong>
-              </div>
+            
+            <div className="modal-body-premium pt-10 space-y-8">
+               <div className="space-y-4">
+                  {[
+                    { label: "Dispatch Value", value: `₹${checkoutDetails.providerPrice}` },
+                    { label: "Network Service Fee", value: `₹${checkoutDetails.commission}` },
+                    { label: "Government Levy (GST)", value: `₹${checkoutDetails.gst}` }
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center justify-between pb-4 border-b border-slate-50 last:border-0 last:pb-0">
+                       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</span>
+                       <strong className="text-sm font-black text-slate-900">{item.value}</strong>
+                    </div>
+                  ))}
+               </div>
 
-              <div className="checkout-summary-item total">
-                <span>Total Amount Due</span>
-                <span style={{ color: 'var(--navy-primary)' }}>₹{checkoutDetails.totalPayable}</span>
-              </div>
+               <div className="p-8 bg-slate-50 rounded-[1.5rem] flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Total Settle</span>
+                  <span className="text-2xl font-black text-[var(--primary)]">₹{checkoutDetails.totalPayable}</span>
+               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '30px' }}>
-                <button className="btn btn-outline-dark" style={{ padding: '12px' }} onClick={() => setShowCheckoutModal(false)}>Keep Chatting</button>
-                <button className="btn btn-primary" style={{ padding: '12px', background: 'var(--sage-green)', color: 'white' }} onClick={initiateRazorpayCheckout}>Confirm & Pay</button>
-              </div>
+               <div className="grid grid-cols-2 gap-4 pt-4">
+                  <button className="secondary-action-btn h-14 rounded-2xl" onClick={() => setShowCheckoutModal(false)}>Cancel</button>
+                  <button className="main-action-btn h-14 rounded-2xl bg-[var(--primary)]" onClick={initiateRazorpayCheckout}>Execute Pay</button>
+               </div>
 
-              <div className="secure-badge">
-                <span style={{ fontSize: '1.2rem' }}>🔒</span>
-                SSL SECURE & ENCRYPTED PAYMENTS
-              </div>
+               <div className="flex items-center justify-center gap-3 py-4 opacity-40">
+                  <Lock size={12} strokeWidth={3} className="text-slate-400" />
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Z-Trust Secure Sockets Established</span>
+               </div>
             </div>
           </div>
         </div>
       )}
+
       {showAddMachineModal && (
         <div className="modal-overlay">
-          <div className="diagnosis-modal" style={{ maxWidth: '500px' }}>
-            <div className="modal-header-v2">
-              <h3>Register Industrial Node</h3>
-              <button className="btn-icon-label" onClick={() => setShowAddMachineModal(false)}>Close</button>
+          <div className="premium-modal" style={{ maxWidth: '520px' }}>
+            <div className="modal-header-premium">
+               <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-8 shadow-sm">
+                  <HardDrive size={24} strokeWidth={2.5} className="text-[var(--primary)]" />
+               </div>
+               <h3 className="modal-title">Register Node</h3>
+               <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">Initialize New Industrial Asset</p>
+               <button className="modal-close-btn" onClick={() => setShowAddMachineModal(false)}>
+                  <CloseIcon fontSize="small" />
+               </button>
             </div>
-            <div className="modal-body-v2">
-              <div className="input-group" style={{ marginBottom: '15px' }}>
-                <label htmlFor="machine_name" style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Machine Name / ID</label>
-                <input id="machine_name" type="text" className="std-input" name="machine_name" placeholder="e.g. Hydraulic Press #99"
-                  value={newMachineData.name}
-                  onChange={(e) => setNewMachineData({ ...newMachineData, name: e.target.value })}
-                  style={{ width: '100%', padding: '10px' }} />
-              </div>
-              <div className="input-group" style={{ marginBottom: '15px' }}>
-                <label htmlFor="machine_type" style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Machine Type</label>
-                <select id="machine_type" className="std-input" name="machine_type"
-                  value={newMachineData.machine_type}
-                  onChange={(e) => setNewMachineData({ ...newMachineData, machine_type: e.target.value })}
-                  style={{ width: '100%', padding: '10px' }}>
-                  <option value="">Select Type</option>
-                  <option value="Hydraulic Press">Hydraulic Press</option>
-                  <option value="CNC Concentric">CNC Concentric</option>
-                  <option value="Industrial Loom">Industrial Loom</option>
-                  <option value="Generator">Generator</option>
-                </select>
-              </div>
-              <div className="input-group" style={{ marginBottom: '15px' }}>
-                <label htmlFor="oem" style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Original Maker (OEM)</label>
-                <input id="oem" type="text" className="std-input" name="oem" placeholder="e.g. Hydra-Tech Germany"
-                  value={newMachineData.oem}
-                  onChange={(e) => setNewMachineData({ ...newMachineData, oem: e.target.value })}
-                  style={{ width: '100%', padding: '10px' }} />
-              </div>
-              <div className="input-group" style={{ marginBottom: '20px' }}>
-                <label htmlFor="model_year" style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Model Year</label>
-                <input id="model_year" type="number" className="std-input" name="model_year" placeholder="e.g. 1985"
-                  value={newMachineData.model_year}
-                  onChange={(e) => setNewMachineData({ ...newMachineData, model_year: e.target.value })}
-                  style={{ width: '100%', padding: '10px' }} />
-              </div>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleAddMachine}>Register Node</button>
-            </div>
-          </div>
-        </div>
-      )}
+            
+            <div className="modal-body-premium space-y-8">
+               <div className="input-field-modern mb-0">
+                  <label>Machine Identifier</label>
+                  <input 
+                    type="text" placeholder="e.g. Hydraulic Press #99"
+                    value={newMachineData.name}
+                    onChange={(e) => setNewMachineData({ ...newMachineData, name: e.target.value })}
+                  />
+               </div>
 
-      {showCamera && (
-        <div className="modal-overlay">
-          <div className="camera-modal">
-            <h3>Capture Selfie</h3>
-            <video ref={videoRef} autoPlay playsInline className="camera-stream"></video>
-            <canvas ref={canvasRef} width="400" height="300" style={{ display: 'none' }}></canvas>
-            <div className="modal-actions">
-              <button className="btn btn-outline-dark" onClick={stopCamera}>Cancel</button>
-              <button className="btn btn-primary" onClick={capturePhoto}>Capture Frame</button>
+               <div className="grid grid-cols-2 gap-6">
+                  <div className="input-field-modern mb-0">
+                    <label>Module Category</label>
+                    <select 
+                      className="w-full h-[52px] px-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-900 focus:bg-white focus:border-[var(--primary)] outline-none transition-all appearance-none"
+                      value={newMachineData.machine_type}
+                      onChange={(e) => setNewMachineData({ ...newMachineData, machine_type: e.target.value })}
+                    >
+                      <option value="">Select Type</option>
+                      <option value="Hydraulic Press">Hydraulic Press</option>
+                      <option value="CNC Concentric">CNC Concentric</option>
+                      <option value="Industrial Loom">Industrial Loom</option>
+                      <option value="Generator">Generator</option>
+                    </select>
+                  </div>
+                  <div className="input-field-modern mb-0">
+                    <label>Epoch / Year</label>
+                    <input 
+                      type="number" placeholder="2024"
+                      value={newMachineData.model_year}
+                      onChange={(e) => setNewMachineData({ ...newMachineData, model_year: e.target.value })}
+                    />
+                  </div>
+               </div>
+
+               <div className="input-field-modern mb-0">
+                  <label>OEM Source</label>
+                  <input 
+                    type="text" placeholder="e.g. Hydra-Tech Germany"
+                    value={newMachineData.oem}
+                    onChange={(e) => setNewMachineData({ ...newMachineData, oem: e.target.value })}
+                  />
+               </div>
+
+               <button className="main-action-btn h-14 rounded-2xl mt-4" onClick={handleAddMachine}>Activate Node</button>
             </div>
           </div>
         </div>
@@ -2008,15 +2105,21 @@ www.originode.com
 
       {showDeleteModal && (
         <div className="modal-overlay">
-          <div className="confirm-modal">
-            <div className="modal-header">
-              <div className="warning-icon">!</div>
-              <h3>Permanent Identity Deletion</h3>
-            </div>
-            <p>Are you certain? This will wipe all machine nodes and historical records associated with <strong>{email || 'admin@originode.com'}</strong>.</p>
-            <div className="modal-actions">
-              <button className="btn btn-outline-dark" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-              <button className="btn btn-danger" onClick={() => { setView('landing'); setShowDeleteModal(false); }}>Yes, Delete Permanently</button>
+          <div className="premium-modal" style={{ maxWidth: '440px' }}>
+            <div className="p-12 text-center space-y-8">
+               <div className="w-20 h-20 bg-red-50 border border-red-100 rounded-[1.5rem] flex items-center justify-center mx-auto shadow-sm">
+                  <Trash2 className="w-10 h-10 text-[var(--danger)]" strokeWidth={2.5} />
+               </div>
+               <div className="space-y-4">
+                  <h3 className="text-3xl font-black text-red-950 tracking-tight">Identity Purge</h3>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed">
+                    This will permanently wipe all machine nodes and historical records associated with <strong>{email}</strong>.
+                  </p>
+               </div>
+               <div className="space-y-4">
+                  <button className="main-action-btn h-14 rounded-2xl bg-[var(--danger)] text-white" onClick={() => { setView('landing'); setShowDeleteModal(false); }}>Yes, Execute Purge</button>
+                  <button className="secondary-action-btn h-14 border-none text-slate-400" onClick={() => setShowDeleteModal(false)}>Cancel Protocol</button>
+               </div>
             </div>
           </div>
         </div>
@@ -2024,15 +2127,21 @@ www.originode.com
 
       {nodeToDelete && (
         <div className="modal-overlay">
-          <div className="confirm-modal">
-            <div className="modal-header">
-              <div className="warning-icon">!</div>
-              <h3>Decommission Node?</h3>
-            </div>
-            <p>Are you sure you want to remove <strong>{nodeToDelete.name}</strong> from your industrial fleet? This action cannot be undone.</p>
-            <div className="modal-actions">
-              <button className="btn btn-outline-dark" onClick={() => setNodeToDelete(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={confirmNodeDeletion}>Yes, Decommission</button>
+          <div className="premium-modal" style={{ maxWidth: '440px' }}>
+            <div className="p-12 text-center space-y-8">
+               <div className="w-20 h-20 bg-[var(--warning)] border border-amber-100 rounded-[1.5rem] flex items-center justify-center mx-auto shadow-sm">
+                  <AlertCircle className="w-10 h-10 text-[var(--warning)]" strokeWidth={2.5} />
+               </div>
+               <div className="space-y-4">
+                  <h3 className="text-3xl font-black text-slate-900 tracking-tight">Decommission</h3>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed">
+                    Are you sure you want to remove <strong>{nodeToDelete.name}</strong> from your active fleet?
+                  </p>
+               </div>
+               <div className="space-y-4">
+                  <button className="main-action-btn h-14 rounded-2xl bg-slate-900" onClick={confirmNodeDeletion}>Confirm Removal</button>
+                  <button className="secondary-action-btn h-14 border-none text-slate-400" onClick={() => setNodeToDelete(null)}>Abor Protocol</button>
+               </div>
             </div>
           </div>
         </div>
@@ -2040,54 +2149,77 @@ www.originode.com
 
       {showDiagnosisModal && (
         <div className="modal-overlay">
-          <div className="diagnosis-modal">
-            <div className="modal-header-v2">
-              <h3>Smart Diagnosis Support</h3>
-              <button className="btn-icon-label" onClick={() => { setShowDiagnosisModal(false); setDiagnosisStep(1); setVideoFile(null); }}>Close</button>
+          <div className="premium-modal" style={{ maxWidth: '600px' }}>
+            <div className="modal-header-premium">
+               <div className="w-14 h-14 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center mb-8">
+                  <Cpu size={24} className="text-[var(--primary)]" strokeWidth={2.5} />
+               </div>
+               <h3 className="modal-title">Smart Signal Analysis</h3>
+               <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">AI Hub Diagnosis // Local Mesh</p>
+               <button className="modal-close-btn" onClick={() => { setShowDiagnosisModal(false); setDiagnosisStep(1); }}>
+                  <CloseIcon fontSize="small" />
+               </button>
             </div>
-            <div className="modal-body-v2">
-              {diagnosisStep === 1 && (
-                <div className="upload-step animate-fade">
-                  <p><strong>Step 1:</strong> Upload a video of the machine fault. clearly showing the sound or visual issue.</p>
-                  <div className="upload-zone" onClick={() => document.getElementById('video-input').click()}>
-                    <div className="upload-icon">📹</div>
-                    {videoFile ? <div className="upload-text" style={{ color: 'var(--sage-green)' }}>{videoFile.name} Selected</div> : <div className="upload-text">Click to Upload Video</div>}
-                    <p className="upload-hint">MP4, MOV supported (Max 50MB)</p>
-                    <input type="file" id="video-input" hidden accept="video/*" onChange={handleVideoSelect} />
-                  </div>
-                  <div style={{ marginTop: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--navy-dark)' }}>Describe the Issue</label>
-                    <textarea className="table-search" rows="3"
-                      placeholder={`Describe the issue with ${activeJobMachine?.name}...`}
-                      value={diagnosisDesc}
-                      onChange={(e) => setDiagnosisDesc(e.target.value)}
-                      style={{ width: '100%', resize: 'none' }}></textarea>
-                  </div>
-                  <button className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={handleBroadcastJob}>Broadcast to Network</button>
-                </div>
-              )}
-              {diagnosisStep === 2 && (
-                <div className="scanning-container animate-fade">
-                  <div className="scanner-ring"></div>
-                  <h3 style={{ color: 'var(--navy-dark)' }}>Broadcasting Signal...</h3>
-                  <p style={{ color: '#64748b' }}>Notifying verified experts in your vicinity.</p>
-                  <div className="progress-bar-bg" style={{ background: '#e2e8f0', height: '6px', borderRadius: '4px', marginTop: '20px', overflow: 'hidden' }}>
-                    <div className="progress-fill" style={{ width: `${analysisProgress}%`, background: 'var(--navy-primary)', height: '100%', transition: '0.4s' }}></div>
-                  </div>
-                </div>
-              )}
-              {diagnosisStep === 3 && (
-                <div className="results-step animate-fade">
-                  <h3 style={{ marginBottom: '15px', color: 'var(--navy-dark)' }}>Signal Broadcasted!</h3>
-                  <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>Your request for <strong>{activeJobMachine?.name}</strong> is now live on the industrial radar. Experts will review and bid shortly.</p>
+            
+            <div className="modal-body-premium space-y-10">
+               {diagnosisStep === 1 && (
+                 <div className="animate-fade-in space-y-8">
+                    <div 
+                      className="h-48 border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center gap-4 group hover:border-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all cursor-pointer overflow-hidden relative"
+                      onClick={() => document.getElementById('video-input').click()}
+                    >
+                       <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                          <Play size={20} className="text-[var(--primary)] ml-1" />
+                       </div>
+                       <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-[var(--primary)] transition-colors">
+                          {videoFile ? videoFile.name : "Upload Anomaly Stream"}
+                       </p>
+                       <input type="file" id="video-input" hidden accept="video/*" onChange={handleVideoSelect} />
+                    </div>
 
-                  <div style={{ background: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
-                    <span style={{ fontSize: '2rem' }}>📡</span>
-                    <h4 style={{ color: '#166534', margin: '10px 0' }}>Live on Radar</h4>
-                    <button className="btn btn-primary" onClick={() => setShowDiagnosisModal(false)}>Return to Dashboard</button>
-                  </div>
-                </div>
-              )}
+                    <div className="input-field-modern mb-0">
+                       <label>Anomaly Context</label>
+                       <textarea 
+                         rows="3"
+                         placeholder="Describe the noise, visual fault, or signal variance..."
+                         className="w-full p-6 rounded-2xl border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:bg-white focus:border-[var(--primary)] outline-none transition-all resize-none"
+                         value={diagnosisDesc}
+                         onChange={(e) => setDiagnosisDesc(e.target.value)}
+                       />
+                    </div>
+                    <button className="main-action-btn h-14 rounded-2xl" onClick={handleBroadcastJob}>Broadcast Dispatch</button>
+                 </div>
+               )}
+               
+               {diagnosisStep === 2 && (
+                 <div className="py-20 flex flex-col items-center justify-center space-y-10 animate-fade-in">
+                    <div className="relative">
+                       <div className="w-24 h-24 border-8 border-slate-100 border-t-blue-600 rounded-full animate-spin" />
+                       <div className="absolute inset-0 flex items-center justify-center">
+                          <Globe size={24} className="text-[var(--primary)] animate-pulse" />
+                       </div>
+                    </div>
+                    <div className="text-center space-y-3">
+                       <h4 className="text-2xl font-black text-slate-900 tracking-tight">Broadcasting Signal</h4>
+                       <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Scanning local expert nodes...</p>
+                    </div>
+                 </div>
+               )}
+
+               {diagnosisStep === 3 && (
+                 <div className="text-center py-10 space-y-10 animate-fade-in">
+                    <div className="w-24 h-24 bg-emerald-50 border border-emerald-100 rounded-[2rem] flex items-center justify-center mx-auto shadow-sm">
+                       <CheckCircle className="w-10 h-10 text-[var(--success)]" strokeWidth={3} />
+                    </div>
+                    <div className="space-y-4">
+                       <h4 className="text-3xl font-black text-slate-900 tracking-tight">Signal Latched</h4>
+                       <p className="text-slate-500 font-medium text-sm leading-relaxed max-w-xs mx-auto">
+                          Your request for <strong>{activeJobMachine?.name}</strong> is now live on the industrial radar.
+                       </p>
+                    </div>
+                    <button className="main-action-btn h-14 rounded-2xl bg-[var(--success)]" onClick={() => setShowDiagnosisModal(false)}>Return to Console</button>
+                 </div>
+               )}
             </div>
           </div>
         </div>
@@ -2095,31 +2227,42 @@ www.originode.com
 
       {showReportModal && selectedReport && (
         <div className="modal-overlay">
-          <div className="diagnosis-modal" style={{ width: '600px' }}>
-            <div className="modal-header-v2">
-              <h3>Service Report Details</h3>
-              <button className="btn-icon-label" onClick={() => setShowReportModal(false)}>Close</button>
+          <div className="premium-modal" style={{ maxWidth: '640px' }}>
+            <div className="modal-header-premium bg-slate-50">
+               <div className="flex items-center justify-between mb-8">
+                  <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm">
+                     <FileText size={28} className="text-slate-900" strokeWidth={2.5} />
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invoice Serial</p>
+                     <p className="text-xl font-black text-slate-900 tracking-tighter">INV-{2020 + selectedReport.id}</p>
+                  </div>
+               </div>
+               <h3 className="modal-title">Service Maintenance Log</h3>
+               <button className="modal-close-btn" onClick={() => setShowReportModal(false)}>
+                  <CloseIcon fontSize="small" />
+               </button>
             </div>
-            <div className="modal-body-v2">
-              <div style={{ textAlign: 'center', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px dashed #e2e8f0' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '10px' }}>📄</div>
-                <h2 style={{ margin: 0, color: 'var(--navy-dark)' }}>INV-{2020 + selectedReport.id}</h2>
-                <span className={`status-badge-pill ${selectedReport.status}`} style={{ display: 'inline-block', marginTop: '10px' }}>{selectedReport.status.toUpperCase()}</span>
-              </div>
-              <div className="report-details-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>SERVICE DATE</label><strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.date}</strong></div>
-                <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>MACHINE ID</label><strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.machine}</strong></div>
-                <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>SERVICE PROVIDER</label><strong style={{ color: 'var(--navy-dark)' }}>{selectedReport.expert}</strong></div>
-                <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>TOTAL COST</label><strong style={{ color: 'var(--navy-dark)', fontSize: '1.2rem' }}>{selectedReport.cost}</strong></div>
-              </div>
-              <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>SERVICE ACTION PERFORMED</label>
-                <p style={{ margin: 0, color: '#334155', lineHeight: '1.5' }}>{selectedReport.action}. System diagnostics were run post-service to ensure compliance with operational safety standards.</p>
-              </div>
-              <div style={{ marginTop: '25px', display: 'flex', gap: '10px' }}>
-                <button className="btn btn-outline-dark" style={{ flex: 1 }} onClick={handleDownloadReport}>Download Report</button>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => alert("Report emailed to " + email)}>Email Report</button>
-              </div>
+            
+            <div className="modal-body-premium pt-12 space-y-12">
+               <div className="grid grid-cols-2 gap-x-12 gap-y-8">
+                  <ReportField label="Service Date" value={selectedReport.date} />
+                  <ReportField label="Node Identifier" value={selectedReport.machine} />
+                  <ReportField label="Verified Expert" value={selectedReport.expert} />
+                  <ReportField label="Settled Amount" value={selectedReport.cost} />
+               </div>
+
+               <div className="p-8 bg-slate-50 border border-slate-100 rounded-[2rem] space-y-4">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Maintenance Narrative</p>
+                  <p className="text-xs font-bold text-slate-800 leading-relaxed italic">
+                     "{selectedReport.action}. System diagnostics were run post-service to ensure compliance with operational safety standards."
+                  </p>
+               </div>
+
+               <div className="flex items-center gap-4">
+                  <button className="main-action-btn flex-1" onClick={handleDownloadReport}>Download Artifact</button>
+                  <button className="secondary-action-btn flex-1" onClick={() => alert("Digital copy dispatched to " + email)}>Email Ledger</button>
+               </div>
             </div>
           </div>
         </div>
@@ -2398,225 +2541,166 @@ www.originode.com
     );
   }
 
-  // --- RETURN: LOGIN / SIGNUP / LANDING VIEW ---
+  // --- RETURN: PROFESSIONAL LOGIN / SIGNUP ---
   return (
-    <div className={`login-page-wrapper ${role}-theme`}>
-      <button className="back-btn-top" onClick={() => setView('landing')}>← Exit to origiNode</button>
-
+    <div className="login-page-wrapper">
+      <button className="back-btn-top" onClick={() => setView('landing')}>← Back to Main</button>
 
       <div className="glass-container">
-        <div className={`login-visual ${role}-bg`}>
-          <div className="visual-overlay">
-            <div className="visual-integrity-badge">
-              <div className="v-pulse"></div>
-              <span>SYSTEM INTEGRITY: SECURE</span>
+        <div className="login-visual">
+          <div className="p-12 text-white relative z-10 space-y-8">
+            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md border border-white/10 text-[10px] font-bold uppercase tracking-widest">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Secure Enterprise Portal
             </div>
 
-            <h3>
-              {view === 'forgot' ? 'Security Recovery' : (role === 'consumer' ? 'Industrial Continuity' : 'Expert Terminal')}
-            </h3>
-            <p>
-              {view === 'forgot'
-                ? 'Protecting your industrial access and identity.'
-                : (role === 'consumer'
-                  ? 'Managing legacy hardware with 21st-century precision.'
-                  : 'Accessing the global network for industrial support and diagnostics.')}
-            </p>
-
-            <div className="visual-stats-grid">
-              <div className="v-stat">
-                <span className="v-label">{role === 'consumer' ? 'MACHINES' : 'THROUGHPUT'}</span>
-                <span className="v-value">{role === 'consumer' ? '850K+' : '4.2 TB/S'}</span>
-              </div>
-              <div className="v-stat">
-                <span className="v-label">{role === 'consumer' ? 'UPTIME' : 'EXPERTS'}</span>
-                <span className="v-value">{role === 'consumer' ? '99.9%' : '12.8K+'}</span>
-              </div>
-              <div className="v-stat">
-                <span className="v-label">{role === 'consumer' ? 'NODES' : 'RECOVERY'}</span>
-                <span className="v-value">{role === 'consumer' ? '1.2K' : '99.4%'}</span>
-              </div>
+            <div>
+               <h3 className="text-4xl font-extrabold tracking-tight mb-4">
+                 {view === 'forgot' ? 'Security Recovery' : (role === 'consumer' ? 'Fleet Operations' : 'Service Terminal')}
+               </h3>
+               <p className="text-white/70 font-medium max-w-sm leading-relaxed">
+                 {view === 'forgot'
+                   ? 'Restore your administrative access to the origiNode network.'
+                   : (role === 'consumer'
+                     ? 'Manage industrial assets with 21st-century precision and expert support.'
+                     : 'Connect with a global network for industrial diagnostics and professional service requests.')}
+               </p>
             </div>
 
-            <div className="status-indicator">
-              <span className="dot"></span> {role === 'consumer' ? 'Platform Active' : 'Network Online'}
+            <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/10">
+               <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Verified Nodes</span>
+                  <p className="text-2xl font-black">1.2K+</p>
+               </div>
+               <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Active Experts</span>
+                  <p className="text-2xl font-black">8.4K</p>
+               </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest opacity-80 pt-10">
+               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+               Network Status: Operational
             </div>
           </div>
         </div>
 
         <div className="login-form-area">
-          <h1 className="form-title" style={{ marginBottom: '15px', fontSize: '1.6rem' }}>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">
             {view === 'forgot'
               ? 'Reset Password'
-              : isLogin ? `${role === 'consumer' ? 'Consumer' : 'Producer'} Login` : `Signup Step ${signupStep === 3 ? '2' : '1'}`}
+              : isLogin ? `${role === 'consumer' ? 'Operator' : 'Provider'} Login` : `Account Setup`}
           </h1>
+          <p className="text-slate-500 font-medium text-sm mb-10">
+             Enter your professional credentials to continue.
+          </p>
 
           {isLogin ? (
-            // LOGIN FORM
-            <div className="animate-fade">
-              <div className="input-row" style={{ marginBottom: '12px' }}>
+            <div className="space-y-6">
+              <div className="input-field-modern">
                 <label>Work Email</label>
                 <input
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="name@company.com"
                   value={email}
-                  autoComplete="off"
                   onChange={(e) => setEmail(e.target.value)}
-                  className={errors.email ? 'field-error' : ''}
                 />
-                {errors.email && <small className="error-msg">{errors.email}</small>}
               </div>
 
               {view !== 'forgot' && (
-                <div className="input-row" style={{ marginBottom: '10px' }}>
-                  <label>Password</label>
-                  <div className="password-input-wrapper">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter password"
-                      value={password}
-                      autoComplete="new-password"
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={errors.password ? 'field-error' : ''}
-                    />
-                    <button
-                      type="button"
-                      className="password-toggle-btn"
-                      onClick={() => setShowPassword(!showPassword)}
+                <div className="input-field-modern">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="m-0">Password</label>
+                    <span 
+                      className="text-[10px] font-bold text-blue-600 uppercase cursor-pointer hover:underline" 
+                      onClick={() => { setView('forgot'); setErrors({}); }}
                     >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
+                      Forgot?
+                    </span>
                   </div>
-                  <div style={{ textAlign: 'right', marginTop: '4px' }}>
-                    <span className="forgot-password-link" onClick={() => { setView('forgot'); setErrors({}); }} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: '700' }}>Forgot Password?</span>
-                  </div>
-                  {errors.password && <small className="error-msg">{errors.password}</small>}
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
                 </div>
               )}
             </div>
           ) : (
-            // SIGNUP STEPS
-            // SIGNUP STEPS - ENHANCED UI
-            <div className="animate-fade">
-              {/* VISUAL STEPPER */}
-              <div className="signup-stepper">
-                <div className={`step-item ${signupStep >= 1 ? 'active' : ''}`}>
-                  <div className="step-circle">{signupStep === 3 ? '✓' : '1'}</div>
-                  <span className="step-label">Identity</span>
-                </div>
-                <div className={`step-line ${signupStep === 3 ? 'filled' : ''}`}></div>
-                <div className={`step-item ${signupStep === 3 ? 'active' : ''}`}>
-                  <div className="step-circle">2</div>
-                  <span className="step-label">Profile</span>
-                </div>
-              </div>
-
-              {signupStep === 1 && (
-                <div className="signup-form-step">
-                  <div style={{ display: 'flex', gap: '15px' }}>
-                    <div className="input-field-modern">
-                      <label>First Name</label>
-                      <input type="text" placeholder="John" value={firstName} autoComplete="off" onChange={(e) => setFirstName(e.target.value)} required />
-                    </div>
-                    <div className="input-field-modern">
-                      <label>Last Name</label>
-                      <input type="text" placeholder="Doe" value={lastName} autoComplete="off" onChange={(e) => setLastName(e.target.value)} required />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '15px' }}>
-                    <div className="input-field-modern" style={{ flex: 1.5 }}>
-                      <label>Phone Number</label>
-                      <input type="tel" placeholder="+91 98765 43210" value={phone} autoComplete="tel" onChange={(e) => setPhone(e.target.value)} />
-                    </div>
-                    <div className="input-field-modern" style={{ flex: 1 }}>
-                      <label>Birth Date</label>
-                      <input type="date" onChange={(e) => setDob(e.target.value)} />
-                    </div>
-                  </div>
-                  {errors.phone && <small className="error-msg" style={{ display: 'block', marginBottom: '5px' }}>{errors.phone}</small>}
-
-                  <div className="input-field-modern">
-                    <label>Work Email</label>
-                    <input type="email" placeholder="name@company.com" value={email} autoComplete="off" onChange={(e) => setEmail(e.target.value)} required />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '15px' }}>
-                    <div className="input-field-modern" style={{ flex: 1 }}>
-                      <label>Password</label>
-                      <input type="password" placeholder="Min 8 chars" value={password} autoComplete="new-password" onChange={(e) => setPassword(e.target.value)} required />
-                    </div>
-                    <div className="input-field-modern" style={{ flex: 1 }}>
-                      <label>Confirm</label>
-                      <input type="password" placeholder="Repeat password" value={confirmPassword} autoComplete="new-password" onChange={(e) => setConfirmPassword(e.target.value)} required />
-                    </div>
-                  </div>
-                  {errors.confirmPassword && <small className="error-msg">{errors.confirmPassword}</small>}
-                  {errors.password && <small className="error-msg">{errors.password}</small>}
-                </div>
-              )}
-
-              {signupStep === 3 && (
-                <div className="signup-form-step">
-                  <div className="input-field-modern">
-                    <label>{role === 'consumer' ? 'Company / Organization Name' : 'Technical Specialization Area'}</label>
-                    <div className="input-icon-wrapper">
-                      <span className="input-prefix-icon">{role === 'consumer' ? '🏢' : '🛠️'}</span>
-                      <input type="text" placeholder={role === 'consumer' ? "e.g. Acme Industries Ltd." : "e.g. Industrial Hydraulics, Automation..."} onChange={(e) => setExtraInfo(e.target.value)} style={{ paddingLeft: '40px' }} autoFocus />
-                    </div>
-                    <small style={{ color: '#94a3b8', marginTop: '5px', display: 'block' }}>
-                      {role === 'consumer' ? 'Visible on your service requests' : 'Helps match you with relevant jobs'}
-                    </small>
-                  </div>
-                </div>
-              )}
+            <div className="space-y-6">
+               {signupStep === 1 ? (
+                 <>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="input-field-modern">
+                        <label>First Name</label>
+                        <input type="text" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                      </div>
+                      <div className="input-field-modern">
+                        <label>Last Name</label>
+                        <input type="text" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                      </div>
+                   </div>
+                   <div className="input-field-modern">
+                     <label>Work Email</label>
+                     <input type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                   </div>
+                   <div className="input-field-modern">
+                     <label>Create Password</label>
+                     <input type="password" placeholder="Min. 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+                   </div>
+                 </>
+               ) : (
+                 <div className="input-field-modern">
+                    <label>{role === 'consumer' ? 'Organization Name' : 'Technical Specialization'}</label>
+                    <input 
+                      type="text" 
+                      placeholder={role === 'consumer' ? "e.g. Acme Industries Ltd." : "e.g. Industrial Automation"} 
+                      onChange={(e) => setExtraInfo(e.target.value)} 
+                    />
+                 </div>
+               )}
             </div>
           )}
 
-          {errors.server && <div className="error-alert animate-fade">{errors.server}</div>}
-          {showSaveSuccessModal && <div className="success-alert animate-fade">Operation Successful! Redirecting...</div>}
+          {errors.server && <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-bold my-4 uppercase tracking-widest">{errors.server}</div>}
 
           <button className="main-action-btn" onClick={handleLogin}>
-            {view === 'forgot' ? 'Send Reset Link' : isLogin ? 'Enter Portal' : (signupStep === 1 ? 'Continue' : 'Finish Setup')}
+            {view === 'forgot' ? 'Send Reset Link' : isLogin ? 'Sign In' : (signupStep === 1 ? 'Continue' : 'Complete Setup')}
           </button>
 
           {view !== 'forgot' && (
-            <div className="animate-fade">
-
-              <div className="divider" style={{ margin: '12px 0' }}><span>OR</span></div>
-              <div className="social-grid" style={{ gap: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={handleGoogleError}
-                    useOneTap
-                    theme="outline"
-                    shape="rectangular"
-                    width="100%"
-                  />
-                </div>
+            <div className="mt-8 space-y-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
+                <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-400"><span className="bg-white px-2">OR</span></div>
+              </div>
+              
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="outline"
+                  shape="rectangular"
+                  width="100%"
+                />
               </div>
             </div>
           )}
 
-          <p className="switch-text" style={{ marginTop: '15px', fontSize: '0.85rem' }}>
-            {isLogin ? "New to the platform?" : "Already registered?"}
-            <span onClick={() => { setIsLogin(!isLogin); setSignupStep(1); setErrors({}); }}> {isLogin ? "Sign Up" : "Login"}</span>
+          <p className="mt-10 text-center text-sm font-medium text-slate-500">
+            {isLogin ? "Need a professional account?" : "Already have an account?"}
+            <button 
+              onClick={() => { setIsLogin(!isLogin); setSignupStep(1); setErrors({}); }} 
+              className="ml-1 text-blue-600 font-bold hover:underline"
+            >
+              {isLogin ? "Sign Up" : "Login"}
+            </button>
           </p>
-          {sharedModals}
         </div>
       </div>
-      {showSocialModal && <SocialLoginModal />}
-      {showForgotModal && (
-        <PopupModal
-          title="Reset Link Sent"
-          message={`If an account exists, a reset link has been sent to ${email}`}
-          onClose={() => {
-            setShowForgotModal(false);
-          }}
-        />
-      )}
-    </div >
+      {sharedModals}
+    </div>
   );
 }
 

@@ -1,44 +1,24 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
-const PageHeader = ({ title, subtitle, action }) => (
-  <div
-    className="page-header"
-    style={{
-      display: 'flex',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      marginBottom: 32,
-      fontFamily: 'Inter, system-ui, sans-serif',
-    }}
-  >
-    <div>
-      <h1
-        style={{
-          fontSize: '1.85rem',
-          fontWeight: 800,
-          color: '#0f172a',
-          margin: 0,
-          letterSpacing: '-0.02em',
-          lineHeight: 1.2,
-        }}
-      >
-        {title}
-      </h1>
-      {subtitle && (
-        <p
-          style={{
-            fontSize: '0.95rem',
-            color: '#64748b',
-            fontWeight: 500,
-            marginTop: 6,
-          }}
-        >
+const PageHeader = ({ title, subtitle, action }) => {
+  return (
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2 border-b border-slate-100 mb-2">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+          {title}
+        </h1>
+        <p className="text-sm font-medium text-slate-500 max-w-2xl leading-relaxed">
           {subtitle}
         </p>
+      </div>
+      {action && (
+        <div className="shrink-0">
+          {action}
+        </div>
       )}
     </div>
-    {action && <div className="page-header-actions">{action}</div>}
-  </div>
-);
+  );
+};
 
 export default PageHeader;

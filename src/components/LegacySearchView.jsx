@@ -8,7 +8,12 @@ import {
   Archive,
   Cpu,
   Zap,
-  Box
+  Box,
+  FileSearch,
+  BookOpen,
+  Settings2,
+  Lock,
+  Binary
 } from 'lucide-react';
 import { 
   Card, 
@@ -29,73 +34,75 @@ export default function LegacySearchView() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center pt-20 pb-12 space-y-12 max-w-4xl mx-auto">
-      <div className="text-center space-y-4">
-        <motion.div 
-           initial={{ scale: 0.8, opacity: 0 }}
-           animate={{ scale: 1, opacity: 1 }}
-           className="w-20 h-20 bg-slate-900 border-4 border-slate-800 rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-2xl shadow-slate-900/40"
-        >
-          <Archive className="w-10 h-10 text-primary" />
-        </motion.div>
-        <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Legacy Archive Search</h2>
-        <p className="text-slate-500 font-bold max-w-md mx-auto leading-relaxed">Access historical industrial telemetry dating back to the legacy network transition (circa 2021).</p>
+    <div className="flex flex-col items-center justify-center pt-24 pb-20 space-y-16 max-w-6xl mx-auto animate-fade-in no-scrollbar">
+      <div className="text-center space-y-6">
+        <div className="relative inline-block">
+           <div className="absolute inset-0 bg-blue-600/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+           <div className="w-24 h-24 bg-white border border-slate-100 rounded-[2rem] mx-auto flex items-center justify-center mb-10 shadow-xl relative z-10 transition-transform hover:scale-110">
+              <Archive className="w-10 h-10 text-blue-600" strokeWidth={2.5} />
+           </div>
+        </div>
+        <h2 className="text-6xl font-black text-slate-900 tracking-tighter mb-4">Data Archive</h2>
+        <p className="text-slate-500 font-medium text-base max-w-xl mx-auto leading-relaxed">
+           Deep-search through the origiNode historical vault. Query industrial telemetry logs and antique signals dating back to the legacy epoch.
+        </p>
       </div>
 
-      <Card className="w-full rounded-[3rem] p-4 bg-white border-2 border-slate-100 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.1)] group focus-within:border-primary transition-all relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-           <Zap className="w-40 h-40 -rotate-12 translate-x-12 -translate-y-12 text-primary" />
-        </div>
+      <div className="w-full bg-white border border-slate-200/60 rounded-[2.5rem] p-6 shadow-2xl shadow-slate-200/40 focus-within:ring-8 focus-within:ring-blue-600/5 transition-all flex items-center gap-6 relative overflow-hidden group">
+        {/* Decorative Grid Background */}
+        <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px] opacity-[0.15] -z-10" />
         
-        <form 
-          onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
-          className="flex items-center gap-4 relative z-10"
+        <div className="relative flex-1">
+           <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors">
+              <Search size={24} strokeWidth={3} />
+           </div>
+           <input 
+              placeholder="Query hex codes, Serial identifiers, or Signal patterns..."
+              className="w-full pl-16 pr-6 h-14 rounded-2xl border-none bg-slate-50/50 text-sm font-black text-slate-900 placeholder:text-slate-400 focus:bg-white transition-all outline-none"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+           />
+        </div>
+        <button 
+           onClick={handleSearch}
+           className="h-14 px-12 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-slate-900 text-white shadow-xl shadow-slate-900/10 transition-all hover:bg-black active:scale-95 disabled:opacity-50 flex items-center gap-3"
+           disabled={isSearching}
         >
-          <div className="relative flex-1">
-             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-6 h-6" />
-             <Input 
-                placeholder="Query machine serials, antiquated part IDs or technician codes..."
-                className="pl-16 h-20 rounded-[2rem] border-none text-lg font-bold placeholder:text-slate-300 focus-visible:ring-0"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-             />
-          </div>
-          <Button 
-             className="h-16 px-10 rounded-3xl font-black bg-primary text-md shadow-xl shadow-primary/30 transition-all hover:scale-105 active:scale-95 group/btn"
-             disabled={isSearching}
-          >
-             {isSearching ? "Decrypting Signal..." : "Execute Query"}
-             {!isSearching && <ArrowRight className="ml-3 w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />}
-          </Button>
-        </form>
-      </Card>
+           {isSearching ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Binary size={14} strokeWidth={3} />}
+           {isSearching ? "Synthesizing..." : "Execute Search"}
+        </button>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full pt-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-10 w-full">
          {[
-           { icon: Database, label: "Asset Ledger", desc: "Full registry of retired industrial nodes." },
-           { icon: History, label: "Incident History", desc: "Historical fault signals and repair protocols." },
-           { icon: Cpu, label: "Legacy Logic", desc: "Technical schematics for antiquated PLC modules." }
+           { icon: Database, label: "Decommissioned Assets", desc: "Browse a detailed registry of legacy industrial nodes and hardware units no longer in rotation." },
+           { icon: BookOpen, label: "Fault Pattern Logs", desc: "Historical records of anomalous signals and maintenance rituals documented across all core phases." },
+           { icon: Settings2, label: "Antique Blueprints", desc: "Technical schematics and operational logic for antiquated PLC and I/O modules from earlier epochs." }
          ].map((item, i) => (
-           <motion.div
+           <div
              key={i}
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ delay: 0.5 + i * 0.1 }}
+             className="p-10 rounded-[2rem] bg-white border border-slate-200/60 hover:bg-slate-50/50 hover:shadow-premium transition-all duration-500 group cursor-pointer relative overflow-hidden"
            >
-             <Card className="p-8 rounded-[2rem] bg-slate-50 border-slate-100 hover:bg-white hover:border-primary/20 hover:shadow-2xl hover:shadow-slate-200/50 transition-all group h-full">
-                <div className="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ring-1 ring-slate-100">
-                   <item.icon className="w-6 h-6 text-slate-600 group-hover:text-primary transition-colors" />
-                </div>
-                <h4 className="font-black text-slate-900 mb-2 uppercase text-xs tracking-widest">{item.label}</h4>
-                <p className="text-sm text-slate-500 font-bold leading-relaxed">{item.desc}</p>
-             </Card>
-           </motion.div>
+              <div className="w-14 h-14 bg-white border border-slate-100 rounded-2xl flex items-center justify-center mb-8 shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all">
+                 <item.icon className="w-7 h-7 text-slate-400 group-hover:text-blue-600 transition-colors" strokeWidth={2.5} />
+              </div>
+              <h4 className="font-black text-slate-900 mb-3 text-[14px] uppercase tracking-widest">{item.label}</h4>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed group-hover:text-slate-600 transition-colors">{item.desc}</p>
+              
+              <div className="absolute bottom-0 right-0 p-4 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-500">
+                 <ArrowRight className="text-blue-600" size={20} />
+              </div>
+           </div>
          ))}
       </div>
 
-      <div className="pt-20 opacity-30 group flex flex-col items-center gap-4 hover:opacity-100 transition-opacity">
-         <ShieldAlert className="w-8 h-8 text-slate-400 group-hover:text-red-500 transition-colors" />
-         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Caution: Accessing legacy signals may trigger integrity warnings.<br/>Proceed with high-level clearance only. </p>
+      <div className="pt-24 flex flex-col items-center gap-6">
+         <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
+            <Lock size={20} />
+         </div>
+         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center max-w-sm leading-relaxed">
+            All archived telemetry is secured by zero-trust architecture. Specialized clearance is required for raw data export.
+         </p>
       </div>
     </div>
   );

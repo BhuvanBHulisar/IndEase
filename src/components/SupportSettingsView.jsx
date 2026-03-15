@@ -10,7 +10,16 @@ import {
   Zap,
   CheckCircle,
   Clock,
-  Send
+  Send,
+  ExternalLink,
+  ChevronRight,
+  ShieldCheck,
+  Terminal,
+  Activity,
+  Lock,
+  Eye,
+  Trash2,
+  LifeBuoy
 } from 'lucide-react';
 import { 
   Card, 
@@ -22,100 +31,107 @@ import {
 import { motion } from 'framer-motion';
 
 export function SupportView({ onSubmitTicket }) {
-  const [ticket, setTicket] = useState({ subject: 'Machine Diagnosis Error', description: '' });
+  const [ticket, setTicket] = useState({ subject: 'General Support', description: '' });
 
   return (
-    <div className="space-y-12 pb-20 max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Signal Interference?</h2>
-          <p className="text-slate-500 mt-2 font-medium">Broadcast a support ticket directly to our technical node fleet.</p>
-        </div>
-        <div className="h-12 px-6 flex items-center justify-center bg-slate-100 rounded-2xl border border-slate-200">
+    <div className="space-y-12 pb-24 max-w-6xl mx-auto animate-fade-in no-scrollbar">
+      {/* Header Segment */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 border-b border-slate-100">
+        <div className="space-y-4">
            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
-              <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Technician Latency: 4ms</span>
+              <Badge className="bg-blue-50 text-blue-700 border border-blue-100 rounded-lg px-3 py-1 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                 <LifeBuoy size={12} strokeWidth={3} />
+                 Resource Center
+              </Badge>
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Assistance</span>
            </div>
+           <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Support Terminal</h2>
+           <p className="text-slate-500 font-medium max-w-2xl leading-relaxed">
+              Direct access to our industrial engineering team. Submit technical dispatches or query our verified expert network for immediate resolution.
+           </p>
+        </div>
+        
+        <div className="h-12 px-6 flex items-center bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 font-black text-[10px] uppercase tracking-[0.15em] gap-3 shadow-sm">
+           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+           Network Pulse: Nominal
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-         <Card className="rounded-[3rem] p-12 bg-white shadow-2xl shadow-slate-200/40 border-slate-100 space-y-10 group relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8 transform rotate-12 translate-x-12 translate-y-12 opacity-5 scale-150">
-               <FileQuestion size={100} className="text-primary" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+         {/* Dispatch Form Component */}
+         <div className="lg:col-span-7 bg-white border border-slate-200/60 rounded-[2rem] p-10 shadow-sm space-y-10 relative overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+               <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <Terminal size={20} className="text-blue-600" strokeWidth={2.5} />
+                  Service Dispatch
+               </h3>
+               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Case ID: Auto-Generated</span>
             </div>
             
-            <div className="relative z-10 space-y-8">
-               <div className="space-y-4">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Subject Frequency</label>
-                  <select 
-                    value={ticket.subject}
-                    onChange={(e) => setTicket({ ...ticket, subject: e.target.value })}
-                    className="w-full h-16 rounded-2xl border-2 border-slate-50 bg-slate-50/50 px-6 font-bold focus:border-primary disabled:bg-slate-200/20 outline-none transition-all appearance-none cursor-pointer"
-                  >
-                    {["Machine Diagnosis Error", "Expert Connection Issue", "Billing / Invoice Dispute", "Account Verification", "Other"].map(s => (
-                       <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+            <div className="space-y-8">
+               <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dispatch Context</label>
+                  <div className="relative">
+                     <select 
+                       value={ticket.subject}
+                       onChange={(e) => setTicket({ ...ticket, subject: e.target.value })}
+                       className="w-full h-14 rounded-2xl border border-slate-200 bg-slate-50/50 px-6 font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all outline-none appearance-none"
+                     >
+                       {["General Support", "Machine Diagnosis Issue", "Expert Consultation", "Billing Inquiry", "Other"].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                       ))}
+                     </select>
+                     <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={16} />
+                  </div>
                </div>
                
-               <div className="space-y-4">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Anomaly Log (Detailed Description)</label>
+               <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Anomaly Narrative</label>
                   <textarea 
-                    placeholder="Describe the technical friction you are experiencing..."
+                    placeholder="Provide a comprehensive description of the operational issue..."
                     value={ticket.description}
                     onChange={(e) => setTicket({ ...ticket, description: e.target.value })}
-                    className="w-full h-64 rounded-[2rem] border-2 border-slate-50 bg-slate-50/50 p-8 font-bold focus:border-primary outline-none transition-all resize-none shadow-sm"
+                    className="w-full h-56 rounded-[1.5rem] border border-slate-200 bg-slate-50/50 p-8 font-medium text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 outline-none transition-all resize-none placeholder:text-slate-400"
                   />
                </div>
                
-               <Button onClick={onSubmitTicket} className="w-full h-16 rounded-2xl font-black bg-primary text-white shadow-xl shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group/btn">
-                  Initialize Transmission
-                  <Send size={20} className="ml-3 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
-               </Button>
+               <button onClick={onSubmitTicket} className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-slate-900 text-white shadow-xl shadow-slate-900/10 hover:bg-black transition-all flex items-center justify-center gap-3 group">
+                  Transmit Dispatch
+                  <Send size={14} strokeWidth={3} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+               </button>
             </div>
-         </Card>
+         </div>
 
-         <div className="space-y-6">
-            <Card className="rounded-[2.5rem] p-10 bg-slate-900 border-none relative overflow-hidden group">
-               <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-all" />
-               <div className="relative z-10">
-                  <h4 className="text-sm font-black text-primary uppercase tracking-widest mb-4">Urgent Restoration</h4>
-                  <h3 className="text-3xl font-black text-white mb-6">Direct Encrypted Line</h3>
-                  <div className="space-y-6">
-                     <ContactItem icon={Phone} label="Emergency Voice" value="+91 1800-ORIGI-HELP" />
-                     <ContactItem icon={Mail} label="Secure Transmission" value="support@originode.com" />
-                     <ContactItem icon={MessagesSquare} label="Mesh Chat" value="Live Terminal Access" />
-                  </div>
+         {/* Secondary Support Channels */}
+         <div className="lg:col-span-5 space-y-8">
+            <div className="bg-white border border-slate-200/60 rounded-[2rem] p-10 shadow-sm space-y-10 relative overflow-hidden group">
+               <h3 className="text-xl font-black text-slate-900 tracking-tight">Direct Uplinks</h3>
+               <div className="space-y-8">
+                  <ContactItem icon={Phone} label="Crisis Hotline" value="+91 1800-ORIGI-HELP" />
+                  <ContactItem icon={Mail} label="Comms Feed" value="support@originode.com" />
+                  <ContactItem icon={MessagesSquare} label="Live Intercom" value="Authorized Channels Only" />
                </div>
-            </Card>
-
-            <div className="grid grid-cols-2 gap-6">
-               <Card className="p-8 rounded-[2rem] bg-slate-50 border-slate-100 hover:bg-white transition-all group border-none">
-                  <div className="w-12 h-12 bg-white rounded-xl shadow-lg border border-slate-100 flex items-center justify-center text-primary group-hover:scale-110 transition-transform mb-6">
-                     <Zap size={24} />
-                  </div>
-                  <h5 className="font-bold text-slate-900 mb-1">Knowledge Base</h5>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter transition-colors group-hover:text-primary underline cursor-pointer">Explore Schematics</p>
-               </Card>
-               <Card className="p-8 rounded-[2rem] bg-slate-50 border-slate-100 hover:bg-white transition-all group border-none">
-                  <div className="w-12 h-12 bg-white rounded-xl shadow-lg border border-slate-100 flex items-center justify-center text-accent group-hover:scale-110 transition-transform mb-6">
-                     <CheckCircle size={24} />
-                  </div>
-                  <h5 className="font-bold text-slate-900 mb-1">Status Board</h5>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter transition-colors group-hover:text-accent underline cursor-pointer">Check System Health</p>
-               </Card>
             </div>
 
-            <Card className="rounded-[2rem] h-full flex flex-col justify-center border-slate-100 p-10 bg-slate-50/50 border-2 border-dashed">
-               <div className="flex items-center gap-6">
-                  <Clock className="w-10 h-10 text-slate-200" />
-                  <div>
-                    <h5 className="text-sm font-black text-slate-900 tracking-tighter uppercase mb-1">Technician Queueing</h5>
-                    <p className="text-xs text-slate-500 font-bold leading-relaxed">Estimated broadcast restoration latency: 15-20 minutes depending on node availability.</p>
+            <div className="grid grid-cols-2 gap-8">
+               <div className="p-8 rounded-[1.5rem] bg-white border border-slate-200/60 hover:shadow-premium group transition-all duration-500 cursor-pointer overflow-hidden relative">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 -mr-8 -mt-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-white group-hover:scale-110 shadow-sm transition-all mb-6">
+                     <Zap size={20} strokeWidth={2.5} />
                   </div>
+                  <h5 className="font-black text-slate-900 text-[10px] uppercase tracking-widest mb-1">Vault</h5>
+                  <p className="text-[9px] font-black text-slate-400 group-hover:text-blue-600 underline underline-offset-4 uppercase tracking-[0.2em] transition-colors">Read Specs</p>
                </div>
-            </Card>
+               <div className="p-8 rounded-[1.5rem] bg-white border border-slate-200/60 hover:shadow-premium group transition-all duration-500 cursor-pointer overflow-hidden relative">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 -mr-8 -mt-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-emerald-600 group-hover:bg-white group-hover:scale-110 shadow-sm transition-all mb-6">
+                     <CheckCircle size={20} strokeWidth={2.5} />
+                  </div>
+                  <h5 className="font-black text-slate-900 text-[10px] uppercase tracking-widest mb-1">Pulse</h5>
+                  <p className="text-[9px] font-black text-slate-400 group-hover:text-emerald-600 underline underline-offset-4 uppercase tracking-[0.2em] transition-colors">Grid Status</p>
+               </div>
+            </div>
          </div>
       </div>
     </div>
@@ -124,15 +140,17 @@ export function SupportView({ onSubmitTicket }) {
 
 function ContactItem({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-center gap-5 group/item">
-       <div className="w-12 h-12 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center text-white ring-1 ring-white/10 group-hover/item:bg-white/10 transition-colors">
-          <Icon size={20} />
+    <div className="flex items-center gap-6 group cursor-pointer">
+       <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 group-hover:scale-110 transition-all shadow-sm">
+          <Icon size={20} strokeWidth={2.5} />
        </div>
-       <div>
-          <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{label}</p>
-          <p className="text-lg font-black text-white leading-none mt-1">{value}</p>
+       <div className="flex-1">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 group-hover:text-slate-500 transition-colors">{label}</p>
+          <p className="text-[14px] font-black text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">{value}</p>
        </div>
-       <ArrowUpRight className="ml-auto text-white/20 group-hover/item:text-white/100 transition-colors" size={24} />
+       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-200 group-hover:text-blue-600 group-hover:bg-blue-50 transition-all translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100">
+          <ChevronRight size={18} strokeWidth={3} />
+       </div>
     </div>
   );
 }
@@ -143,88 +161,107 @@ export function SettingsView({
   onDeleteAccount 
 }) {
   return (
-    <div className="space-y-12 pb-20 max-w-4xl mx-auto">
-       <div className="space-y-4">
-          <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Security Terminal</h2>
-          <p className="text-slate-500 font-medium">Configure high-level node protocols and industrial visibility.</p>
+    <div className="space-y-16 pb-24 max-w-5xl mx-auto animate-fade-in no-scrollbar">
+       <div className="space-y-4 pb-8 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+             <Badge className="bg-slate-900 text-white rounded-lg px-3 py-1 text-[10px] font-black uppercase tracking-widest">
+                System Core
+             </Badge>
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Protocol Config</span>
+          </div>
+          <h2 className="text-5xl font-black text-slate-900 tracking-tighter">System Settings</h2>
+          <p className="text-slate-500 font-medium max-w-xl leading-relaxed">
+             Configure security handshakes, identity visibility, and platform-level operational preferences for your decentralized nodes.
+          </p>
        </div>
 
-       <div className="space-y-8">
+       <div className="space-y-16">
           <SettingsSection 
-            title="Biometric & Factor Authentication"
-            desc="Require dual-layered token verification for sensitive industrial signals."
+            title="Authentication Protocols"
+            desc="Manage cryptographic verification layers for authorized logins."
+            icon={Lock}
           >
-            <div className="flex items-center justify-between p-8 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all">
-               <div className="space-y-1">
-                  <h4 className="font-bold text-slate-900">2-Factor Biological Protocol</h4>
-                  <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">Enforce identity sync on every session</p>
+            <div className="flex items-center justify-between p-10 bg-white border border-slate-200/60 rounded-[2rem] shadow-sm hover:shadow-premium transition-all duration-500 group">
+               <div className="space-y-2">
+                  <h4 className="font-black text-slate-900 text-[16px] tracking-tight group-hover:text-blue-600 transition-colors">Two-Factor Authentication</h4>
+                  <p className="text-xs font-medium text-slate-400">Require secondary biometric or token-based verification for all terminal sessions.</p>
                </div>
                <Switch enabled={is2FA} onChange={set2FA} />
             </div>
           </SettingsSection>
 
           <SettingsSection 
-            title="Mesh Network Visibility"
-            desc="Control how your industrial node is broadcasted across the expert board."
+            title="Network Visibility"
+            desc="Control your fleet's signal profile across the origiNode distributed ledger."
+            icon={Eye}
           >
-             <div className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm">
-                {["Public Network", "Private Mesh", "Encrypted Tunnel"].map((mode, i) => (
+             <div className="bg-white border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm shadow-slate-100 divide-y divide-slate-100">
+                {["Public Directory", "Private Fleet", "Local Node Only"].map((mode) => (
                    <button 
                      key={mode}
                      onClick={() => setVisibility(mode)}
                      className={cn(
-                       "w-full flex items-center justify-between p-8 border-b last:border-0 border-slate-50 transition-all group text-left",
-                       visibility === mode ? "bg-slate-50" : "hover:bg-slate-50/50"
+                       "w-full flex items-center justify-between p-8 transition-all group text-left",
+                       visibility === mode ? "bg-blue-50/30" : "hover:bg-slate-50/50"
                      )}
                    >
                      <div className="flex items-center gap-6">
                         <div className={cn(
-                          "w-6 h-6 rounded-full border-4 flex items-center justify-center transition-all",
-                          visibility === mode ? "border-primary bg-primary" : "border-slate-200"
-                        )}>
-                          {visibility === mode && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                        </div>
+                          "w-6 h-6 rounded-full border-[6px] transition-all shadow-sm",
+                          visibility === mode ? "border-blue-600 bg-white scale-110" : "border-slate-100 bg-slate-50"
+                        )} />
                         <div>
-                          <h4 className={cn("font-bold text-lg mb-0.5", visibility === mode ? "text-slate-900" : "text-slate-500")}>{mode}</h4>
-                          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Protocol Type: {mode === 'Public Network' ? '0x01' : '0x09'}</p>
+                          <h4 className={cn("font-black text-[15px] tracking-tight", visibility === mode ? "text-blue-900" : "text-slate-700")}>{mode}</h4>
+                          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mt-1">Authorized Clearance: Tier {mode === 'Public Directory' ? '1' : '2'}</p>
                         </div>
                      </div>
-                     <p className="text-xs font-bold text-slate-300 group-hover:text-slate-900 transition-colors uppercase tracking-widest">Optimize Signal</p>
+                     <div className={cn(
+                        "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                        visibility === mode ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-slate-100 text-slate-400 opacity-0 group-hover:opacity-100"
+                     )}>
+                        {visibility === mode ? "Active Protocol" : "Switch Mode"}
+                     </div>
                    </button>
                 ))}
              </div>
           </SettingsSection>
 
           <SettingsSection 
-            title="Account Integrity"
-            desc="Permanent management of your industrial presence."
+            title="Termination Protocol"
+            desc="Permanent decommissioning of your industrial identity and data purge."
+            icon={ShieldAlert}
           >
-             <Card className="rounded-[2.5rem] p-8 border-red-100/50 bg-red-50/20 shadow-none border-2 border-dashed flex items-center justify-between gap-6 group hover:bg-red-50/50 transition-colors">
-                <div className="flex items-center gap-6 flex-1">
-                   <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-red-500 shadow-xl shadow-red-500/10 shrink-0 group-hover:rotate-12 transition-transform">
-                      <ShieldAlert size={28} />
+             <div className="p-10 border border-red-100 bg-red-50/30 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
+                <div className="flex items-center gap-6 relative z-10">
+                   <div className="w-16 h-16 bg-white border border-red-100 rounded-2xl flex items-center justify-center text-red-600 shadow-xl shadow-red-500/5 group-hover:scale-110 transition-transform">
+                      <Trash2 size={24} strokeWidth={2.5} />
                    </div>
-                   <div>
-                      <h4 className="font-black text-red-600 uppercase tracking-widest text-sm mb-1">Decommission System Identity</h4>
-                      <p className="text-xs font-bold text-slate-400">Warning: This action initiates a full industrial ledger purge. This process is irreversible.</p>
+                   <div className="space-y-1">
+                      <h4 className="font-black text-red-900 text-[16px] tracking-tight">Deactivate Account</h4>
+                      <p className="text-xs font-bold text-red-950/40 max-w-sm leading-relaxed">This action is irreversible. All machine nodes, service history, and encrypted keys will be purged.</p>
                    </div>
                 </div>
-                <Button onClick={onDeleteAccount} variant="outline" className="rounded-2xl h-14 px-8 border-2 border-red-200 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 font-black text-xs uppercase transition-all whitespace-nowrap">
-                   Deactivate Node
-                </Button>
-             </Card>
+                <button onClick={onDeleteAccount} className="h-14 px-10 rounded-xl bg-white border-2 border-red-100 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all font-black text-[10px] uppercase tracking-widest shadow-sm relative z-10">
+                   Execute Purge
+                </button>
+             </div>
           </SettingsSection>
        </div>
     </div>
   );
 }
 
-function SettingsSection({ title, desc, children }) {
+function SettingsSection({ title, desc, icon: Icon, children }) {
    return (
       <div className="space-y-6">
-         <div>
-            <h3 className="text-lg font-extrabold text-slate-900 uppercase tracking-tight">{title}</h3>
-            <p className="text-sm text-slate-500 font-medium">{desc}</p>
+         <div className="flex items-center gap-4 px-2">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
+               <Icon size={18} strokeWidth={2.5} />
+            </div>
+            <div>
+               <h3 className="text-sm font-black text-slate-900 uppercase tracking-[0.15em]">{title}</h3>
+               <p className="text-[11px] font-medium text-slate-400 uppercase tracking-widest mt-0.5">{desc}</p>
+            </div>
          </div>
          {children}
       </div>
@@ -236,13 +273,13 @@ function Switch({ enabled, onChange }) {
       <button 
         onClick={() => onChange(!enabled)}
         className={cn(
-          "w-14 h-8 rounded-full transition-all relative ring-4 ring-transparent flex items-center p-1 cursor-pointer",
-          enabled ? "bg-primary" : "bg-slate-200"
+          "w-16 h-8 rounded-full transition-all relative flex items-center p-1.5 cursor-pointer shadow-inner",
+          enabled ? "bg-blue-600" : "bg-slate-200"
         )}
       >
         <div className={cn(
-          "h-6 w-6 bg-white rounded-full shadow-lg transition-all transform",
-          enabled ? "translate-x-6" : "translate-x-0"
+          "h-5 w-5 bg-white rounded-full shadow-xl transition-all transform",
+          enabled ? "translate-x-8" : "translate-x-0"
         )} />
       </button>
    );

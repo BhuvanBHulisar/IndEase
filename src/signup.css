@@ -54,7 +54,7 @@
 }
 
 .step-item.active .step-label {
-    color: #0f172a;
+    color: #ffffff;
 }
 
 .step-line {
@@ -91,7 +91,7 @@
 .input-field-modern label {
     font-size: 0.8rem;
     font-weight: 700;
-    color: #475569;
+    color: #94a3b8;
     margin-bottom: 4px;
     display: block;
 }

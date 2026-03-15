@@ -1,86 +1,86 @@
 import React from 'react';
-import { PlusSquare, Clock, MessageSquare } from 'lucide-react';
+import { Plus, History, MessageSquare, ArrowRight, ShieldCheck, Database, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { cn } from './ui/base';
 
 const actions = [
   {
-    label: 'Add Machine',
-    icon: PlusSquare,
-    color: '#3b82f6',
+    label: 'Register Node',
+    icon: Plus,
+    color: '#2563eb',
+    description: 'Integrate new industrial hardware',
+    accent: 'Enterprise'
   },
   {
-    label: 'View History',
-    icon: Clock,
-    color: '#3b82f6',
+    label: 'Audit Reports',
+    icon: Database,
+    color: '#2563eb',
+    description: 'Analyze maintenance history logs',
+    accent: 'Compliance'
   },
   {
-    label: 'Send Message',
-    icon: MessageSquare,
-    color: '#3b82f6',
+    label: 'Emergency Link',
+    icon: Zap,
+    color: '#ef4444',
+    description: 'Direct contact with field specialists',
+    accent: 'Priority'
   },
 ];
 
 const QuickActions = ({ onAddMachine, onViewHistory, onSendMessage }) => {
   return (
-    <div
-      className="quick-actions-section"
-      style={{
-        background: '#ffffff',
-        borderRadius: '16px',
-        border: '1px solid #e2e8f0',
-        padding: '24px',
-        marginTop: '24px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-        fontFamily: 'Inter, system-ui, sans-serif',
-      }}
-    >
-      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '20px' }}>
-        Quick Actions
-      </h3>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '16px',
-        }}
-      >
-        {actions.map((action) => {
+    <div className="bg-white border border-slate-200/60 rounded-[1.5rem] p-10 shadow-sm relative overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+        <div>
+          <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-1">Operational Protocol</h3>
+          <p className="text-sm font-medium text-slate-400">Authorized administrative actions for system-wide management.</p>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+           <ShieldCheck size={14} className="text-emerald-500" />
+           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Admin Access Only</span>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {actions.map((action, i) => {
           const Icon = action.icon;
           return (
             <button
               key={action.label}
               onClick={
-                action.label === 'Add Machine'
+                action.label === 'Register Node'
                   ? onAddMachine
-                  : action.label === 'View History'
+                  : action.label === 'Audit Reports'
                     ? onViewHistory
                     : onSendMessage
               }
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                padding: '16px 24px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                background: '#ffffff',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                width: '100%',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f8fafc';
-                e.currentTarget.style.borderColor = '#cbd5e1';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#ffffff';
-                e.currentTarget.style.borderColor = '#e2e8f0';
-              }}
+              className="group flex flex-col p-8 border border-slate-100 rounded-[1.5rem] bg-slate-50/50 hover:bg-white hover:border-blue-600/30 hover:shadow-premium transition-all text-left relative overflow-hidden"
             >
-              <Icon size={20} color={action.color} fill="#eff6ff" />
-              <span style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
-                {action.label}
-              </span>
+              {/* Refined Accents */}
+              <div className="absolute top-4 right-6 text-[8px] font-black uppercase tracking-[0.2em] text-slate-300 group-hover:text-blue-600/40 transition-colors">
+                {action.accent}
+              </div>
+
+              <div className="flex items-center justify-between w-full mb-8">
+                <div className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm",
+                  action.label === 'Emergency Link' ? "bg-red-50 text-red-500 group-hover:bg-red-500 group-hover:text-white" : "bg-white border border-slate-100 text-slate-400 group-hover:bg-blue-600 group-hover:text-white"
+                )}>
+                   <Icon size={20} strokeWidth={2.5} />
+                </div>
+                <div className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center text-slate-200 group-hover:text-blue-600 group-hover:bg-blue-50 transition-all">
+                  <ArrowRight size={18} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
+              
+              <div className="space-y-1.5">
+                <span className="text-sm font-bold text-slate-900 block group-hover:text-blue-600 transition-colors">
+                  {action.label}
+                </span>
+                <p className="text-xs font-medium text-slate-400 leading-relaxed">
+                  {action.description}
+                </p>
+              </div>
             </button>
           );
         })}

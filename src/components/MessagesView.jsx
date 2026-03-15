@@ -10,7 +10,12 @@ import {
   Image as ImageIcon,
   Smile,
   Check,
-  CheckCheck
+  CheckCheck,
+  MessageSquare,
+  Paperclip,
+  Activity,
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   Card, 
@@ -51,21 +56,32 @@ export default function MessagesView({
   }, []);
 
   return (
-    <div className="h-[calc(100vh-12rem)] flex bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xl shadow-slate-100 relative">
-      {/* Sidebar */}
-      <div className="w-80 flex flex-col border-r border-slate-100 bg-slate-50/50 backdrop-blur-sm z-10">
-        <div className="p-6 border-b border-slate-100">
-           <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-             Conversations
-             <Badge variant="secondary" className="rounded-lg ml-2">{chats?.length || 0}</Badge>
-           </h3>
+    <div className="h-[calc(100vh-16rem)] flex bg-white border border-slate-200/60 rounded-[1.5rem] overflow-hidden shadow-sm relative animate-fade-in no-scrollbar">
+      {/* Sidebar - Contacts Ecosystem */}
+      <div className="w-80 lg:w-96 flex flex-col border-r border-slate-100 bg-slate-50/50">
+        <div className="p-8 border-b border-slate-100">
+           <div className="flex items-center justify-between mb-8">
+             <div className="flex flex-col">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none mb-1">Directives</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Comms Terminal</p>
+             </div>
+             <button className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/10">
+               <Plus size={20} strokeWidth={2.5} />
+             </button>
+           </div>
+           
            <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-             <Input placeholder="Search messages..." className="pl-9 bg-white border-slate-200 h-10 rounded-xl text-sm" />
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                 <Search size={16} strokeWidth={2.5} />
+              </div>
+              <input 
+                placeholder="Query personnel..." 
+                className="w-full h-12 pl-12 pr-4 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 transition-all" 
+              />
            </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1">
            {chats.map(chat => (
              <ChatListItem 
                key={chat.id} 
@@ -75,14 +91,28 @@ export default function MessagesView({
              />
            ))}
            {chats.length === 0 && (
-             <div className="py-20 text-center text-slate-400">
-                <p className="text-xs font-bold uppercase tracking-widest italic font-sans opacity-50">Transmitting Silence...</p>
+             <div className="py-24 text-center px-6">
+                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                   <MessageSquare className="text-slate-300" size={24} />
+                </div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">No Authorized Channels Established</h4>
              </div>
            )}
         </div>
+        
+        {/* Status Hub Mini */}
+        <div className="p-6 border-t border-slate-100 bg-white">
+           <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-2">
+                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Gateway Verified</span>
+              </div>
+              <Zap size={14} className="text-yellow-500" />
+           </div>
+        </div>
       </div>
 
-      {/* Main Chat Area */}
+      {/* Primary Message Hub */}
       <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
         <AnimatePresence mode="wait">
         {activeChat ? (
@@ -93,31 +123,33 @@ export default function MessagesView({
             exit={{ opacity: 0, x: -20 }}
             className="flex-1 flex flex-col h-full overflow-hidden"
           >
-            {/* Chat Header */}
-            <div className="h-24 border-b border-slate-100 flex items-center justify-between px-8 bg-white/50 backdrop-blur-md z-10">
+            {/* Direct Channel Header */}
+            <div className="h-24 border-b border-slate-100 flex items-center justify-between px-10 bg-white z-10 shrink-0">
                <div className="flex items-center gap-4">
-                   <div className="relative">
-                     <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold border border-slate-200">
-                       {activeChat.name?.[0] || activeChat.avatar}
-                     </div>
-                     {activeChat.online && <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" />}
+                   <div className="relative group cursor-pointer">
+                      <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+                        {activeChat.name?.[0] || 'U'}
+                      </div>
+                      {activeChat.online && <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />}
                    </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-lg">{activeChat.name}</h4>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                       {activeChat.role || 'Industrial Node'} • {activeChat.online ? 'Online' : 'Encrypted Line'}
-                    </p>
+                  <div className="flex flex-col">
+                    <h4 className="font-black text-slate-900 tracking-tight text-[16px] leading-none mb-1">{activeChat.name}</h4>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50/50 rounded-lg w-fit">
+                       <ShieldCheck size={10} className="text-blue-600" />
+                       <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Secure Link Established</span>
+                    </div>
                   </div>
                </div>
                
                 <div className="flex items-center gap-2">
-                   <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100"><Info size={20} className="text-slate-500" /></Button>
-                   <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 ml-2"><MoreVertical size={20} className="text-slate-500" /></Button>
+                   <button className="w-10 h-10 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-900 flex items-center justify-center transition-all border border-transparent hover:border-slate-100"><Phone size={18} strokeWidth={2.5} /></button>
+                   <button className="w-10 h-10 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-900 flex items-center justify-center transition-all border border-transparent hover:border-slate-100"><Video size={18} strokeWidth={2.5} /></button>
+                   <button className="w-10 h-10 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-900 flex items-center justify-center transition-all border border-transparent hover:border-slate-100"><Info size={18} strokeWidth={2.5} /></button>
                 </div>
             </div>
 
-            {/* Messages body */}
-            <div className="flex-1 overflow-y-auto p-10 space-y-8 scroll-smooth scrollbar-hide">
+            {/* Conversation Core */}
+            <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar bg-slate-50/20">
                {chatHistory.map((msg, i) => (
                  <MessageBubble 
                    key={i} 
@@ -129,8 +161,8 @@ export default function MessagesView({
                <div ref={chatEndRef} />
             </div>
 
-            {/* Message Input Container */}
-            <div className="p-8 pt-0 bg-white/50 backdrop-blur-md z-10">
+            {/* Terminal Input Segment */}
+            <div className="p-8 bg-white border-t border-slate-100 shrink-0">
                <form 
                  onSubmit={(e) => {
                    e.preventDefault();
@@ -139,94 +171,64 @@ export default function MessagesView({
                      setMsgInput('');
                    }
                  }}
-                 className="flex flex-col gap-4 bg-slate-50 border border-slate-200 rounded-3xl p-3 shadow-sm focus-within:bg-white focus-within:shadow-2xl focus-within:shadow-slate-200/50 transition-all group"
+                 className="flex items-center gap-4"
                >
-                 <Input 
-                   placeholder="Type an encrypted message..." 
-                   className="border-none bg-transparent h-12 text-[15px] font-medium focus-visible:ring-0 placeholder:text-slate-400"
+                 <div className="relative" ref={plusMenuRef}>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPlusMenu(!showPlusMenu)}
+                      className="w-12 h-12 rounded-xl bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-100 flex items-center justify-center transition-all group"
+                    >
+                      <Paperclip size={20} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform" />
+                    </button>
+                    <AnimatePresence>
+                      {showPlusMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                          className="absolute left-0 bottom-full mb-4 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 z-50 ring-1 ring-black/5"
+                        >
+                          <button type="button" className="w-full flex items-center gap-4 px-4 py-3 hover:bg-slate-50 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest transition-all">
+                            <ImageIcon size={14} className="text-blue-500" strokeWidth={2.5} /> Image Bundle
+                          </button>
+                          <button type="button" className="w-full flex items-center gap-4 px-4 py-3 hover:bg-slate-50 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest transition-all">
+                            <Send size={14} className="text-emerald-500" strokeWidth={2.5} /> Send Dispatch
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                 </div>
+
+                 <input 
+                   placeholder="Enter encrypted dispatch..." 
+                   className="flex-1 h-12 bg-slate-50 border border-slate-100 rounded-xl px-6 text-sm font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all outline-none placeholder:text-slate-400 placeholder:font-medium"
                    value={msgInput}
                    onChange={e => setMsgInput(e.target.value)}
                  />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 relative" ref={plusMenuRef}>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon" 
-                        className={cn("w-9 h-9 transition-colors", showPlusMenu ? "text-primary bg-blue-50" : "text-slate-400")}
-                        onClick={() => setShowPlusMenu(!showPlusMenu)}
-                      >
-                        <Plus size={20} />
-                      </Button>
-
-                      <AnimatePresence>
-                        {showPlusMenu && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            className="absolute left-0 bottom-full mb-3 w-52 bg-white border border-slate-200 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] p-2 z-50"
-                          >
-                            <div className="px-3 py-1.5 mb-1.5">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Add context</span>
-                            </div>
-                            <button 
-                              type="button"
-                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl transition-all text-slate-700 font-semibold text-sm group"
-                              onClick={() => { 
-                                setShowPlusMenu(false); 
-                                onSendMessage("[PHOTO_UPLOAD_REQUEST]"); 
-                              }}
-                            >
-                              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-                                <ImageIcon size={16} />
-                              </div>
-                              Media
-                            </button>
-                            <button 
-                              type="button"
-                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl transition-all text-slate-700 font-semibold text-sm group"
-                              onClick={() => { 
-                                setShowPlusMenu(false); 
-                                onSendMessage("[TRANSACTION_SIGNAL_INIT]"); 
-                              }}
-                            >
-                              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
-                                <Send size={16} />
-                              </div>
-                              Transaction
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                    
-                    <Button 
-                      disabled={!msgInput.trim()} 
-                      className="rounded-xl px-6 h-11 font-bold bg-[#2563eb] text-white hover:bg-[#1d4ed8] shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
-                    >
-                      <span className="text-white">Send Message</span>
-                      <Send className="w-4 h-4 ml-2 text-white" />
-                    </Button>
-                  </div>
+                 
+                 <button 
+                   type="submit"
+                   disabled={!msgInput.trim()} 
+                   className="h-12 px-8 rounded-xl bg-slate-900 text-white hover:bg-black font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/10 transition-all disabled:opacity-50 flex items-center gap-3"
+                 >
+                   <span>Dispatch</span>
+                   <Send size={14} strokeWidth={3} />
+                 </button>
                </form>
             </div>
           </motion.div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-gradient-to-br from-slate-50 to-white relative overflow-hidden">
-             {/* Decorative background elements */}
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-accent/5 rounded-full blur-[60px] pointer-events-none" />
-
-             <div className="w-28 h-28 bg-white border border-slate-100 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-2xl shadow-slate-200/40 relative z-10">
-                <div className="w-16 h-16 bg-blue-50/50 rounded-2xl flex items-center justify-center">
-                   <MessageSquare className="w-8 h-8 text-primary" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-20">
+             <div className="relative mb-10">
+                <div className="absolute inset-0 bg-blue-600/5 rounded-full animate-ping scale-150" />
+                <div className="w-24 h-24 bg-white border border-slate-100 rounded-[2rem] shadow-xl flex items-center justify-center relative z-10">
+                   <MessageSquare className="text-blue-600" size={40} strokeWidth={2.5} />
                 </div>
              </div>
-             
-             <h3 className="text-3xl font-black text-slate-800 tracking-tight mb-3 relative z-10">Initialize Contact</h3>
-             <p className="text-slate-500 font-medium max-w-sm leading-relaxed text-[15px] relative z-10">
-                Select a conversation from the sidebar to establish a secure, encrypted industrial link.
+             <h3 className="text-3xl font-black text-slate-900 tracking-tighter mb-4">Select Communication Line</h3>
+             <p className="text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">
+                Authorized channels for expert troubleshooting and fleet coordination are waiting for your initiation.
              </p>
           </div>
         )}
@@ -241,60 +243,62 @@ function ChatListItem({ chat, isActive, onClick }) {
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3.5 w-full p-4 rounded-2xl transition-all duration-200 relative group text-left",
+        "flex items-center gap-4 w-full p-4 rounded-2xl transition-all text-left group relative",
         isActive 
-          ? "bg-white border-transparent shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-100 z-10" 
-          : "hover:bg-slate-100 border-transparent border"
+          ? "bg-blue-600 text-white shadow-xl shadow-blue-500/10" 
+          : "hover:bg-white hover:shadow-sm"
       )}
     >
       <div className="relative shrink-0">
         <div className={cn(
-          "w-12 h-12 rounded-full flex items-center justify-center font-bold transition-all duration-300 text-[15px] border border-slate-100", 
+          "w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs border transition-all", 
           isActive 
-            ? "bg-primary text-white" 
-            : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+            ? "bg-white/20 text-white border-white/20" 
+            : "bg-white border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-600 shadow-sm"
         )}>
-          {chat.name?.[0] || chat.avatar}
+          {chat.name?.[0] || 'U'}
         </div>
         {chat.online && (
-          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" />
+          <span className={cn(
+            "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white",
+            isActive ? "bg-white" : "bg-emerald-500"
+          )} />
         )}
       </div>
       
       <div className="flex-1 overflow-hidden">
         <div className="flex justify-between items-center mb-1">
           <h5 className={cn(
-            "font-bold truncate pr-3 text-[15px] tracking-tight", 
-            isActive ? "text-slate-900" : "text-slate-700"
+            "font-black truncate text-[14px] tracking-tight transition-colors", 
+            isActive ? "text-white" : "text-slate-900 group-hover:text-blue-600"
           )}>
             {chat.name}
           </h5>
           <span className={cn(
-            "text-[10px] whitespace-nowrap uppercase tracking-wider font-semibold",
-            isActive ? "text-primary/80" : "text-slate-400"
-          )}>
-            {chat.time}
-          </span>
+            "text-[9px] font-black uppercase tracking-widest",
+            isActive ? "text-white/60" : "text-slate-400"
+          )}>{chat.time}</span>
         </div>
         <div className="flex justify-between items-center">
           <p className={cn(
-            "text-[13px] truncate pr-2 tracking-wide", 
-            isActive ? "text-slate-500 font-medium" : "text-slate-400"
+            "text-xs truncate font-bold tracking-tight", 
+            isActive ? "text-white/80" : "text-slate-500"
           )}>
             {chat.lastMsg || chat.specialty}
           </p>
           {chat.unread > 0 && (
-            <div className="shrink-0 ml-1 bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md min-w-[20px] text-center shadow-sm">
+            <div className={cn(
+              "shrink-0 ml-2 text-[9px] font-black px-2 py-0.5 rounded-lg min-w-[20px] text-center shadow-sm",
+              isActive ? "bg-white text-blue-600" : "bg-blue-600 text-white"
+            )}>
               {chat.unread}
             </div>
           )}
         </div>
       </div>
+      
       {isActive && (
-        <motion.div 
-          layoutId="chat-pointer"
-          className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-10 bg-primary rounded-r-full"
-        />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-r-full" />
       )}
     </button>
   );
@@ -306,64 +310,37 @@ function MessageBubble({ msg, isMine, prevMsg }) {
   const showAvatar = currentSender !== prevSender;
   
   return (
-    <div className={cn("flex w-full group", isMine ? "justify-end" : "justify-start")}>
-       <div className={cn("flex gap-3 max-w-[70%]", isMine && "flex-row-reverse")}>
+    <div className={cn("flex w-full group/msg", isMine ? "justify-end" : "justify-start")}>
+       <div className={cn("flex gap-4 max-w-[80%]", isMine ? "flex-row-reverse" : "flex-row")}>
           {!isMine && (
              <div className={cn(
-               "w-8 h-8 rounded-full flex shrink-0 items-center justify-center text-[11px] font-bold mt-auto transition-opacity duration-300", 
-               showAvatar ? "bg-slate-200 text-slate-600 opacity-100" : "opacity-0"
+               "w-10 h-10 rounded-xl flex shrink-0 items-center justify-center text-[10px] font-black mt-auto border border-slate-200 bg-white shadow-sm text-slate-400 group-hover/msg:border-blue-200 group-hover/msg:text-blue-600 transition-colors", 
+               showAvatar ? "opacity-100 scale-100" : "opacity-0 scale-95"
              )}>
                 {msg.senderName?.[0] || "?"}
              </div>
           )}
           
-          <div className={cn("relative flex flex-col", isMine ? "items-end" : "items-start")}>
+          <div className={cn("flex flex-col", isMine ? "items-end" : "items-start")}>
              <div className={cn(
-               "px-5 py-3.5 text-[15px] leading-relaxed shadow-sm relative transition-all duration-200",
+               "px-6 py-4 relative shadow-sm transition-all group-hover/msg:shadow-md",
                isMine 
-                 ? "bg-primary text-white rounded-[24px] rounded-br-[8px]" 
-                 : "bg-[#f1f5f9] text-[#1e293b] rounded-[24px] rounded-bl-[8px]"
+                 ? "bg-slate-900 text-white rounded-[1.5rem] rounded-tr-sm" 
+                 : "bg-white text-slate-700 rounded-[1.5rem] rounded-tl-sm border border-slate-100"
              )}>
-                <span className="block mb-4">{msg.text || msg.message}</span>
-                
-                {/* Time & Status overlay inside bubble */}
+                <span className="text-[14px] font-bold leading-relaxed tracking-tight block">
+                   {msg.text || msg.message}
+                </span>
                 <div className={cn(
-                  "absolute bottom-1.5 flex items-center gap-1",
-                  isMine ? "right-3 text-white/90" : "right-3 text-slate-500"
+                  "flex items-center gap-2 mt-4 justify-end opacity-40 group-hover/msg:opacity-80 transition-opacity",
+                  isMine ? "text-white" : "text-slate-400"
                 )}>
-                   <span className="text-[10px] font-bold uppercase tracking-wider">
-                     {msg.time || "10:24 AM"}
-                   </span>
-                   {isMine && <CheckCheck size={11} className="ml-0.5" />}
+                   <span className="text-[9px] font-black uppercase tracking-widest">{msg.time || "10:24 AM"}</span>
+                   {isMine && <CheckCheck size={10} strokeWidth={3} />}
                 </div>
              </div>
-             
-             {showAvatar && !isMine && msg.senderName && (
-               <span className="text-[11px] font-semibold text-slate-400 mt-2 ml-2 tracking-wide">
-                 {msg.senderName}
-               </span>
-             )}
           </div>
        </div>
     </div>
-  );
-}
-
-function MessageSquare(props) {
-  return (
-    <svg 
-      {...props}
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-    >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
   );
 }

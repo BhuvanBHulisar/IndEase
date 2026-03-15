@@ -1,50 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
-export default function DashboardLayout({ 
-  children, 
-  role, 
-  activeTab, 
-  setActiveTab, 
-  user,
-  onLogout,
-  notifications,
-  onClearNotifs
-}) {
+const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTab, onLogout }) => {
   return (
-    <div
-      style={{
-        display: 'flex',
-        minHeight: '100vh',
-        fontFamily: 'Inter, system-ui, sans-serif',
-        background: '#f8fafc',
-      }}
-    >
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={onLogout} />
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onLogout={onLogout} 
+        user={user}
+      />
       
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-        }}
-      >
-        <Topbar user={user} notifications={notifications} onClearNotifs={onClearNotifs} />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Topbar user={user} notifications={notifications} />
         
-        <main
-          style={{
-            flex: 1,
-            padding: '32px 48px',
-            overflowY: 'auto',
-            maxWidth: '1200px',
-            width: '100%',
-          }}
-        >
-          {children}
+        <main className="flex-1 overflow-y-auto bg-slate-50 relative custom-scrollbar">
+          <div className="p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-fade-in">
+            {children}
+          </div>
         </main>
       </div>
     </div>
   );
-}
+};
+
+export default DashboardLayout;

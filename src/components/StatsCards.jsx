@@ -1,34 +1,32 @@
 import React from 'react';
-import { LayoutGrid, CheckCircle2, Wrench, AlertCircle } from 'lucide-react';
+import { LayoutGrid, CheckCircle2, Wrench, AlertCircle, TrendingUp, Cpu, Activity, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { cn } from './ui/base';
 
 const defaultStats = [
   {
-    title: 'Total Machines',
-    icon: LayoutGrid,
-    iconColor: '#2563eb',
-    iconBg: '#eff6ff',
-    borderColor: '#2563eb',
+    title: 'Fleet Capacity',
+    icon: Cpu,
+    color: '#3A86B7',
+    trend: '+12.4%',
   },
   {
-    title: 'Active',
+    title: 'Operational Nodes',
     icon: CheckCircle2,
-    iconColor: '#10b981',
-    iconBg: '#ecfdf5',
-    borderColor: '#10b981',
+    color: '#16A34A',
+    trend: '+5.2%',
   },
   {
-    title: 'Under Repair',
-    icon: Wrench,
-    iconColor: '#f59e0b',
-    iconBg: '#fffbeb',
-    borderColor: '#f59e0b',
+    title: 'Maintenance Frequency',
+    icon: Activity,
+    color: '#FBBF24',
+    trend: '-2.1%',
   },
   {
-    title: 'Offline',
-    icon: AlertCircle,
-    iconColor: '#ef4444',
-    iconBg: '#fef2f2',
-    borderColor: '#ef4444',
+    title: 'High Priority Alerts',
+    icon: Zap,
+    color: '#EF4444',
+    trend: 'Stable',
   },
 ];
 
@@ -42,78 +40,60 @@ const StatsCards = ({ machines }) => {
   const values = [total, active, underRepair, offline];
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: '20px',
-        marginBottom: '24px',
-      }}
-    >
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
       {defaultStats.map((stat, idx) => {
         const Icon = stat.icon;
+        const color = stat.color;
+        
         return (
           <div
             key={stat.title}
-            style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              padding: '24px',
-              border: '1px solid #e2e8f0',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
+            className="bg-white border border-slate-200/60 rounded-[1.5rem] p-8 shadow-sm hover:shadow-premium transition-all duration-300 group cursor-pointer relative overflow-hidden"
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: stat.iconBg,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <Icon size={18} color={stat.iconColor} />
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 -mr-16 -mt-16 rounded-full group-hover:bg-[var(--accent-soft)]/50 transition-colors duration-500" />
+            
+            <div className="flex items-center justify-between mb-8 relative z-10">
+              <div 
+                className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm group-hover:scale-110 group-hover:rotate-3"
+                style={{ backgroundColor: `${color}10`, color: color }}
+              >
+                <Icon size={24} strokeWidth={2.5} />
               </div>
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569', letterSpacing: '0.01em' }}>
+              
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl group-hover:bg-white transition-colors">
+                <TrendingUp size={12} className={stat.trend.startsWith('+') ? 'text-[var(--success)]' : 'text-slate-400'} />
+                <span className={cn(
+                  "text-[10px] font-black uppercase tracking-widest",
+                  stat.trend.startsWith('+') ? 'text-[var(--success)]' : 'text-slate-500'
+                )}>
+                  {stat.trend}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-1 relative z-10">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-slate-500 transition-colors">
                 {stat.title}
-              </span>
+              </h4>
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-black text-slate-900 tracking-tighter leading-none group-hover:text-[var(--primary)] transition-colors">
+                  {values[idx].toLocaleString()}
+                </span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest opacity-80">Units</span>
+              </div>
             </div>
-
-            <div style={{ paddingLeft: '2px' }}>
-              <span style={{ fontSize: '34px', fontWeight: 800, color: '#0f172a', lineHeight: 1, letterSpacing: '-0.02em' }}>
-                {values[idx]}
-              </span>
+            
+            {/* Visual Progress Indicator */}
+            <div className="w-full h-1.5 bg-slate-100 rounded-full mt-8 overflow-hidden relative z-10">
+               <motion.div 
+                 initial={{ width: 0 }}
+                 animate={{ width: `${(values[idx] / (values[0] || 100)) * 100}%` }}
+                 transition={{ duration: 1.5, ease: "circOut", delay: idx * 0.1 }}
+                 className="h-full rounded-full shadow-[0_0_8px_rgba(58,134,183,0.2)]"
+                 style={{ backgroundColor: color }}
+               />
             </div>
-
-            {/* Bottom Color Bar */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: '24px',
-                right: '24px',
-                height: '3px',
-                backgroundColor: stat.borderColor,
-                borderRadius: '2px 2px 0 0',
-                opacity: 0.8,
-              }}
-            />
           </div>
         );
       })}

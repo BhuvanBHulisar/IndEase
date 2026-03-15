@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import api from './api';
-import './App.css'; // Inherit styling
+import api from '../services/api';
+import '../App.css'; // Inherit styling
 
 export default function ResetPassword() {
     const [searchParams] = useSearchParams();
@@ -74,9 +74,17 @@ export default function ResetPassword() {
     };
 
     return (
-        <div className="login-page-wrapper">
-            <div className="auth-card" style={{ width: '400px', margin: '0 auto', textAlign: 'center' }}>
-                <h2 style={{ fontSize: '1.8rem', color: 'white', marginBottom: '10px' }}>Secure Reset</h2>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0F172A', padding: 24 }}>
+            <div style={{
+                maxWidth: 420,
+                width: '100%',
+                background: '#111827',
+                borderRadius: 12,
+                padding: 32,
+                boxShadow: '0 4px 32px rgba(0,0,0,0.18)',
+                textAlign: 'center',
+            }}>
+                <h2 style={{ fontSize: '1.8rem', color: '#E5E7EB', marginBottom: 10, fontWeight: 700, letterSpacing: '-0.01em' }}>Secure Reset</h2>
 
                 {isValidating ? (
                     <div style={{ color: 'white', margin: '30px 0' }}>Validating your secure token...</div>

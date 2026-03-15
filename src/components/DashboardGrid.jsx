@@ -1,34 +1,39 @@
 import React from 'react';
-import { CheckCircle2, Wrench, PlusCircle, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Wrench, PlusCircle, ChevronRight, Activity, Terminal, ShieldAlert, Cpu } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { cn } from './ui/base';
 
 const defaultActivityItems = [
   {
     id: 1,
-    text: 'Machine #MN-102 repaired',
+    text: 'Node restore successful: #MN-102 (Sector 4)',
     time: '2 hours ago',
     icon: CheckCircle2,
-    color: '#10b981', // green
+    color: '#16A34A',
+    category: 'System'
   },
   {
     id: 2,
-    text: 'Maintenance scheduled - MN-089',
+    text: 'Preventative maintenance scheduled: MN-089',
     time: 'Yesterday',
     icon: Wrench,
-    color: '#f59e0b', // orange
+    color: '#FBBF24',
+    category: 'Maintenance'
   },
   {
     id: 3,
-    text: 'New machine added - MN-125',
+    text: 'New industrial node integrated: MN-125',
     time: '2 days ago',
-    icon: PlusCircle,
-    color: '#6366f1', // purple/indigo
+    icon: Cpu,
+    color: '#3A86B7',
+    category: 'Network'
   },
 ];
 
 const serviceData = [
-  { label: 'Active', value: 79, count: 98, color: '#10b981' },
-  { label: 'Under Repair', value: 11, count: 14, color: '#f59e0b' },
-  { label: 'Offline', value: 10, count: 12, color: '#ef4444' },
+  { label: 'Operational', value: 79, count: 98, color: '#3A86B7' },
+  { label: 'Maintenance', value: 11, count: 14, color: '#FBBF24' },
+  { label: 'Decommissioned', value: 10, count: 12, color: '#ef4444' },
 ];
 
 const DashboardGrid = ({ machines, notifications }) => {
@@ -39,136 +44,114 @@ const DashboardGrid = ({ machines, notifications }) => {
   const offlineCount = machinesList.filter(m => m.condition_score <= 20).length;
 
   const actualServiceData = total > 0 ? [
-    { label: 'Active', value: Math.round((activeCount/total)*100), count: activeCount, color: '#10b981' },
-    { label: 'Under Repair', value: Math.round((underRepairCount/total)*100), count: underRepairCount, color: '#f59e0b' },
-    { label: 'Offline', value: Math.round((offlineCount/total)*100), count: offlineCount, color: '#ef4444' },
+    { label: 'Operational', value: Math.round((activeCount/total)*100), count: activeCount, color: '#3A86B7' },
+    { label: 'Maintenance', value: Math.round((underRepairCount/total)*100), count: underRepairCount, color: '#FBBF24' },
+    { label: 'Decommissioned', value: Math.round((offlineCount/total)*100), count: offlineCount, color: '#ef4444' },
   ] : serviceData;
 
   const recentActivities = notifications && notifications.length > 0
     ? notifications.slice(0, 3).map((n, i) => {
         let icon = CheckCircle2;
-        let color = '#10b981';
-        if (n.type === 'critical' || n.type === 'warning') { icon = Wrench; color = '#f59e0b'; }
-        else if (n.type === 'info') { icon = PlusCircle; color = '#6366f1'; }
+        let color = '#16A34A';
+        let category = 'System';
+        if (n.type === 'critical' || n.type === 'warning') { icon = ShieldAlert; color = '#FBBF24'; category = 'Alert'; }
+        else if (n.type === 'info') { icon = Terminal; color = '#3A86B7'; category = 'Log'; }
         
         return {
           id: n.id || i,
-          text: n.msg || n.title || 'System update',
-          time: n.time,
+          text: n.msg || n.title || 'Broadcast telemetry update',
+          time: n.time || '12 minutes ago',
           icon,
-          color
+          color,
+          category
         };
       })
     : defaultActivityItems;
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
-        gap: '24px',
-        fontFamily: 'Inter, system-ui, sans-serif',
-      }}
-    >
-      {/* Recent Activity Panel */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: '16px',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-            Recent Activity
-          </h3>
-          <ChevronRight size={20} color="#64748b" style={{ cursor: 'pointer' }} />
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* System Activity Feed */}
+      <div className="lg:col-span-12 xl:col-span-7 bg-white border border-slate-200/60 rounded-[1.5rem] shadow-sm p-10 flex flex-col gap-10 overflow-hidden relative">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-[var(--primary)] shadow-sm">
+                <Terminal size={20} strokeWidth={2.5} />
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none mb-1">Telemetry Stream</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Real-time Node Interaction</p>
+              </div>
+           </div>
+           <button className="px-4 py-2 bg-slate-50 hover:bg-white hover:border-[var(--primary)]/30 border border-transparent rounded-xl text-[10px] font-black text-slate-500 hover:text-[var(--primary)] uppercase tracking-widest transition-all">View Audit Terminal</button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        
+        <div className="space-y-4 relative z-10">
           {recentActivities.map((item) => {
             const Icon = item.icon;
             return (
               <div
                 key={item.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  background: '#f8fafc',
-                }}
+                className="flex items-center justify-between p-6 rounded-2xl bg-slate-50/50 border border-slate-100 hover:border-[var(--primary)]/10 hover:bg-white hover:shadow-premium transition-all group"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0, paddingRight: '12px' }}>
-                  <Icon size={20} color={item.color} style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {item.text}
-                  </span>
+                <div className="flex items-center gap-6 flex-1 min-w-0 pr-4">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105" style={{ backgroundColor: `${item.color}10`, color: item.color }}>
+                    <Icon size={20} strokeWidth={2.5} />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-[var(--primary)]/80 transition-colors">{item.category}</span>
+                       <div className="w-1 h-1 rounded-full bg-slate-200 group-hover:bg-blue-200" />
+                       <span className="text-[10px] font-bold text-slate-400">{item.time}</span>
+                    </div>
+                    <span className="font-bold text-[15px] text-slate-800 tracking-tight group-hover:text-slate-950 transition-colors truncate">
+                      {item.text}
+                    </span>
+                  </div>
                 </div>
-                <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748b', flexShrink: 0 }}>
-                  {item.time}
-                </span>
+                <div className="shrink-0 flex items-center gap-4">
+                  <ChevronRight size={18} strokeWidth={3} className="text-slate-200 group-hover:text-[var(--primary)] group-hover:translate-x-1 transition-all" />
+                </div>
               </div>
             );
           })}
         </div>
+        
+        {/* Subtle Decorative Gradient */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 -mr-32 -mt-32 rounded-full pointer-events-none" />
       </div>
 
-      {/* Service Status Panel */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: '16px',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '32px' }}>
-          Service Status
-        </h3>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px' }}>
-          {/* Donut Chart */}
+      {/* Fleet Ecosystem Status */}
+      <div className="lg:col-span-12 xl:col-span-5 bg-white border border-slate-200/60 rounded-[1.5rem] shadow-sm p-10 flex flex-col items-center justify-center gap-12 overflow-hidden relative">
+        <div className="w-full relative z-10">
+           <h3 className="text-xl font-black text-slate-900 tracking-tight mb-1">Connectivity Status</h3>
+           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Network Health Distribution</p>
+        </div>
+        
+        <div className="flex flex-col items-center gap-12 w-full relative z-10">
           <DonutChart data={actualServiceData} />
           
-          {/* Legend */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: '140px' }}>
+          <div className="grid grid-cols-1 gap-4 w-full pt-4">
             {actualServiceData.map((item) => (
-              <div
-                key={item.label}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: item.color,
-                    }}
-                  />
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+              <div key={item.label} className="flex items-center justify-between p-5 rounded-2xl border border-slate-50 bg-slate-50/50 group hover:border-slate-200 hover:bg-white transition-all shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.2)]" style={{ backgroundColor: item.color }} />
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-800 transition-colors">
                     {item.label}
                   </span>
                 </div>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
-                  {item.value}%
-                </span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-slate-900 leading-none">
+                    {item.value}
+                  </span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-60">%</span>
+                </div>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Subtle Decorative Gradient */}
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-50 -ml-24 -mb-24 rounded-full pointer-events-none" />
       </div>
     </div>
   );
@@ -176,60 +159,51 @@ const DashboardGrid = ({ machines, notifications }) => {
 
 function DonutChart({ data }) {
   const totalCount = data.reduce((sum, item) => sum + item.count, 0);
-  const size = 160;
-  const strokeWidth = 24;
+  const size = 200;
+  const strokeWidth = 16;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   
-  // Create an array of values out of 100 for calculating the dash lengths
   let cumulativeOffset = 0;
 
   return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <div className="relative group">
+      {/* Pulse Halo */}
+      <div className="absolute inset-0 bg-[var(--primary)]/5 rounded-full animate-ping group-hover:bg-[var(--primary)]/10 transition-colors duration-500 scale-90" />
+      
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="transform -rotate-90 relative z-10 filter drop-shadow-md">
         {data.map((item, index) => {
           const dashLength = (item.value / 100) * circumference;
           const dashOffset = circumference - cumulativeOffset;
           cumulativeOffset += dashLength;
 
           return (
-            <circle
+            <motion.circle
               key={item.label}
+              initial={{ strokeDasharray: `0 ${circumference}` }}
+              animate={{ strokeDasharray: `${dashLength} ${circumference - dashLength}` }}
+              transition={{ duration: 1.8, ease: "circOut", delay: index * 0.15 }}
               cx={size / 2}
               cy={size / 2}
               r={radius}
               fill="none"
               stroke={item.color}
               strokeWidth={strokeWidth}
-              strokeDasharray={`${dashLength} ${circumference - dashLength}`}
               strokeDashoffset={dashOffset}
-              style={{
-                transform: 'rotate(-90deg)',
-                transformOrigin: '50% 50%',
-              }}
+              strokeLinecap="round"
+              className="transition-[stroke-width] duration-300 hover:stroke-[20px]"
             />
           );
         })}
       </svg>
-      {/* Center Text */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <span style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>
+      {/* Center Intelligence Display */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center relative z-20">
+        <span className="text-5xl font-black text-slate-900 tracking-tighter transition-transform group-hover:scale-110 duration-500">
           {totalCount}
         </span>
-        <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748b', marginTop: '4px' }}>
-          Machines
-        </span>
+        <div className="mt-2 px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg shadow-sm">
+           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Active Nodes</span>
+        </div>
       </div>
     </div>
   );
