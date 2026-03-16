@@ -36,7 +36,7 @@ function PopupModal({ title = 'Support Ticket Submitted', message, onClose }) {
 }
 import { GoogleLogin } from '@react-oauth/google';
 
-// Material-style icons from Lucide
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import {
   MapPin as LocationIcon,
   Mail as EmailIcon,
@@ -45,7 +45,7 @@ import {
   ClipboardList as AssignmentIcon,
   CheckCircle2 as CheckCircleIcon,
   XCircle as CancelIcon,
-  X as CloseIcon,
+  X,
   Info as InfoIcon,
   Download as DownloadIcon,
   ChevronRight,
@@ -58,12 +58,25 @@ import {
   HardDrive,
   Trash2,
   AlertCircle,
+  Menu,
+  CheckCircle,
+  CircleDot,
+  Layout,
+  Command,
+  ArrowRight,
+  Sparkles,
+  BarChart3,
+  Network,
   Play,
   FileText,
   CreditCard,
   Lock,
-  ArrowRight,
-  CheckCircle,
+  UserPlus,
+  Video,
+  Search,
+  MessageSquare,
+  ClipboardCheck,
+  FileText as FileTextIcon
 } from 'lucide-react';
 
 // Modern SaaS Dashboard Components
@@ -139,6 +152,25 @@ function App() {
   // --- CORE APPLICATION STATES ---
   const [view, setView] = useState('landing');
   const [socket, setSocket] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  
+  const { scrollY } = useScroll();
+  const heroScale = useTransform(scrollY, [0, 300], [1, 0.98]);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navigateToAuth = (targetRole, targetIsLogin) => {
+    if (targetRole) setRole(targetRole);
+    if (targetIsLogin !== undefined) setIsLogin(targetIsLogin);
+    setView('auth');
+    setIsMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
   // Popup for booking expert
   const [showBookExpertModal, setShowBookExpertModal] = useState(false);
   // Real-time chart update listener
@@ -1049,7 +1081,9 @@ function App() {
 
   // 1. Fetch Chat History when activeChatId changes
   useEffect(() => {
-    if (activeChatId) {
+    // [FIX] Robust guard: Only fetch if authenticated and in dashboard view
+    const token = localStorage.getItem('token');
+    if (activeChatId && view === 'dashboard' && token) {
       // API Call with robust fallback
       api.get(`/chat/${activeChatId}`)
         .then(res => {
@@ -1064,21 +1098,17 @@ function App() {
             }));
             setMessages(dbMessages);
           }
-          // If empty array or error, we keep the initial MOCK_MESSAGES state
         })
         .catch(err => {
           console.warn("Failed to load chat history (DB Offline?), keeping demo chat.", err);
-          // Keep existing state (MOCK_MESSAGES)
         });
-
-
 
       // Join the socket room for this job
       if (socket) {
         socket.emit('join_job', activeChatId);
       }
     }
-  }, [activeChatId, socket]);
+  }, [activeChatId, socket, view]);
 
   // 2. Listen for Incoming Messages
   useEffect(() => {
@@ -1894,101 +1924,6 @@ www.originode.com
     ? email.includes('@')
     : (email.includes('@') && password.length >= 8);
 
-  // VIEW 1: PROFESSIONAL LANDING PAGE
-  if (view === 'landing') {
-    return (
-      <div className="landing-page">
-        <div className="landing-grid-bg" />
-        <div className="landing-gradient" />
-        
-        <nav className="landing-nav">
-           <div className="landing-logo">origiNode</div>
-           <div className="flex items-center gap-8">
-              <button 
-                className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors"
-                onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(true); }}
-              >
-                Log In
-              </button>
-              <button 
-                className="h-11 px-8 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-900/10"
-                onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(false); }}
-              >
-                Get Started
-              </button>
-           </div>
-        </nav>
-
-        <main className="hero-section">
-           <div className="hero-content">
-              <div className="hero-pill">
-                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />
-                 Specialist Network v4.2 Live
-              </div>
-              <h1 className="hero-title">Industrial Intelligence.</h1>
-              <p className="hero-subtitle">
-                 Synchronizing machine nodes with a global expert ecosystem. Management, maintenance, and telemetric signals for modern infrastructure.
-              </p>
-           </div>
-
-           <div className="role-platforms">
-              <div className="role-card group">
-                 <div className="role-icon-wrap">
-                    <Cpu size={28} strokeWidth={2.5} />
-                 </div>
-                 <span className="role-tag">Management Module</span>
-                 <h2 className="role-name">Fleet Operator</h2>
-                 <p className="role-desc">
-                    Register industrial assets, track maintenance cycles, and query verified experts through the origiNode mesh.
-                 </p>
-                 <div className="flex flex-col gap-4">
-                    <button 
-                      className="main-action-btn"
-                      onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(true); setSignupStep(1); }}
-                    >
-                      Enter Operator Portal
-                      <ArrowRight size={16} strokeWidth={3} />
-                    </button>
-                    <button 
-                      className="secondary-action-btn"
-                      onClick={() => { setView('auth'); setRole('consumer'); setIsLogin(false); setSignupStep(1); }}
-                    >
-                      Provision Workspace
-                    </button>
-                 </div>
-              </div>
-
-              <div className="role-card group">
-                 <div className="role-icon-wrap">
-                    <Shield size={28} strokeWidth={2.5} />
-                 </div>
-                 <span className="role-tag">Partner Network</span>
-                 <h2 className="role-name">Service Expert</h2>
-                 <p className="role-desc">
-                    Resolve high-fidelity service requests, manage technical dispatches, and scale your industrial repair firm.
-                 </p>
-                 <div className="flex flex-col gap-4">
-                    <button 
-                      className="main-action-btn bg-[var(--primary)] hover:bg-blue-700 shadow-blue-500/10"
-                      onClick={() => { setView('auth'); setRole('producer'); setIsLogin(true); setSignupStep(1); }}
-                    >
-                      Access Service Terminal
-                      <ArrowRight size={16} strokeWidth={3} />
-                    </button>
-                    <button 
-                      className="secondary-action-btn"
-                      onClick={() => { setView('auth'); setRole('producer'); setIsLogin(false); setSignupStep(1); }}
-                    >
-                      Join Provider Program
-                    </button>
-                 </div>
-              </div>
-           </div>
-        </main>
-      </div>
-    );
-  }
-
   // --- SHARED UI COMPONENTS (MODALS) ---
   const sharedModals = (
     <>
@@ -2002,7 +1937,7 @@ www.originode.com
                <h3 className="text-3xl font-black text-slate-900 tracking-tight">Secure Checkout</h3>
                <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">Protocol Version 4.02 // Encrypted</p>
                <button className="modal-close-btn" onClick={() => setShowCheckoutModal(false)}>
-                  <CloseIcon fontSize="small" />
+                  <X size={18} />
                </button>
             </div>
             
@@ -2049,7 +1984,7 @@ www.originode.com
                <h3 className="modal-title">Register Node</h3>
                <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">Initialize New Industrial Asset</p>
                <button className="modal-close-btn" onClick={() => setShowAddMachineModal(false)}>
-                  <CloseIcon fontSize="small" />
+                  <X size={18} />
                </button>
             </div>
             
@@ -2157,7 +2092,7 @@ www.originode.com
                <h3 className="modal-title">Smart Signal Analysis</h3>
                <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">AI Hub Diagnosis // Local Mesh</p>
                <button className="modal-close-btn" onClick={() => { setShowDiagnosisModal(false); setDiagnosisStep(1); }}>
-                  <CloseIcon fontSize="small" />
+                  <X size={18} />
                </button>
             </div>
             
@@ -2240,7 +2175,7 @@ www.originode.com
                </div>
                <h3 className="modal-title">Service Maintenance Log</h3>
                <button className="modal-close-btn" onClick={() => setShowReportModal(false)}>
-                  <CloseIcon fontSize="small" />
+                  <X size={18} />
                </button>
             </div>
             
@@ -2365,6 +2300,362 @@ www.originode.com
       )}
     </>
   );
+
+  // --- VIEW 1: PROFESSIONAL LANDING PAGE ---
+  if (view === 'landing') {
+    return (
+      <div className="bg-white min-h-screen selection:bg-blue-100 selection:text-blue-900">
+        {/* Navigation */}
+        <nav className={`nav-sticky ${scrolled ? 'scrolled' : ''}`}>
+          <div className="logo-container" onClick={() => setView('landing')}>
+            <div className="logo-text">origiNode</div>
+          </div>
+        </nav>
+
+        {/* Hero Section */}
+        <section className="snap-section">
+          <header className="hero-section">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            style={{ scale: heroScale }}
+          >
+            <h1 className="hero-title">Connecting machine owners with manufacturers and expert technicians.</h1>
+            <p className="hero-desc">
+              Small and medium-scale industries often rely on older machines that become difficult to repair when manufacturers stop supporting them. 
+              origiNode connects industries with experts who understand their machinery.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <motion.button 
+                whileHover={{ y: -2, boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)' }}
+                whileTap={{ scale: 0.98 }}
+                className="btn-primary px-10 py-4 text-base" 
+                onClick={() => {
+                  const el = document.getElementById('platform-access');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Get Started
+              </motion.button>
+            </div>
+          </motion.div>
+        </header>
+        </section>
+
+        {/* Problem and Solution Section */}
+        <section className="snap-section bg-white">
+          <div className="content-section" style={{ maxWidth: '1200px' }}>
+            <div className="grid md:grid-cols-2 gap-8 items-stretch">
+              {/* Problem Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1] }}
+                className="minimal-saas-card"
+              >
+                <div className="icon-container w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mb-6">
+                  <AlertCircle size={20} />
+                </div>
+                <span className="saas-label text-red-600">The Problem</span>
+                <h3 className="saas-heading">High Maintenance Costs & Downtime</h3>
+                <p className="saas-description">
+                  Small-scale industries often rely on specialized machinery that lacks modern support networks. 
+                  When these legacy systems fail, finding the right expertise becomes an expensive hurdle that halts production.
+                </p>
+              </motion.div>
+
+              {/* Our Solution Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1], delay: 0.2 }}
+                className="minimal-saas-card"
+              >
+                <div className="icon-container w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center mb-6">
+                  <Zap size={20} />
+                </div>
+                <span className="saas-label text-blue-600">Our Solution</span>
+                <h3 className="saas-heading">A Direct Line to Industrial Expertise</h3>
+                <p className="saas-description">
+                  origiNode bridges the gap between factory operators and master technicians. 
+                  We provide a unified platform for rapid diagnosis, verified repairs, and machine lifecycle management.
+                </p>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* How the Platform Works */}
+        <section className="snap-section">
+          <section className="content-section">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <h2 className="section-title">How the Platform Works</h2>
+          </motion.div>
+          <div className="compact-grid">
+            {[
+              { id: 1, title: "Register", icon: <UserPlus size={24}/>, desc: "Create an account as machine owner or service expert." },
+              { id: 2, title: "Report Issue", icon: <Video size={24}/>, desc: "Upload machine video and describe the fault." },
+              { id: 3, title: "Find Experts", icon: <Search size={24}/>, desc: "The platform identifies suitable manufacturers or technicians." },
+              { id: 4, title: "Repair & Payment", icon: <CreditCard size={24}/>, desc: "Experts resolve the issue and payment is completed securely." }
+            ].map((step, idx) => (
+              <motion.div 
+                key={step.id} 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+                whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)' }} 
+                className="step-box group"
+              >
+                <div className="flex items-center gap-4 mb-3">
+                  <motion.div 
+                    whileHover={{ scale: 1.15, rotate: 5 }}
+                    className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 transition-colors group-hover:bg-blue-600 group-hover:text-white"
+                  >
+                    {step.icon}
+                  </motion.div>
+                  <h3 className="card-title mb-0">{step.title}</h3>
+                </div>
+                <p className="card-text">{step.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+        </section>
+
+        {/* Platform Access */}
+        <section id="platform-access" className="snap-section-last bg-slate-50">
+          <section className="content-section !py-0">
+          <div className="grid md:grid-cols-2 gap-8">
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              whileHover={{ y: -5 }}
+              className="platform-card"
+            >
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-8">
+                <Cpu size={28} />
+              </div>
+              <h3 className="card-title">Fleet Operator</h3>
+              <p className="card-text mb-8">Register industrial assets, track maintenance cycles, and connect with verified service experts.</p>
+              <div className="flex flex-col gap-3">
+                <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} className="btn-primary w-full" onClick={() => navigateToAuth('consumer', true)}>Login</motion.button>
+                <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} className="btn-secondary w-full" onClick={() => navigateToAuth('consumer', false)}>Sign Up</motion.button>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              whileHover={{ y: -5 }}
+              className="platform-card"
+            >
+              <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-8">
+                <Shield size={28} />
+              </div>
+              <h3 className="card-title">Service Expert</h3>
+              <p className="card-text mb-8">Manage service requests, dispatch technicians, and provide repair services.</p>
+              <div className="flex flex-col gap-3">
+                <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} className="btn-primary w-full bg-indigo-600" onClick={() => navigateToAuth('producer', true)}>Login</motion.button>
+                <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} className="btn-secondary w-full" onClick={() => navigateToAuth('producer', false)}>Sign Up</motion.button>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+        </section>
+
+        {/* Footer */}
+        <footer className="footer-simple">
+          <div className="max-w-4xl mx-auto space-y-4">
+            <div className="logo-container mx-auto justify-center mb-4" onClick={() => {
+              setView('landing');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}>
+              <div className="logo-text text-xl">origiNode</div>
+            </div>
+            <p className="text-sm font-bold text-slate-900">Industrial Intelligence Platform</p>
+            <p className="text-xs text-slate-400">© 2026 origiNode. All rights reserved.</p>
+          </div>
+        </footer>
+        {sharedModals}
+      </div>
+    );
+  }
+
+  // VIEW 2: PROFESSIONAL AUTHENTICATION PORTAL
+  if (view === 'auth' || view === 'forgot') {
+    return (
+      <div className="auth-page-view">
+         <div className="landing-grid-bg" />
+         <div className="login-page-wrapper">
+           <button className="back-btn-top" onClick={() => setView('landing')}>
+             <ArrowRight size={14} className="rotate-180" />
+             Back to Main
+           </button>
+           <div className="glass-container">
+             <div className="login-visual">
+               <div className="visual-noise" />
+               <div className="p-16 text-white relative z-10 space-y-10 mt-auto">
+                 <div className="inline-flex items-center gap-3 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md border border-white/10 text-[10px] font-bold uppercase tracking-[0.2em]">
+                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.5)]" />
+                   Secure Protocol v4.02
+                 </div>
+
+                 <div>
+                    <h3 className="text-5xl font-black tracking-tight mb-6 leading-none">
+                      {view === 'forgot' ? 'Security Recovery' : (role === 'consumer' ? 'Fleet Operations' : 'Service Terminal')}
+                    </h3>
+                    <p className="text-white/60 font-medium max-w-sm leading-relaxed text-sm">
+                      {view === 'forgot'
+                        ? 'Restore your administrative access to the origiNode network.'
+                        : (role === 'consumer'
+                          ? 'Manage industrial assets with 21st-century precision and expert support.'
+                          : 'Connect with a global network for industrial diagnostics and professional service requests.')}
+                    </p>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-12 pt-10 border-t border-white/10">
+                    <div className="space-y-2">
+                       <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Verified Nodes</span>
+                       <p className="text-3xl font-black tabular-nums">1.2K+</p>
+                    </div>
+                    <div className="space-y-2">
+                       <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Active Experts</span>
+                       <p className="text-3xl font-black tabular-nums">8.4K</p>
+                    </div>
+                 </div>
+               </div>
+             </div>
+
+             <div className="login-form-area">
+               <div className="mb-12">
+                  <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-4">
+                    {view === 'forgot'
+                      ? 'Reset Password'
+                      : isLogin ? `${role === 'consumer' ? 'Operator' : 'Provider'} Portal` : `Identity Setup`}
+                  </h2>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">
+                     Industrial Authentication Required
+                  </p>
+               </div>
+
+               {isLogin ? (
+                 <div className="space-y-0">
+                   <div className="input-field-modern">
+                     <label>Professional Email Address</label>
+                     <input
+                       type="email"
+                       placeholder="e.g. name@industrial.com"
+                       value={email}
+                       onChange={(e) => setEmail(e.target.value)}
+                     />
+                   </div>
+
+                   {view !== 'forgot' && (
+                     <div className="input-field-modern">
+                       <div className="flex justify-between items-center mb-2">
+                         <label className="m-0">Security Credential</label>
+                         <span 
+                           className="text-[10px] font-black text-[var(--primary)] uppercase cursor-pointer hover:underline tracking-widest" 
+                           onClick={() => { setView('forgot'); setErrors({}); }}
+                         >
+                           Recover?
+                         </span>
+                       </div>
+                       <input
+                         type={showPassword ? "text" : "password"}
+                         placeholder="••••••••••••"
+                         value={password}
+                         onChange={(e) => setPassword(e.target.value)}
+                       />
+                     </div>
+                   )}
+                 </div>
+               ) : (
+                 <div className="space-y-0">
+                    {signupStep === 1 ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-6">
+                           <div className="input-field-modern">
+                             <label>Given Name</label>
+                             <input type="text" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                           </div>
+                           <div className="input-field-modern">
+                             <label>Family Name</label>
+                             <input type="text" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                           </div>
+                        </div>
+                        <div className="input-field-modern">
+                          <label>Institutional Email</label>
+                          <input type="email" placeholder="name@corporation.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                        </div>
+                        <div className="input-field-modern">
+                          <label>Create Secure Password</label>
+                          <input type="password" placeholder="Select a strong credential" value={password} onChange={(e) => setPassword(e.target.value)} />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="input-field-modern">
+                         <label>{role === 'consumer' ? 'Enterprise Identity' : 'Technical Discipline'}</label>
+                         <input 
+                           type="text" 
+                           placeholder={role === 'consumer' ? "e.g. Acme Industrial Systems" : "e.g. Precision CNC Maintenance"} 
+                           onChange={(e) => setExtraInfo(e.target.value)} 
+                         />
+                      </div>
+                    )}
+                 </div>
+               )}
+
+               {errors.server && <div className="p-5 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-[10px] font-black my-6 uppercase tracking-widest leading-relaxed shadow-sm">{errors.server}</div>}
+
+               <button className="main-action-btn h-16 rounded-2xl" onClick={handleLogin}>
+                 {view === 'forgot' ? 'Dispatch Reset Token' : isLogin ? 'Authenticate Identity' : (signupStep === 1 ? 'Verify Protocol' : 'Finalize Identity')}
+               </button>
+
+               <div className="mt-10 space-y-8">
+                 <div className="relative">
+                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
+                   <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-300"><span className="bg-white px-4">Mesh Link</span></div>
+                 </div>
+                 
+                 <div className="flex justify-center">
+                   <GoogleLogin
+                     onSuccess={handleGoogleSuccess}
+                     onError={handleGoogleError}
+                     theme="outline"
+                     shape="pill"
+                     width="100%"
+                   />
+                 </div>
+               </div>
+
+               <p className="mt-12 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                 {isLogin ? "Need a professional account?" : "Existing operative?"}
+                 <button 
+                   onClick={() => { setIsLogin(!isLogin); setSignupStep(1); setErrors({}); }} 
+                   className="ml-2 text-[var(--primary)] font-black hover:underline"
+                 >
+                   {isLogin ? "Join System" : "Log In"}
+                 </button>
+               </p>
+             </div>
+           </div>
+         </div>
+          {sharedModals}
+      </div>
+    );
+  }
 
 
     // --- VIEW 3: UNIFIED MODERN DASHBOARD ---
@@ -2533,175 +2824,16 @@ www.originode.com
         onLogout={handleLogout}
         onClearNotifs={handleClearNotifs}
       >
-        <div className="animate-fade-in">
-          {renderContent()}
-        </div>
-        {sharedModals}
-      </DashboardLayout>
-    );
-  }
-
-  // --- RETURN: PROFESSIONAL LOGIN / SIGNUP ---
-  return (
-    <div className="login-page-wrapper">
-      <button className="back-btn-top" onClick={() => setView('landing')}>← Back to Main</button>
-
-      <div className="glass-container">
-        <div className="login-visual">
-          <div className="p-12 text-white relative z-10 space-y-8">
-            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md border border-white/10 text-[10px] font-bold uppercase tracking-widest">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Secure Enterprise Portal
-            </div>
-
-            <div>
-               <h3 className="text-4xl font-extrabold tracking-tight mb-4">
-                 {view === 'forgot' ? 'Security Recovery' : (role === 'consumer' ? 'Fleet Operations' : 'Service Terminal')}
-               </h3>
-               <p className="text-white/70 font-medium max-w-sm leading-relaxed">
-                 {view === 'forgot'
-                   ? 'Restore your administrative access to the origiNode network.'
-                   : (role === 'consumer'
-                     ? 'Manage industrial assets with 21st-century precision and expert support.'
-                     : 'Connect with a global network for industrial diagnostics and professional service requests.')}
-               </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/10">
-               <div className="space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Verified Nodes</span>
-                  <p className="text-2xl font-black">1.2K+</p>
-               </div>
-               <div className="space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Active Experts</span>
-                  <p className="text-2xl font-black">8.4K</p>
-               </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest opacity-80 pt-10">
-               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-               Network Status: Operational
-            </div>
-          </div>
-        </div>
-
-        <div className="login-form-area">
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">
-            {view === 'forgot'
-              ? 'Reset Password'
-              : isLogin ? `${role === 'consumer' ? 'Operator' : 'Provider'} Login` : `Account Setup`}
-          </h1>
-          <p className="text-slate-500 font-medium text-sm mb-10">
-             Enter your professional credentials to continue.
-          </p>
-
-          {isLogin ? (
-            <div className="space-y-6">
-              <div className="input-field-modern">
-                <label>Work Email</label>
-                <input
-                  type="email"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-
-              {view !== 'forgot' && (
-                <div className="input-field-modern">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="m-0">Password</label>
-                    <span 
-                      className="text-[10px] font-bold text-blue-600 uppercase cursor-pointer hover:underline" 
-                      onClick={() => { setView('forgot'); setErrors({}); }}
-                    >
-                      Forgot?
-                    </span>
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-6">
-               {signupStep === 1 ? (
-                 <>
-                   <div className="grid grid-cols-2 gap-4">
-                      <div className="input-field-modern">
-                        <label>First Name</label>
-                        <input type="text" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                      </div>
-                      <div className="input-field-modern">
-                        <label>Last Name</label>
-                        <input type="text" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                      </div>
-                   </div>
-                   <div className="input-field-modern">
-                     <label>Work Email</label>
-                     <input type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-                   </div>
-                   <div className="input-field-modern">
-                     <label>Create Password</label>
-                     <input type="password" placeholder="Min. 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
-                   </div>
-                 </>
-               ) : (
-                 <div className="input-field-modern">
-                    <label>{role === 'consumer' ? 'Organization Name' : 'Technical Specialization'}</label>
-                    <input 
-                      type="text" 
-                      placeholder={role === 'consumer' ? "e.g. Acme Industries Ltd." : "e.g. Industrial Automation"} 
-                      onChange={(e) => setExtraInfo(e.target.value)} 
-                    />
-                 </div>
-               )}
-            </div>
-          )}
-
-          {errors.server && <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-bold my-4 uppercase tracking-widest">{errors.server}</div>}
-
-          <button className="main-action-btn" onClick={handleLogin}>
-            {view === 'forgot' ? 'Send Reset Link' : isLogin ? 'Sign In' : (signupStep === 1 ? 'Continue' : 'Complete Setup')}
-          </button>
-
-          {view !== 'forgot' && (
-            <div className="mt-8 space-y-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
-                <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-400"><span className="bg-white px-2">OR</span></div>
-              </div>
-              
-              <div className="flex justify-center">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  theme="outline"
-                  shape="rectangular"
-                  width="100%"
-                />
-              </div>
-            </div>
-          )}
-
-          <p className="mt-10 text-center text-sm font-medium text-slate-500">
-            {isLogin ? "Need a professional account?" : "Already have an account?"}
-            <button 
-              onClick={() => { setIsLogin(!isLogin); setSignupStep(1); setErrors({}); }} 
-              className="ml-1 text-blue-600 font-bold hover:underline"
-            >
-              {isLogin ? "Sign Up" : "Login"}
-            </button>
-          </p>
-        </div>
-      </div>
       {sharedModals}
-    </div>
+      <div className="animate-fade-in">
+        {renderContent()}
+      </div>
+    </DashboardLayout>
   );
+}
+
+// --- FALLBACK RENDER (SHOULD NOT BE REACHED IF VIEW IS LANDING OR DASHBOARD) ---
+return null;
 }
 
 

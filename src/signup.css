@@ -77,65 +77,9 @@
     background: #f59e0b;
 }
 
-/* Modern Input Fields */
+/* Modern Input Fields managed in App.css for global consistency */
 .signup-form-step {
     animation: fadeIn 0.4s ease-out;
-}
-
-.input-field-modern {
-    margin-bottom: 10px;
-    display: flex;
-    flex-direction: column;
-}
-
-.input-field-modern label {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: #94a3b8;
-    margin-bottom: 4px;
-    display: block;
-}
-
-/* Modern SaaS input style */
-.input-field-modern input,
-.input-field-modern select {
-    border: 1.5px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 12px 14px;
-    font-size: 1rem;
-    color: #1e293b;
-    background: #fff;
-    font-weight: 400;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    box-shadow: none;
-}
-
-.input-field-modern input:focus,
-.input-field-modern select:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
-    outline: none;
-}
-
-.input-field-modern input::placeholder,
-.input-field-modern select::placeholder {
-    color: #9ca3af;
-    opacity: 0.65;
-    font-size: 0.97rem;
-    font-weight: 400;
-    transition: color 0.2s;
-}
-
-.input-field-modern input:focus {
-    background: white;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    outline: none;
-}
-
-.producer-theme .input-field-modern input:focus {
-    border-color: var(--amber-gold);
-    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
 }
 
 /* Icons inside inputs */
