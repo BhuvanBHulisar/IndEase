@@ -86,13 +86,28 @@ export const verifyPayment = async (req, res) => {
 
             const requestId = txResult.rows[0].request_id;
 
-            // 3. Update job status to completed & Fetch producer ID to notify
+            // 3. Update job status to completed & Fetch producer ID
             const jobUpdateResult = await db.query(
-                "UPDATE service_requests SET status = 'completed' WHERE id = $1 RETURNING producer_id",
+                "UPDATE service_requests SET status = 'completed' WHERE id = $1 RETURNING producer_id, consumer_id, quoted_cost",
                 [requestId]
             );
 
             const producerId = jobUpdateResult.rows[0].producer_id;
+            const consumerId = jobUpdateResult.rows[0].consumer_id;
+            const totalAmount = Number(jobUpdateResult.rows[0].quoted_cost);
+
+            // [NEW] Calculate transparency breakdown (10% platform, 18% GST)
+            const platformFee = Math.round(totalAmount * 0.10);
+            const gst = Math.round(totalAmount * 0.18);
+            const expertAmount = totalAmount - platformFee - gst;
+
+            // Update transaction with details
+            await db.query(
+                `UPDATE transactions 
+                 SET expert_id = $1, platform_fee = $2, gst = $3, expert_amount = $4 
+                 WHERE request_id = $5 AND status = 'paid'`,
+                [producerId, platformFee, gst, expertAmount, requestId]
+            );
 
             // 4. Notify Producer via Socket & Persistent Notification
             const io = req.app.get('socketio');
@@ -101,15 +116,25 @@ export const verifyPayment = async (req, res) => {
                     status: 'completed',
                     message: "Payment received! Job finalized."
                 });
-                // Emit real-time chart update for all clients of this user
                 io.to(`user_${req.user.id}`).emit('finance_chart_update');
+                if (consumerId) {
+                    io.to(`user_${consumerId}`).emit('payment_success', {
+                        requestId,
+                        amount: totalAmount
+                    });
+                    io.to(`user_${consumerId}`).emit('request_status_updated', {
+                        requestId,
+                        status: 'completed'
+                    });
+                    io.to(`user_${consumerId}`).emit('finance_chart_update');
+                }
             }
 
             if (producerId) {
                 await notificationController.createNotification(
                     producerId,
                     'Payment Received',
-                    `You have received payment for Job #${requestId.substring(0, 6).toUpperCase()}. Funds are being processed.`,
+                    `You have received payment of ₹${expertAmount.toLocaleString()} for Job #${requestId.substring(0, 6).toUpperCase()}. (Total: ₹${totalAmount.toLocaleString()})`,
                     'payment',
                     `/finance`
                 );
@@ -193,23 +218,31 @@ export const getHistory = async (req, res) => {
 
         if (role === 'producer') {
             query = `
-                SELECT t.id, t.created_at, u.first_name as other_party, sr.id as service_id, t.status, t.amount
+                SELECT 
+                    t.id, t.created_at, u.first_name as other_party, 
+                    sr.id as service_id, t.status, t.amount,
+                    t.expert_amount, t.platform_fee, t.gst, t.type
                 FROM transactions t
                 JOIN service_requests sr ON t.request_id = sr.id
                 JOIN users u ON sr.consumer_id = u.id
                 WHERE sr.producer_id = $1
                 ORDER BY t.created_at DESC
-                LIMIT 10
+                LIMIT 20
             `;
         } else {
             query = `
-                SELECT t.id, t.created_at, u.first_name as other_party, sr.id as service_id, t.status, t.amount
+                SELECT 
+                    t.id, t.created_at, u.first_name as other_party, 
+                    sr.id as service_id, t.status, t.amount,
+                    t.expert_amount, t.platform_fee, t.gst,
+                    pp.level as expert_level, pp.rating as expert_rating
                 FROM transactions t
                 JOIN service_requests sr ON t.request_id = sr.id
                 JOIN users u ON sr.producer_id = u.id
+                LEFT JOIN producer_profiles pp ON pp.user_id = u.id
                 WHERE sr.consumer_id = $1
                 ORDER BY t.created_at DESC
-                LIMIT 10
+                LIMIT 20
             `;
         }
 
@@ -218,11 +251,19 @@ export const getHistory = async (req, res) => {
         const formatted = result.rows.map(row => ({
             id: row.id,
             created_at: row.created_at,
-            date: row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB').replace(/\//g, '.') : new Date().toLocaleDateString('en-GB').replace(/\//g, '.'),
+            date: row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
             client: row.other_party,
-            service: `#SR-${row.service_id.toString().substring(0, 6)}`,
+            expert_name: row.other_party,
+            expert_level: row.expert_level || 'Elite',
+            expert_rating: row.expert_rating || '5.0',
+            service: `#SR-${row.service_id?.toString().substring(0, 6) || 'N/A'}`,
             status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
-            amount: `₹${row.amount}`
+            amount: `₹${row.amount}`,
+            total_amount: Number(row.amount),
+            expert_payout: Number(row.expert_amount || (row.amount * 0.72)),
+            platform_fee: Number(row.platform_fee || (row.amount * 0.10)),
+            gst: Number(row.gst || (row.amount * 0.18)),
+            is_salary: row.type === 'salary'
         }));
 
         res.json(formatted);

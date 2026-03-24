@@ -23,6 +23,8 @@ import NotFound from './pages/NotFound';
 import { socket } from './utils/socket';
 import ThemeProviderWrapper from './theme';
 import Login from './pages/Login';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 
 const ProtectedRoute = ({ children }) => {
     const token = localStorage.getItem('adminToken');
@@ -74,9 +76,6 @@ const AdminLayout = () => {
 
                 {/* Footer info/copyright */}
                 <Box sx={{ mt: 6, textAlign: 'center', opacity: 0.5 }}>
-                    <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                        &copy; 2026 Admin Core Platform. All operational directives logged.
-                    </Typography>
                 </Box>
             </Box>
         </Box>
@@ -108,6 +107,8 @@ const PortalRoutes = () => {
     return (
         <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route
                 path="/*"
                 element={

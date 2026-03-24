@@ -1,4 +1,5 @@
 import db from '../config/db.js';
+import { updateExpertPoints } from '../services/expertPerformanceService.js';
 
 // @desc    Submit a review for a completed job
 // @route   POST /api/reviews
@@ -11,9 +12,10 @@ export const createReview = async (req, res) => {
     }
 
     try {
-        // 1. Verify job eligibility
+        // 1. Verify job eligibility (completed job or paid / invoice stage after payment)
         const jobResult = await db.query(
-            "SELECT * FROM service_requests WHERE id = $1 AND consumer_id = $2 AND status = 'completed'",
+            `SELECT * FROM service_requests WHERE id = $1 AND consumer_id = $2
+             AND status IN ('completed', 'payment_pending')`,
             [requestId, consumerId]
         );
 
@@ -48,6 +50,16 @@ export const createReview = async (req, res) => {
             'UPDATE producer_profiles SET rating = $1 WHERE user_id = $2',
             [newAverage, producerId]
         );
+
+        if (producerId) {
+            let pointChange = 0;
+            if (rating === 5) pointChange = 15;
+            else if (rating === 4) pointChange = 10;
+            else if (rating === 3) pointChange = -5;
+            else pointChange = -15;
+
+            await updateExpertPoints(producerId, pointChange, `Consumer rating received: ${rating} stars`);
+        }
 
         res.status(201).json({ review: newReview.rows[0], newProducerRating: newAverage });
 

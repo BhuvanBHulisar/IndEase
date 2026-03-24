@@ -21,7 +21,7 @@ export const protect = async (req, res, next) => {
         }
 
         // [DEMO BYPASS]
-        if (token === 'demo-token' || token === 'demo-token-consumer') {
+        if (token === 'demo-token' || token === 'demo-token-consumer' || token === 'demo-token-xyz') {
             req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'consumer' };
             return next();
         }

@@ -1,6 +1,7 @@
 // Escrow Payment Controller — Marketplace Architecture
 // Consumer → Platform (escrow) → Expert (after admin release)
 import db from '../config/db.js';
+import { initiateJobTransfer } from '../services/razorpayService.js';
 
 /**
  * ESCROW CALCULATION ENGINE
@@ -104,8 +105,8 @@ export const getAllPayments = async (req, res) => {
         );
 
         const payments = result.rows.map(row => {
-            const consumerName = (row.consumer_name?.trim() || row.sr_consumer_name?.trim() || row.consumer_email || row.sr_consumer_email || 'Unknown');
-            const expertName = (row.expert_name?.trim() || row.sr_expert_name?.trim() || row.expert_email || row.sr_expert_email || 'Unassigned');
+            const consumerName = (row.consumer_name?.trim() || row.sr_consumer_name?.trim() || row.consumer_email || row.sr_consumer_email || 'Deleted User');
+            const expertName = (row.expert_name?.trim() || row.sr_expert_name?.trim() || row.expert_email || row.sr_expert_email || 'Not Assigned');
 
             return {
                 id: row.txn_id,
@@ -169,7 +170,19 @@ export const releasePayment = async (req, res) => {
 
         const transaction = result.rows[0];
 
-        // 3. Emit real-time update
+        // 3. Initiate Razorpay Transfer (Automatic payout)
+        try {
+            await initiateJobTransfer({
+                paymentId: transaction.payment_ref || transaction.transaction_ref,
+                expertId: transaction.expert_id,
+                amount: transaction.expert_amount || transaction.provider_payout
+            });
+        } catch (razorError) {
+            console.error('[Escrow] Razorpay Transfer failed but status was updated:', razorError.message);
+            // We continue as the DB record is updated, but log the error
+        }
+
+        // 4. Emit real-time update
         if (global.io) {
             global.io.emit('payment_update', {
                 ...transaction,

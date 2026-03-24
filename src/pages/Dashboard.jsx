@@ -17,14 +17,14 @@ const Dashboard = ({ activeTab, setActiveTab, user, notifications, onLogout, onC
     onClearNotifs={onClearNotifs}
   >
     <PageHeader
-      title="Fleet Node Matrix"
-      subtitle="Comprehensive diagnostic oversight of your active industrial assets."
+      title="Fleet Ecosystem"
+      subtitle="Comprehensive diagnostic oversight and real-time management of your active industrial assets."
       action={
         <Button
-          className="rounded-2xl h-14 px-8 bg-primary text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 border-none"
+          className="rounded-xl h-12 px-6 bg-[#3B82F6] text-white font-semibold text-sm transition-all flex items-center gap-2.5 hover:bg-blue-600 shadow-sm border-none active:scale-95"
         >
-          <Plus size={18} strokeWidth={3} />
-          Initialize Machine
+          <Plus size={18} />
+          Initialize Node
         </Button>
       }
     />

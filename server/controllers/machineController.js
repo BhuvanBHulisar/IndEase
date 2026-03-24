@@ -34,7 +34,7 @@ export const addMachine = async (req, res) => {
     // If using the fake demo user, we cannot insert into DB because foreign key "owner_id" won't match any real user.
     // So for demo, we will just return a mocked response as if it succeeded.
     if (ownerId === 'demo-123') {
-        return res.status(201).json({
+        const mockRow = {
             id: 'mock-machine-' + Date.now(),
             owner_id: 'demo-123',
             name,
@@ -43,7 +43,11 @@ export const addMachine = async (req, res) => {
             machine_type,
             condition_score: 100,
             created_at: new Date()
-        });
+        };
+        if (global.io) {
+            global.io.to('user_demo-123').emit('machine_added', mockRow);
+        }
+        return res.status(201).json(mockRow);
     }
 
     try {
@@ -51,7 +55,11 @@ export const addMachine = async (req, res) => {
             'INSERT INTO machines (owner_id, name, oem, model_year, machine_type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [ownerId, name, oem, model_year, machine_type]
         );
-        res.status(201).json(result.rows[0]);
+        const row = result.rows[0];
+        if (global.io && ownerId) {
+            global.io.to(`user_${ownerId}`).emit('machine_added', row);
+        }
+        res.status(201).json(row);
     } catch (err) {
         console.error('[Machines] Registration error:', err);
         res.status(500).json({ message: 'Machine registration failure' });
@@ -93,6 +101,10 @@ export const deleteMachine = async (req, res) => {
 
         if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Machine node not found or access denied' });
+        }
+
+        if (global.io && req.user.id) {
+            global.io.to(`user_${req.user.id}`).emit('machine_deleted', { id: machineId });
         }
 
         res.json({ message: 'Machine successfully decommissioned from fleet' });

@@ -1,5 +1,81 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import {
+  MapPin as LocationIcon,
+  Mail as MailIcon,
+  Mail as EmailIcon,
+  Phone as PhoneIcon,
+  ShieldCheck as VerifiedIcon,
+  ClipboardList as AssignmentIcon,
+  CheckCircle2 as CheckCircleIcon,
+  XCircle as CancelIcon,
+  X,
+  Info as InfoIcon,
+  Download,
+  Download as DownloadIcon,
+  ChevronRight,
+  Shield,
+  Zap,
+  Globe,
+  Settings,
+  Cpu,
+  Fingerprint,
+  HardDrive,
+  Trash2,
+  AlertCircle,
+  Menu,
+  CheckCircle,
+  CircleDot,
+  Layout,
+  Command,
+  ArrowRight,
+  Sparkles,
+  BarChart3,
+  Network,
+  Play,
+  FileText,
+  CreditCard,
+  Lock,
+  UserPlus,
+  Video,
+  Search,
+  MessageSquare,
+  ClipboardCheck,
+  FileText as FileTextIcon,
+  Building2,
+  Wrench,
+  Star,
+  ShieldCheck
+} from 'lucide-react';
+
+// Modern SaaS Dashboard Components
+import PerformanceView from './components/PerformanceView';
+
+// --- Shared Components ---
+import { Button, Card, Badge, Toast } from './components/ui/base';
+import DashboardLayout from './layouts/DashboardLayout';
+import FleetView from './components/FleetView';
+import MachinesView from './components/MachinesView';
+import MessagesView from './components/MessagesView';
+import HistoryView from './components/HistoryView';
+import LegacySearchView from './components/LegacySearchView';
+import ProfileView from './components/ProfileView';
+import { SupportView } from './components/SupportSettingsView';
+import ProducerDashboard from './components/ProducerDashboard';
+import MachineDetailView from './components/MachineDetailView';
+import { generateInvoicePDF } from './utils/invoiceGenerator';
+import { SERVICE_COMPLETION_MESSAGE } from './utils/serviceRequestStatus';
+
+import api from './services/api';
+import { io } from 'socket.io-client';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import './App.css';
+import './producer-styles.css';
+import './signup.css';
+
 // Helper component for reports
 function ReportField({ label, value }) {
   return (
@@ -34,67 +110,6 @@ function PopupModal({ title = 'Support Ticket Submitted', message, onClose }) {
     </div>
   );
 }
-import { GoogleLogin } from '@react-oauth/google';
-
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import {
-  MapPin as LocationIcon,
-  Mail as EmailIcon,
-  Phone as PhoneIcon,
-  ShieldCheck as VerifiedIcon,
-  ClipboardList as AssignmentIcon,
-  CheckCircle2 as CheckCircleIcon,
-  XCircle as CancelIcon,
-  X,
-  Info as InfoIcon,
-  Download as DownloadIcon,
-  ChevronRight,
-  Shield,
-  Zap,
-  Globe,
-  Settings,
-  Cpu,
-  Fingerprint,
-  HardDrive,
-  Trash2,
-  AlertCircle,
-  Menu,
-  CheckCircle,
-  CircleDot,
-  Layout,
-  Command,
-  ArrowRight,
-  Sparkles,
-  BarChart3,
-  Network,
-  Play,
-  FileText,
-  CreditCard,
-  Lock,
-  UserPlus,
-  Video,
-  Search,
-  MessageSquare,
-  ClipboardCheck,
-  FileText as FileTextIcon
-} from 'lucide-react';
-
-// Modern SaaS Dashboard Components
-import DashboardLayout from './layouts/DashboardLayout';
-import FleetView from './components/FleetView';
-import MessagesView from './components/MessagesView';
-import HistoryView from './components/HistoryView';
-import LegacySearchView from './components/LegacySearchView';
-import ProfileView from './components/ProfileView';
-import { SupportView, SettingsView } from './components/SupportSettingsView';
-import ProducerDashboard from './components/ProducerDashboard';
-
-import api from './services/api';
-import { io } from 'socket.io-client';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import './App.css';
-import './producer-styles.css';
-import './signup.css';
 
 // [NEW] FALLBACK MOCK DATA
 const MOCK_MACHINES = [
@@ -140,6 +155,21 @@ const parseMessageBody = (text) => {
 };
 
 function App() {
+  const getStoredUser = useCallback(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch (err) {
+      return null;
+    }
+  }, []);
+
+  const getExpertTermsStorageKey = useCallback((user) => {
+    const identifier = user?.id || user?.user_id || user?.email || 'expert';
+    return `origiNode_expert_terms_accepted_${identifier}`;
+  }, []);
+
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authenticated, setAuthenticated] = useState(localStorage.getItem('isAuth') === 'true');
   // [NEW] LOGIN FORM STATE
   const [formData, setFormData] = useState({ email: '', password: '' });
   // Dark mode toggle handler
@@ -154,6 +184,12 @@ function App() {
   const [socket, setSocket] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [selectedMachineNode, setSelectedMachineNode] = useState(null);
+  const [activeRequests, setActiveRequests] = useState([
+    { id: 1, machine: "Hydraulic Press #99", issue: "Pressure Valve Leakage", rawStatus: 'in_progress', expert: "Alex Rivera", time: "2h ago", consumerName: "Bhuvan B H" },
+    { id: 2, machine: "CNC Concentric A1", issue: "Calibration Drift", rawStatus: 'broadcast', expert: "Analysing Node...", time: "15m ago", consumerName: "Solaris Power" }
+  ]);
+  const [declinedJobIds, setDeclinedJobIds] = useState([]);
   
   const { scrollY } = useScroll();
   const heroScale = useTransform(scrollY, [0, 300], [1, 0.98]);
@@ -164,10 +200,62 @@ function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const navigate = useNavigate();
+  const location_info = useLocation();
+
+  useEffect(() => {
+    if (authChecking) return;
+    const path = location_info.pathname;
+    // Read directly from localStorage — always in sync with what handleLogin just wrote,
+    // unlike the `authenticated` React state which lags by one render cycle.
+    const isAuth = localStorage.getItem('isAuth') === 'true';
+
+    console.log("[Routing] path:", path, "isAuth:", isAuth, "authChecking:", authChecking);
+
+    const isLoginPath = path.includes('/login') || path.includes('/signup');
+
+    // If authenticated and on a login/signup page → show dashboard
+    if (isLoginPath && isAuth) {
+      setView('dashboard');
+      return;
+    }
+
+    // If NOT authenticated and on a protected route → redirect to login
+    if (!isAuth && !isLoginPath && path !== '/') {
+      navigate('/consumer/login', { replace: true });
+      return;
+    }
+
+    if (path === '/') {
+      setView(isAuth ? 'dashboard' : 'landing');
+    } else if (path.startsWith('/expert/')) {
+      if (isAuth) {
+        setView('dashboard');
+        setActiveTab('profile');
+      } else {
+        navigate('/consumer/login', { replace: true });
+      }
+    } else if (path === '/consumer/login' && !isAuth) {
+      setView('auth');
+      setRole('consumer');
+      setIsLogin(true);
+    } else if (path === '/consumer/signup' && !isAuth) {
+      setView('auth');
+      setRole('consumer');
+      setIsLogin(false);
+    } else if (path === '/provider/login' && !isAuth) {
+      setView('auth');
+      setRole('producer');
+      setIsLogin(true);
+    } else if (path === '/provider/signup' && !isAuth) {
+      navigate('/provider/login', { replace: true });
+    }
+  }, [location_info, navigate, authChecking]);
+
   const navigateToAuth = (targetRole, targetIsLogin) => {
-    if (targetRole) setRole(targetRole);
-    if (targetIsLogin !== undefined) setIsLogin(targetIsLogin);
-    setView('auth');
+    const rolePath = targetRole === 'consumer' ? 'consumer' : 'provider';
+    const actionPath = targetIsLogin ? 'login' : 'signup';
+    navigate(`/${rolePath}/${actionPath}`);
     setIsMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
@@ -201,6 +289,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('fleet'); // Toggle between 'fleet', 'history', 'legacy', 'profile', 'help', 'settings'
   const [searchQuery, setSearchQuery] = useState(''); // Search state for history
   const [showDeleteModal, setShowDeleteModal] = useState(false); // Modal for account deletion confirmation
+  const [recoverySent, setRecoverySent] = useState(false);
 
   // [NEW SIGNUP STATES]
   const [helpSearch, setHelpSearch] = useState(''); // Search state for help section
@@ -217,6 +306,7 @@ function App() {
   const [taxId, setTaxId] = useState('');
   const [otp, setOtp] = useState('');
   const [extraInfo, setExtraInfo] = useState(''); // Company for Consumer, Skill for Producer
+  const [yearsExp, setYearsExp] = useState('');
 
   // [NEW IDENTITY & PHOTO STATES]
   const [userPhoto, setUserPhoto] = useState(null);
@@ -227,6 +317,9 @@ function App() {
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [showNoChangesModal, setShowNoChangesModal] = useState(false);
 
+  // [NEW] TOAST STATE
+  const [toast, setToast] = useState(null);
+
   // [NEW] CHECKOUT MODAL STATES
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [checkoutDetails, setCheckoutDetails] = useState(null);
@@ -235,11 +328,13 @@ function App() {
   const [originalData, setOriginalData] = useState({});
 
   // [NEW NOTIFICATION STATE]
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'critical', msg: 'Hydraulic Press #08: Pressure Drop Detected', time: '10 mins ago', read: false },
-    { id: 2, type: 'info', msg: 'Service Ledger Updated: Motor Drive #A1', time: '2 hours ago', read: true },
-    { id: 3, type: 'success', msg: 'New Expert Verified: XP-992 (Hydraulics)', time: '5 hours ago', read: true }
-  ]);
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('origiNode_notifications');
+    try {
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return [];
+  });
   const [machines, setMachines] = useState(MOCK_MACHINES); // [FIX] Init with mock data
 
 
@@ -351,12 +446,30 @@ function App() {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showReviewSuccess, setShowReviewSuccess] = useState(false);
-  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
+  const [reviewData, setReviewData] = useState({ rating: 0, comment: '' });
+  const [showPostPaymentRatingModal, setShowPostPaymentRatingModal] = useState(false);
+  const [postPaymentRatingContext, setPostPaymentRatingContext] = useState(null);
+  const [ratedJobIds, setRatedJobIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('ratedJobIds') || '[]')); }
+    catch { return new Set(); }
+  });
   const [showPaymentReceived, setShowPaymentReceived] = useState(false);
   const [completedJobId, setCompletedJobId] = useState(null);
 
   const [showExpertProfileModal, setShowExpertProfileModal] = useState(false);
   const [selectedExpert, setSelectedExpert] = useState(null);
+  const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
+  const [paymentSuccessData, setPaymentSuccessData] = useState(null);
+  const [paidInvoices, setPaidInvoices] = useState([]); // Track paid invoice amounts/desc to disable button
+  const [showExpertTermsModal, setShowExpertTermsModal] = useState(false);
+  const [expertTermsChecked, setExpertTermsChecked] = useState(false);
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [bankDetailsForm, setBankDetailsForm] = useState({
+    bankAccountNumber: '',
+    ifscCode: '',
+    accountHolderName: ''
+  });
+
   const [showInvoiceCreator, setShowInvoiceCreator] = useState(false);
   const [showInvoiceSuccess, setShowInvoiceSuccess] = useState(false);
   const [invoiceData, setInvoiceData] = useState({ amount: '', desc: '' });
@@ -372,37 +485,113 @@ function App() {
   const [activeChatId, setActiveChatId] = useState(1);
   const [newMessage, setNewMessage] = useState('');
   const [chats, setChats] = useState([
-    { id: 1, name: "Expert Technician (You)", avatar: "XT", lastMsg: "Please review the invoice...", time: "2m ago", unread: 1 },
-    { id: 2, name: "Hydra-Fix Specialists", avatar: "HF", lastMsg: "We can schedule a visit...", time: "1h ago", unread: 0 }
+    { id: 1, name: "Expert Technician", avatar: "XT", lastMsg: "Please review the invoice...", time: "2m ago", unread: 1, expertId: "exp-001" },
+    { id: 2, name: "Hydra-Fix Specialists", avatar: "HF", lastMsg: "We can schedule a visit...", time: "1h ago", unread: 0, expertId: "exp-002" }
   ]);
   const [producerChats, setProducerChats] = useState([
-    { id: 1, name: "Bhuvan B H (Consumer)", avatar: "BH", lastMsg: "Payment confirmed.", time: "1m ago", unread: 1 },
-    { id: 2, name: "Solaris Power", avatar: "SP", lastMsg: "Invoice received, thanks.", time: "2h ago", unread: 0 }
+    { id: 1, name: "Bhuvan B H (Consumer)", avatar: "BH", lastMsg: "Payment confirmed.", time: "1m ago", unread: 1, expertId: "exp-003" },
+    { id: 2, name: "Solaris Power", avatar: "SP", lastMsg: "Invoice received, thanks.", time: "2h ago", unread: 0, expertId: "exp-004" }
   ]);
   const [messages, setMessages] = useState(MOCK_MESSAGES); // [FIX] Init with mock data
 
-  const [radarJobs, setRadarJobs] = useState([]);
+  const radarJobsFromConsumer = useMemo(
+    () =>
+      activeRequests
+        .filter((req) => {
+          const rs = (req.rawStatus || '').toLowerCase();
+          const pending = rs === 'broadcast' || (!req.rawStatus && req.status === 'Pending');
+          return pending && !declinedJobIds.includes(req.id);
+        })
+        .map((req) => ({
+          id: req.id,
+          priority: req.issue && req.issue.toLowerCase().includes('drop') ? 'critical' : 'standard',
+          client_name: req.consumerName || 'Consumer',
+          machine_name: req.machine,
+          issue_description: req.issue,
+          created_at: req.timestamp || Date.now(),
+          status: req.rawStatus || req.status
+        })),
+    [activeRequests, declinedJobIds]
+  );
+
+  const [radarJobsRemote, setRadarJobs] = useState([]);
+
+  const radarJobs = useMemo(() => {
+    const map = new Map();
+    radarJobsRemote.forEach((j) => map.set(j.id, j));
+    radarJobsFromConsumer.forEach((j) => map.set(j.id, j));
+    return Array.from(map.values());
+  }, [radarJobsRemote, radarJobsFromConsumer]);
 
   // [NEW] DASHBOARD STATS
-  const [producerDashStats, setProducerDashStats] = useState({ earnings: 0, completedJobs: 0, rating: 5.0 });
+  const [producerDashStats, setProducerDashStats] = useState({
+    earnings: 0,
+    completedJobs: 0,
+    rating: 5.0,
+    points: 0,
+    level: 'Starter',
+    salary: 0,
+    recentPointEvents: []
+  });
   const [earningsStats, setEarningsStats] = useState({ totalRevenue: 0, pendingPayout: 0, avgTicket: 0 });
-  const [transactionHistory, setTransactionHistory] = useState([]);
+  const [transactionHistory, setTransactionHistory] = useState(() => {
+    const saved = localStorage.getItem('origiNode_ledger');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [chartData, setChartData] = useState([]);
   const [weeklySchedule, setWeeklySchedule] = useState([]);
   const [suggestedSlots, setSuggestedSlots] = useState([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [socketReconnecting, setSocketReconnecting] = useState(false);
+  const [expertPresence, setExpertPresence] = useState({});
+  const consumerFleetRefreshTimerRef = useRef(null);
+  const fetchConsumerFleetSnapshotRef = useRef(null);
+  const scheduleConsumerFleetRefreshRef = useRef(() => {});
+  const socketWasDisconnectedRef = useRef(false);
 
-  // [NEW] FETCH FINANCIAL STATS
+  const mapFinanceRowForFleet = (row) => {
+    const st = (row.status || '').toLowerCase();
+    const paid = st === 'paid' || st === 'completed' || st === 'escrow';
+    const costRaw = row.amount || row.cost || '';
+    const cost =
+      typeof costRaw === 'string' && costRaw.startsWith('₹')
+        ? costRaw.replace(/₹/g, '').trim()
+        : costRaw;
+    return {
+      id: row.id,
+      cost,
+      paid,
+      date: row.date,
+      machine: row.machine || row.client || '',
+      expert: row.expert || row.other_party || ''
+    };
+  };
+
+  // [NEW] Persist Ledger to localStorage
+  useEffect(() => {
+    localStorage.setItem('origiNode_ledger', JSON.stringify(transactionHistory));
+  }, [transactionHistory]);
+
+  // [NEW] FETCH FINANCIAL STATS (consumer fleet tab uses fetchConsumerFleetSnapshot)
   useEffect(() => {
     if (view !== 'dashboard') return;
-    if (activeTab === 'earnings' || activeTab === 'history' || (activeTab === 'fleet' && role === 'consumer')) {
+    if (
+      activeTab === 'earnings' ||
+      activeTab === 'history' ||
+      (activeTab === 'fleet' && role !== 'consumer')
+    ) {
       const fetchFinanceData = async () => {
         try {
           const statsRes = await api.get('/finance/stats');
           setEarningsStats(statsRes.data);
 
           const historyRes = await api.get('/finance/history');
-          setTransactionHistory(historyRes.data);
+          const rows = Array.isArray(historyRes.data) ? historyRes.data : [];
+          if (role === 'consumer') {
+            setTransactionHistory(rows.map(mapFinanceRowForFleet));
+          } else {
+            setTransactionHistory(historyRes.data);
+          }
 
           const chartRes = await api.get('/finance/chart-data');
           setChartData(chartRes.data);
@@ -480,7 +669,10 @@ function App() {
             phone: data.phone || phone,
             email: data.email,
             id: String(data.id || 'IND-88219').slice(0, 8).toUpperCase(),
-            skills: data.skills || []
+            skills: data.skills || [],
+            bankAccountNumber: data.bank_account_number || '',
+            ifscCode: data.ifsc_code || '',
+            accountHolderName: data.account_holder_name || ''
           });
           setFirstName(data.first_name || '');
           setLastName(data.last_name || '');
@@ -507,6 +699,17 @@ function App() {
     }
   }, [activeTab, view]);
 
+  // Mandatory Profile Completion Check
+  useEffect(() => {
+    if (view === 'dashboard' && role === 'producer' && profileData.email) {
+      // Check if bank details are missing
+      const isMissingBank = !profileData.bankAccountNumber || !profileData.ifscCode || !profileData.accountHolderName;
+      if (isMissingBank) {
+        setShowCompleteProfileModal(true);
+      }
+    }
+  }, [view, role, profileData]);
+
   const handleSaveConsumerProfile = async () => {
     const hasChanged =
       firstName !== (originalData.first_name || '') ||
@@ -516,7 +719,10 @@ function App() {
       extraInfo !== (originalData.organization || '') ||
       location !== (originalData.location || '') ||
       taxId !== (originalData.tax_id || '') ||
-      userPhoto !== (originalData.photo_url || null);
+      userPhoto !== (originalData.photo_url || null) ||
+      profileData.bankAccountNumber !== (originalData.bank_account_number || '') ||
+      profileData.ifscCode !== (originalData.ifsc_code || '') ||
+      profileData.accountHolderName !== (originalData.account_holder_name || '');
 
     if (!hasChanged) {
       setShowNoChangesModal(true);
@@ -533,7 +739,10 @@ function App() {
         organization: extraInfo,
         location,
         tax_id: taxId,
-        photo_url: userPhoto
+        photo_url: userPhoto,
+        bank_account_number: profileData.bankAccountNumber,
+        ifsc_code: profileData.ifscCode,
+        account_holder_name: profileData.accountHolderName
       });
       setShowSaveSuccessModal(true);
       setIsEditingProfile(false);
@@ -666,33 +875,78 @@ function App() {
   // Language translation dictionary removed as per request
 
   // Translation proxy removed as language selection is not available
+  useEffect(() => {
+    if (view !== 'dashboard' || !authenticated || role !== 'producer') {
+      setShowExpertTermsModal(false);
+      setExpertTermsChecked(false);
+      return;
+    }
+
+    const user = getStoredUser();
+    const hasAcceptedTerms = user && localStorage.getItem(getExpertTermsStorageKey(user)) === 'true';
+
+    setShowExpertTermsModal(!hasAcceptedTerms);
+    if (hasAcceptedTerms) {
+      setExpertTermsChecked(false);
+    }
+  }, [authenticated, getExpertTermsStorageKey, getStoredUser, role, view]);
+
   // [NEW] SESSION & SOCKET INITIALIZATION
   useEffect(() => {
     // 1. Check for existing industrial session
+    const isAuth = localStorage.getItem('isAuth') === 'true';
     const token = localStorage.getItem('token');
-    if (token) {
-      // Actually verify with the backend now that we have the endpoint
-      api.get('/auth/me')
-        .then(res => {
-          const user = res.data;
-          setView('dashboard');
-          setEmail(user.email || '');
-          setRole(user.role || 'consumer');
-          setFirstName(user.firstName || user.first_name || '');
-          setLastName(user.lastName || user.last_name || '');
+    const userStr = localStorage.getItem('user');
+    
+    if (isAuth && token && userStr) {
+      const user = JSON.parse(userStr);
+      
+      // If it's a demo session, bypass backend verification
+      if (token === 'demo-token-xyz') {
+        setView('dashboard');
+        setEmail(user.email || '');
+        setRole(user.role || 'consumer');
+        setFirstName(user.first_name || '');
+        setLastName(user.last_name || '');
+        setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
+        setAuthChecking(false);
+        setAuthenticated(true);
+      } else {
+        // Actually verify with the backend for real tokens
+        api.get('/auth/me')
+          .then(res => {
+            // /auth/me returns { status: 'success', user: {...} }
+            const user = res.data.user || res.data;
+            setView('dashboard');
+            setEmail(user.email || '');
+            setRole(user.role || 'consumer');
+            setFirstName(user.firstName || user.first_name || '');
+            setLastName(user.lastName || user.last_name || '');
+            setActiveTab((user.role || 'consumer') === 'consumer' ? 'fleet' : 'requests');
 
-          // Update local storage in case it was stale
-          localStorage.setItem('user', JSON.stringify(user));
+            // Update local storage in case it was stale
+            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('isAuth', 'true');
+            setAuthenticated(true);
 
-          // Initial notification fetch
-          fetchNotifications();
-        })
-        .catch(err => {
-          console.warn('[Auth] Session invalid or expired');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setView('landing');
-        });
+            // Initial notification fetch
+            fetchNotifications();
+          })
+          .catch(err => {
+            console.warn('[Auth] Session invalid or expired');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('isAuth');
+            setAuthenticated(false);
+            setView('landing');
+          })
+          .finally(() => {
+            setAuthChecking(false);
+          });
+      }
+    } else {
+      setAuthChecking(false);
+      setAuthenticated(false);
     }
 
     // 2. Initialize Socket Connection
@@ -739,6 +993,12 @@ function App() {
       console.log("[Socket] Job Completed:", data);
       if (role === 'producer') {
         setShowPaymentReceived(true);
+      }
+      // Update consumer's chat status tracker in real time
+      if (data?.requestId) {
+        setChats((prev) =>
+          prev.map((c) => String(c.id) === String(data.requestId) ? { ...c, status: 'completed' } : c)
+        );
       }
     });
 
@@ -787,6 +1047,33 @@ function App() {
   }, []);
 
   // --- NOTIFICATION HANDLERS ---
+  useEffect(() => {
+    localStorage.setItem('origiNode_notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  const addNotification = (title, message) => {
+    setNotifications(prev => {
+      const newNotif = {
+        id: Date.now().toString() + Math.random().toString(),
+        title,
+        message,
+        time: "Just now",
+        timestamp: Date.now(),
+        read: false
+      };
+      return [newNotif, ...prev].slice(0, 20); // max 20
+    });
+    setToast({ message: title ? `${title}: ${message}` : message, type: 'info' });
+  };
+
+  const handleMarkNotifRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+  
+  const handleMarkAllNotifsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+  
   const handleClearNotifs = () => setNotifications([]);
 
   // [NEW] Legacy Search States
@@ -950,6 +1237,7 @@ function App() {
   // [NEW] VIDEO DIAGNOSIS HANDLERS
   const [activeJobMachine, setActiveJobMachine] = useState(null);
   const [diagnosisDesc, setDiagnosisDesc] = useState('');
+  const [faultLocation, setFaultLocation] = useState('');
 
   const handleVideoSelect = (e) => {
     if (e.target.files[0]) {
@@ -980,25 +1268,9 @@ function App() {
   // [NEW] FETCH CHAT LIST (MY JOBS)
   useEffect(() => {
     if (activeTab === 'messages') {
-      api.get('/jobs/my')
-        .then(res => {
-          // Map jobs to chat list format
-          const myChats = (Array.isArray(res.data) ? res.data : []).map(job => ({
-            id: job.id, // This is the requestId
-            name: `${job.machine_name || 'Machine'} (${job.other_party || 'User'})`,
-            avatar: (job.other_party || 'US').substring(0, 2).toUpperCase(),
-            lastMsg: ((job.issue_description || 'Service request created').substring(0, 30)) + '...', // Ideally get last msg from DB
-            time: new Date(job.created_at).toLocaleDateString(),
-            unread: 0 // Ideally get unread count
-          }));
-
-          if (myChats.length > 0) {
-            setChats(myChats);
-            // Default to first chat if none selected
-            if (!activeChatId) setActiveChatId(myChats[0].id);
-          }
-        })
-        .catch(err => console.error("Failed to load chat list", err));
+      fetchConsumerChatsList({ selectFirstIfEmpty: true }).catch((err) =>
+        console.error('Failed to load chat list', err)
+      );
     }
   }, [activeTab]);
 
@@ -1115,6 +1387,23 @@ function App() {
     if (!socket) return;
 
     const handleNewMessage = (msg) => {
+      if (role === 'consumer' && msg.request_id) {
+        setChats((prev) => {
+          const idx = prev.findIndex((c) => String(c.id) === String(msg.request_id));
+          if (idx === -1) {
+            scheduleConsumerFleetRefreshRef.current?.();
+            return prev;
+          }
+          const text = (msg.message_text || '').slice(0, 80);
+          const t = new Date(msg.created_at || Date.now()).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          const row = { ...prev[idx], lastMsg: text, lastMessage: text, lastTime: t, time: t };
+          const next = [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+          return [row, ...next];
+        });
+      }
       // Only add if it belongs to current chat
       // [FIX] Use loose equality for potential string/number mismatch
       if (msg.request_id == activeChatId) {
@@ -1146,14 +1435,42 @@ function App() {
             setShowPaymentReceived(true);
           }
 
-          return [...prev, {
+          if (
+            role === 'producer' &&
+            isMe &&
+            messageText === SERVICE_COMPLETION_MESSAGE &&
+            prev.some((p) => p.sender === 'expert' && p.text === SERVICE_COMPLETION_MESSAGE)
+          ) {
+            return prev;
+          }
+
+          const baseMsg = {
             id: msg.id,
             chatId: msg.request_id,
             sender: uiSender,
             text: msg.message_text,
             time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             ...parsedContent
-          }];
+          };
+
+          const next = [...prev, baseMsg];
+
+          if (
+            role === 'consumer' &&
+            messageText === SERVICE_COMPLETION_MESSAGE &&
+            !prev.some((p) => p.type === 'rating_prompt' && String(p.chatId) === String(msg.request_id))
+          ) {
+            next.push({
+              id: `rating-${msg.id}`,
+              type: 'rating_prompt',
+              chatId: msg.request_id,
+              sender: 'system',
+              text: '',
+              time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+          }
+
+          return next;
         });
       }
     };
@@ -1163,23 +1480,70 @@ function App() {
     return () => socket.off('new_message', handleNewMessage);
   }, [socket, activeChatId, role]);
 
+  // [NEW] Notification Socket Listeners
+  useEffect(() => {
+    if (!socket) return;
+    
+    const onExpertAccepted = () => addNotification("Service Update", "Expert has accepted your service request.");
+    
+    const onNewMessage = (data) => {
+      const userStr = localStorage.getItem('user');
+      const user = userStr && userStr !== 'undefined' ? JSON.parse(userStr) : null;
+      if (user && data.senderId === user.id) return; // Don't notify own messages
+      const fromName = data.senderName || (role === 'consumer' ? 'Expert' : 'Consumer');
+      addNotification("New Message", `New message from ${fromName}.`);
+    };
 
+    const onPaymentSuccess = (data) => addNotification("Payment Successful", `Payment of ₹${data.amount || 'amount'} was successful.`);
+    const onPaymentReceived = (data) => addNotification("Payment Received", `Payment of ₹${data.amount || 'amount'} received from Consumer.`);
+    const onServiceCompleted = () => addNotification("Service Complete", "Your service has been marked as completed.");
+    const onNewServiceRequest = (data) => addNotification("New Request", `New service request from Consumer for ${data.machineName || 'machine'}.`);
+
+    socket.on('expert_accepted', onExpertAccepted);
+    socket.on('new_message', onNewMessage);
+    socket.on('payment_success', onPaymentSuccess);
+    socket.on('payment_received', onPaymentReceived);
+    socket.on('service_completed', onServiceCompleted);
+    socket.on('new_service_request', onNewServiceRequest);
+
+    return () => {
+      socket.off('expert_accepted', onExpertAccepted);
+      socket.off('new_message', onNewMessage);
+      socket.off('payment_success', onPaymentSuccess);
+      socket.off('payment_received', onPaymentReceived);
+      socket.off('service_completed', onServiceCompleted);
+      socket.off('new_service_request', onNewServiceRequest);
+    };
+  }, [socket, role]);
 
 
   // 3. Send Message Handler
   const handleSendMessage = (text) => {
     const msgToSubmit = text || newMessage;
-    if (msgToSubmit.trim() && socket) {
+    if (msgToSubmit.trim()) {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       if (!user) return;
 
+      // Optimistic UI update so it shows immediately
+      const newMsgObj = {
+        id: Date.now(),
+        chatId: activeChatId,
+        sender: role === 'consumer' ? 'user' : 'expert',
+        text: msgToSubmit,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      setMessages(prev => [...prev, newMsgObj]);
+
       // Emit to Server
-      socket.emit('send_message', {
-        requestId: activeChatId,
-        senderId: user.id,
-        text: msgToSubmit
-      });
+      if (socket) {
+        socket.emit('send_message', {
+          requestId: activeChatId,
+          senderId: user.id,
+          text: msgToSubmit
+        });
+      }
 
       setNewMessage('');
     }
@@ -1213,27 +1577,72 @@ function App() {
 
   // [REMOVED] Legacy mock payment logic replaced by premium Razorpay flow
 
-  // [NEW] SUBMIT REVIEW HANDLER
+  // [NEW] SUBMIT REVIEW HANDLER (legacy / other flows)
   const handleSubmitReview = async () => {
     if (!completedJobId) return;
 
-    // Optimistic UI Update
     setShowReviewModal(false);
     setShowReviewSuccess(true);
 
     try {
       await api.post('/reviews', {
         requestId: completedJobId,
-        rating: reviewData.rating,
+        rating: reviewData.rating || 5,
         comment: reviewData.comment
       });
-      // Reset State
-      setReviewData({ rating: 5, comment: '' });
+      setReviewData({ rating: 0, comment: '' });
       setCompletedJobId(null);
     } catch (err) {
       console.error("Failed to submit review", err);
-      // Optional: Handle error silently or notify user
     }
+  };
+
+  const handlePostPaymentRatingSubmit = async () => {
+    const ctx = postPaymentRatingContext;
+    if (!ctx?.requestId || reviewData.rating < 1 || reviewData.rating > 5) return;
+    try {
+      await api.post('/reviews', {
+        requestId: ctx.requestId,
+        rating: reviewData.rating,
+        comment: (reviewData.comment || '').trim()
+      });
+      // Persist rated job so modal never shows again for this job
+      const updatedRated = new Set(ratedJobIds);
+      updatedRated.add(String(ctx.requestId));
+      setRatedJobIds(updatedRated);
+      localStorage.setItem('ratedJobIds', JSON.stringify([...updatedRated]));
+
+      setToast({ message: 'Thank you for your feedback!', type: 'success' });
+      setShowPostPaymentRatingModal(false);
+      setPostPaymentRatingContext(null);
+      setReviewData({ rating: 0, comment: '' });
+
+      // Refresh expert's rating stat on their dashboard
+      if (role === 'producer') {
+        try {
+          await fetchProducerDashboardStats();
+        } catch (_) {}
+      }
+    } catch (err) {
+      console.error('Review submission failed', err);
+      setToast({
+        message: err.response?.data?.message || 'Could not save your rating. Please try again.',
+        type: 'error'
+      });
+    }
+  };
+
+  const handlePostPaymentRatingSkip = () => {
+    // Mark as rated so modal doesn't reappear for this job
+    if (postPaymentRatingContext?.requestId) {
+      const updatedRated = new Set(ratedJobIds);
+      updatedRated.add(String(postPaymentRatingContext.requestId));
+      setRatedJobIds(updatedRated);
+      localStorage.setItem('ratedJobIds', JSON.stringify([...updatedRated]));
+    }
+    setShowPostPaymentRatingModal(false);
+    setPostPaymentRatingContext(null);
+    setReviewData({ rating: 0, comment: '' });
   };
 
   // Validation Logic based on your requirements
@@ -1273,53 +1682,32 @@ function App() {
   };
 
   // [NEW] REPORT DOWNLOAD LOGIC
-  const handleDownloadReport = () => {
-    if (!selectedReport) return;
+  const handleDownloadReport = (record) => {
+    const reportToDownload = record || selectedReport;
+    if (!reportToDownload) return;
+    
+    generateInvoicePDF(reportToDownload);
+  };
 
-    const reportContent = `
-ORIGINODE SERVICE REPORT
-========================
-INVOICE ID: INV-${2020 + selectedReport.id}
-DATE: ${selectedReport.date}
-STATUS: ${selectedReport.status.toUpperCase()}
-
-CLIENT DETAILS
---------------
-Authorized By: ${firstName} ${lastName}
-Company: ${extraInfo}
-Email: ${email}
-Phone: ${phone}
-
-MACHINE DETAILS
----------------
-Machine ID: ${selectedReport.machine}
-Model: Industrial Series-X
-Location: Sector 7G
-
-SERVICE RECORD
---------------
-Provider: ${selectedReport.expert}
-Action: ${selectedReport.action}
-Total Cost: ${selectedReport.cost}
-
-DIAGNOSTIC NOTES
-----------------
-System checks completed successfully.
-Pressure levels stable.
-Next maintenance due in 90 days.
-
-Generated by OrigiNode Platform
-www.originode.com
-    `;
-
-    const blob = new Blob([reportContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `OrigiNode_Report_INV-${2020 + selectedReport.id}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDemoLogin = () => {
+    const demoUser = {
+      id: 'demo-123',
+      first_name: 'Demo',
+      last_name: 'User',
+      email: 'demo@originode.com',
+      role: role
+    };
+    localStorage.setItem('token', 'demo-token-xyz');
+    localStorage.setItem('user', JSON.stringify(demoUser));
+    localStorage.setItem('isAuth', 'true');
+    setAuthenticated(true);
+    setEmail('demo@originode.com');
+    setFirstName('Demo');
+    setLastName('User');
+    setRole(role);
+    setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
+    setView('dashboard');
+    setToast({ message: "Welcome to Demo Mode", type: "info" });
   };
 
   const handleLogin = async () => {
@@ -1332,10 +1720,10 @@ www.originode.com
       }
       try {
         await api.post('/auth/forgot-password', { email });
+        setRecoverySent(true);
       } catch (err) {
-        console.warn(err);
+        setErrors({ server: err.response?.data?.message || "Failed to send recovery email." });
       }
-      setShowForgotModal(true);
       return;
     }
     if (!isLogin) {
@@ -1349,11 +1737,14 @@ www.originode.com
           lastName,
           phone,
           dob,
-          organization: extraInfo
+          organization: extraInfo,
+          years_exp: yearsExp
         });
 
         if (res.data?.token) {
           localStorage.setItem('token', res.data.token);
+          localStorage.setItem('isAuth', 'true');
+          setAuthenticated(true);
           if (res.data.user) {
             localStorage.setItem('user', JSON.stringify(res.data.user));
             setRole(res.data.user.role || 'consumer');
@@ -1377,6 +1768,28 @@ www.originode.com
       return;
     }
 
+    // [DEMO MODE BYPASS]
+    if (email === 'demo@originode.com' && password === 'password123') {
+      const demoUser = {
+        id: 'demo-123',
+        first_name: 'Demo',
+        last_name: 'User',
+        email: 'demo@originode.com',
+        role: role // Use the currently selected role (consumer/producer)
+      };
+      localStorage.setItem('token', 'demo-token-xyz');
+      localStorage.setItem('user', JSON.stringify(demoUser));
+      localStorage.setItem('isAuth', 'true');
+      setAuthenticated(true);
+      setFirstName('Demo');
+      setLastName('User');
+      setRole(role);
+      setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
+      setView('dashboard');
+      setToast({ message: "Welcome to Demo Mode", type: "info" });
+      return;
+    }
+
     try {
       const res = await api.post('/auth/login', {
         email: email,
@@ -1384,8 +1797,10 @@ www.originode.com
       });
 
       if (res.data?.token) {
-        localStorage.setItem('token', res.data.token);
-        if (res.data.user) {
+          localStorage.setItem('token', res.data.token);
+          localStorage.setItem('isAuth', 'true');
+          setAuthenticated(true);
+          if (res.data.user) {
           localStorage.setItem('user', JSON.stringify(res.data.user));
           setRole(res.data.user.role || 'consumer');
           setActiveTab(res.data.user.role === 'consumer' ? 'fleet' : 'requests');
@@ -1400,6 +1815,53 @@ www.originode.com
           err.response?.data?.message ||
           "Invalid email or password."
       });
+    }
+  };
+
+  const handleExpertTermsAccept = () => {
+    const user = getStoredUser();
+    if (!user) return;
+
+    localStorage.setItem(getExpertTermsStorageKey(user), 'true');
+    setShowExpertTermsModal(false);
+    setExpertTermsChecked(false);
+    setToast({ message: "Terms accepted.", type: "success" });
+  };
+
+  const handleSaveBankDetails = async () => {
+    if (!bankDetailsForm.bankAccountNumber || !bankDetailsForm.ifscCode || !bankDetailsForm.accountHolderName) {
+      setToast({ message: "Please fill all bank details to continue.", type: 'error' });
+      return;
+    }
+    
+    // Quick validation for IFSC
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankDetailsForm.ifscCode)) {
+        setToast({ message: "Invalid IFSC Code format.", type: 'error' });
+        return;
+    }
+
+    try {
+      await api.patch('/profile', {
+        bank_account_number: bankDetailsForm.bankAccountNumber,
+        ifsc_code: bankDetailsForm.ifscCode,
+        account_holder_name: bankDetailsForm.accountHolderName
+      });
+      
+      // Update local profile state so the useEffect doesn't trigger again
+      setProfileData(prev => ({
+        ...prev,
+        bankAccountNumber: bankDetailsForm.bankAccountNumber,
+        ifscCode: bankDetailsForm.ifscCode,
+        accountHolderName: bankDetailsForm.accountHolderName
+      }));
+      
+      setShowCompleteProfileModal(false);
+      setToast({ message: "Profile completed! Welcome to your dashboard.", type: 'success' });
+      
+      // Refresh statistics
+      fetchProducerDashboardStats();
+    } catch (err) {
+      setToast({ message: "Failed to save bank details. Please try again.", type: 'error' });
     }
   };
 
@@ -1472,6 +1934,7 @@ www.originode.com
       if (user && user.id === 'demo-123') {
         setMachines(prev => prev.filter(m => m.id !== id));
         setNodeToDelete(null);
+        setToast({ message: "Machine removed successfully", type: "success" });
         return;
       }
 
@@ -1479,8 +1942,10 @@ www.originode.com
       // Optimistic update
       setMachines(prev => prev.filter(m => m.id !== id));
       setNodeToDelete(null);
+      setToast({ message: "Machine removed successfully", type: "success" });
     } catch (err) {
-      alert("Failed to delete node: " + (err.response?.data?.message || err.message));
+      setToast({ message: "Unable to delete machine. Please try again.", type: "error" });
+      console.error("Deletion error:", err);
     }
   };
 
@@ -1488,14 +1953,30 @@ www.originode.com
   const handleBroadcastJob = async () => {
     if (!activeJobMachine) return alert("No machine selected");
 
-    // 1. Simulate Analysis/Broadcasting UI
+    // 1. Helper to add to state (serverJob from POST /jobs/broadcast when available)
+    const finalizeRequest = (serverJob) => {
+      const newReq = {
+        id: serverJob?.id ?? Date.now(),
+        machine: activeJobMachine.name,
+        issue: diagnosisDesc || "Routine Service",
+        rawStatus: serverJob?.status || 'broadcast',
+        expert: "Assigning...",
+        time: "Just now"
+      };
+      setActiveRequests((prev) => [newReq, ...prev]);
+      setDiagnosisDesc('');
+      setFaultLocation('');
+      setVideoFile(null);
+    };
+
+    // 2. Simulate Analysis/Broadcasting UI
     setDiagnosisStep(2);
 
     try {
       // [DEMO MODE BYPASS]
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
-      if (user && (user.id === 'demo-123' || String(activeJobMachine.id).startsWith('local'))) {
+      if (user && (user.id === 'demo-123' || (activeJobMachine.id && String(activeJobMachine.id).startsWith('local')))) {
         setAnalysisProgress(0);
         let prog = 0;
         const interval = setInterval(() => {
@@ -1503,6 +1984,7 @@ www.originode.com
           setAnalysisProgress(prog);
           if (prog >= 100) {
             clearInterval(interval);
+            finalizeRequest(null);
             setDiagnosisStep(3);
           }
         }, 300);
@@ -1517,7 +1999,7 @@ www.originode.com
         videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' // Mock video for now
       };
 
-      await api.post('/jobs/broadcast', payload);
+      const broadcastRes = await api.post('/jobs/broadcast', payload);
 
       // 3. Show Success UI
       setAnalysisProgress(0);
@@ -1527,9 +2009,10 @@ www.originode.com
         setAnalysisProgress(p);
         if (p >= 100) {
           clearInterval(inter);
+          finalizeRequest(broadcastRes.data);
           setDiagnosisStep(3);
         }
-      }, 400);
+      }, 200);
 
     } catch (err) {
       console.error(err);
@@ -1571,6 +2054,227 @@ www.originode.com
     }
   };
 
+  const mapJobRowToConsumerRequest = (job) => ({
+    id: job.id,
+    machine: job.machine_name || 'Machine',
+    issue: job.issue_description || 'Service request',
+    expert:
+      job.other_party && String(job.other_party).trim() && job.other_party !== 'Scanning...'
+        ? job.other_party
+        : 'Assigning...',
+    time: job.created_at
+      ? new Date(job.created_at).toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : 'Just now',
+    rawStatus: job.status,
+    consumerName: job.consumer_name
+  });
+
+  const fetchConsumerActiveRequests = async () => {
+    try {
+      const res = await api.get('/jobs/my');
+      const rows = Array.isArray(res.data) ? res.data : [];
+      const active = rows.filter((j) => j.status !== 'completed');
+      setActiveRequests(active.map(mapJobRowToConsumerRequest));
+    } catch (err) {
+      console.warn('Consumer active requests fetch failed', err);
+    }
+  };
+
+  const fetchConsumerChatsList = async (options = {}) => {
+    try {
+      const res = await api.get('/jobs/my');
+      const rows = Array.isArray(res.data) ? res.data : [];
+      const myChats = rows.map((job) => {
+        const lastMsg =
+          (job.issue_description || 'Service request created').substring(0, 30) + '...';
+        const t = new Date(job.created_at).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        return {
+          id: job.id,
+          name: `${job.machine_name || 'Machine'} (${job.other_party || 'User'})`,
+          avatar: (job.other_party || 'US').substring(0, 2).toUpperCase(),
+          lastMsg,
+          lastMessage: lastMsg,
+          lastTime: t,
+          time: new Date(job.created_at).toLocaleDateString(),
+          unread: 0,
+          other_party_id: job.other_party_id,
+          expertId: job.other_party_id || job.expert_id || `exp-${job.id}`,
+          status: job.status
+        };
+      });
+      setChats(myChats);
+      if (options.selectFirstIfEmpty && myChats.length > 0) {
+        setActiveChatId((prev) => prev || myChats[0].id);
+      }
+    } catch (err) {
+      console.warn('Consumer chat list fetch failed', err);
+    }
+  };
+
+  const fetchConsumerFleetSnapshot = async () => {
+    await fetchMachines();
+    await fetchConsumerActiveRequests();
+    try {
+      const statsRes = await api.get('/finance/stats');
+      setEarningsStats(statsRes.data);
+      const histRes = await api.get('/finance/history');
+      const histRows = Array.isArray(histRes.data) ? histRes.data : [];
+      setTransactionHistory(histRows.map(mapFinanceRowForFleet));
+      try {
+        const chartRes = await api.get('/finance/chart-data');
+        if (chartRes?.data) setChartData(chartRes.data);
+      } catch (_) {
+        /* chart optional */
+      }
+    } catch (e) {
+      console.warn('Consumer finance snapshot failed', e);
+    }
+    await fetchConsumerChatsList();
+  };
+
+  const scheduleConsumerFleetRefresh = () => {
+    if (consumerFleetRefreshTimerRef.current) {
+      clearTimeout(consumerFleetRefreshTimerRef.current);
+    }
+    consumerFleetRefreshTimerRef.current = setTimeout(() => {
+      consumerFleetRefreshTimerRef.current = null;
+      if (typeof fetchConsumerFleetSnapshotRef.current === 'function') {
+        fetchConsumerFleetSnapshotRef.current();
+      }
+    }, 80);
+  };
+  fetchConsumerFleetSnapshotRef.current = fetchConsumerFleetSnapshot;
+  scheduleConsumerFleetRefreshRef.current = scheduleConsumerFleetRefresh;
+
+  useEffect(() => {
+    if (view !== 'dashboard' || role !== 'consumer') return;
+    fetchConsumerActiveRequests();
+  }, [view, role]);
+
+  useEffect(() => {
+    if (!socket || role !== 'consumer' || view !== 'dashboard') return;
+    const run = () => scheduleConsumerFleetRefreshRef.current?.();
+    const evs = [
+      'machine_added',
+      'machine_deleted',
+      'request_created',
+      'request_accepted',
+      'request_completed',
+      'invoice_sent',
+      'payment_success'
+    ];
+    evs.forEach((e) => socket.on(e, run));
+    const onExpertOn = (p) => {
+      if (p?.userId) setExpertPresence((prev) => ({ ...prev, [p.userId]: true }));
+    };
+    const onExpertOff = (p) => {
+      if (p?.userId) setExpertPresence((prev) => ({ ...prev, [p.userId]: false }));
+    };
+    socket.on('expert_online', onExpertOn);
+    socket.on('expert_offline', onExpertOff);
+    return () => {
+      evs.forEach((e) => socket.off(e, run));
+      socket.off('expert_online', onExpertOn);
+      socket.off('expert_offline', onExpertOff);
+    };
+  }, [socket, role, view]);
+
+  useEffect(() => {
+    if (!socket || role !== 'consumer' || view !== 'dashboard') return;
+    const onReqStatus = (p) => {
+      const rid = p?.requestId ?? p?.request_id;
+      const st = p?.status;
+      if (!rid || !st) return;
+      const low = String(st).toLowerCase();
+      setActiveRequests((prev) => {
+        if (low === 'completed') {
+          return prev.filter((r) => String(r.id) !== String(rid));
+        }
+        const has = prev.some((r) => String(r.id) === String(rid));
+        if (!has) {
+          scheduleConsumerFleetRefreshRef.current?.();
+          return prev;
+        }
+        return prev.map((r) =>
+          String(r.id) === String(rid) ? { ...r, rawStatus: st } : r
+        );
+      });
+      setChats((prev) =>
+        prev.map((c) => (String(c.id) === String(rid) ? { ...c, status: st } : c))
+      );
+    };
+    socket.on('request_status_updated', onReqStatus);
+    return () => socket.off('request_status_updated', onReqStatus);
+  }, [socket, role, view]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onDisconnect = () => {
+      socketWasDisconnectedRef.current = true;
+      setSocketReconnecting(true);
+    };
+    const onConnect = () => {
+      setSocketReconnecting(false);
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user?.id) socket.emit('identify', user.id);
+      } catch (e) {
+        /* ignore */
+      }
+      const shouldReload = socketWasDisconnectedRef.current;
+      socketWasDisconnectedRef.current = false;
+      if (shouldReload && role === 'consumer' && view === 'dashboard') {
+        fetchConsumerFleetSnapshotRef.current?.();
+      }
+    };
+    socket.on('disconnect', onDisconnect);
+    socket.on('connect', onConnect);
+    return () => {
+      socket.off('disconnect', onDisconnect);
+      socket.off('connect', onConnect);
+    };
+  }, [socket, role, view]);
+
+  const consumerActiveJobIdsKey = activeRequests.map((r) => r.id).join('|');
+
+  useEffect(() => {
+    if (!socket || role !== 'consumer' || view !== 'dashboard') return;
+    const handlers = [];
+    activeRequests.forEach((req) => {
+      const id = req.id;
+      const eventName = `status_update_${id}`;
+      const handler = (data) => {
+        if (!data?.status) return;
+        setActiveRequests((prev) => {
+          const mapped = prev.map((r) => {
+            if (String(r.id) !== String(id)) return r;
+            return { ...r, rawStatus: data.status };
+          });
+          return mapped.filter((r) => (r.rawStatus || '').toLowerCase() !== 'completed');
+        });
+        setChats((prev) =>
+          prev.map((c) => (String(c.id) === String(id) ? { ...c, status: data.status } : c))
+        );
+        if (data.status === 'accepted' || data.status === 'payment_pending') {
+          fetchConsumerActiveRequests();
+        }
+      };
+      socket.on(eventName, handler);
+      handlers.push([eventName, handler]);
+    });
+    return () => {
+      handlers.forEach(([ev, h]) => socket.off(ev, h));
+    };
+  }, [socket, role, view, consumerActiveJobIdsKey]);
+
   // Stable deterministic value based on job ID chars (no random on re-render)
   const getJobEstValue = (id) => {
     if (!id) return '₹5,000';
@@ -1578,6 +2282,41 @@ www.originode.com
     const val = 5000 + (hash % 20) * 1000;
     return `₹${val.toLocaleString('en-IN')}`;
   };
+
+  const fetchProducerDashboardStats = useCallback(async () => {
+    const storedUser = getStoredUser();
+    const expertId = storedUser?.id || storedUser?.user_id;
+    const nextStats = {};
+
+    const [dashboardStatsResult, providerStatsResult] = await Promise.allSettled([
+      api.get('/jobs/producer-stats'),
+      expertId ? api.get(`/providers/${expertId}/stats`) : Promise.resolve({ data: null })
+    ]);
+
+    if (dashboardStatsResult.status === 'fulfilled') {
+      Object.assign(nextStats, dashboardStatsResult.value.data || {});
+    } else {
+      console.error("Failed to load dashboard stats", dashboardStatsResult.reason);
+    }
+
+    if (providerStatsResult.status === 'fulfilled' && providerStatsResult.value?.data) {
+      const providerStats = providerStatsResult.value.data;
+      Object.assign(nextStats, {
+        points: providerStats.points ?? 0,
+        level: providerStats.level ?? 'Starter',
+        salary: providerStats.salary ?? providerStats.levelSalary ?? 0,
+        completedJobs: providerStats.jobsCompleted ?? nextStats.completedJobs ?? 0,
+        rating: providerStats.rating ?? nextStats.rating ?? 5,
+        recentPointEvents: Array.isArray(providerStats.recentPointEvents) ? providerStats.recentPointEvents : []
+      });
+    } else if (providerStatsResult.status === 'rejected') {
+      console.error("Failed to load provider stats", providerStatsResult.reason);
+    }
+
+    if (Object.keys(nextStats).length > 0) {
+      setProducerDashStats((prev) => ({ ...prev, ...nextStats }));
+    }
+  }, [getStoredUser]);
 
   const fetchProducerChats = async () => {
     try {
@@ -1591,7 +2330,8 @@ www.originode.com
           lastMsg: (job.issue_description || 'Service request').substring(0, 35) + '...',
           time: new Date(job.created_at).toLocaleDateString(),
           unread: 0,
-          status: job.status
+          status: job.status,
+          expertId: job.expert_id || `exp-${job.id}` // Add expertId
         }));
         setProducerChats(chatList);
       }
@@ -1600,7 +2340,8 @@ www.originode.com
     }
   };
 
-  const handleAcceptJob = async (jobId) => {
+  const handleAcceptJob = async (jobOrId) => {
+    const jobId = typeof jobOrId === 'object' ? jobOrId.id : jobOrId;
     try {
       const res = await api.patch(`/jobs/${jobId}/accept`);
       const acceptedJob = res.data;
@@ -1610,6 +2351,7 @@ www.originode.com
 
       // Refresh the producer chat list to include the newly accepted job
       await fetchProducerChats();
+      await fetchProducerDashboardStats();
 
       // Pre-select the accepted job chat and switch to messages tab
       setActiveChatId(jobId);
@@ -1620,11 +2362,13 @@ www.originode.com
     }
   };
 
-  const handleDeclineJob = async (jobId) => {
+  const handleDeclineJob = async (jobOrId) => {
+    const jobId = typeof jobOrId === 'object' ? jobOrId.id : jobOrId;
     try {
       await api.patch(`/jobs/${jobId}/decline`);
       // Remove from local radar — other producers can still see it
       setRadarJobs(prev => prev.filter(j => j.id !== jobId));
+      await fetchProducerDashboardStats();
     } catch (err) {
       // Even if API fails (e.g., demo mode), remove locally for good UX
       setRadarJobs(prev => prev.filter(j => j.id !== jobId));
@@ -1632,33 +2376,69 @@ www.originode.com
     }
   };
 
+  const handleExpertStartWork = async () => {
+    if (!activeChatId) return;
+    try {
+      await api.patch(`/jobs/${activeChatId}/start-work`);
+      await fetchProducerChats();
+    } catch (err) {
+      alert('Failed to start work: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleExpertMarkComplete = async () => {
+    if (!activeChatId) return;
+    try {
+      const res = await api.patch(`/jobs/${activeChatId}/complete-work`);
+      await fetchProducerDashboardStats();
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const newMsgObj = {
+        id: Date.now(),
+        chatId: activeChatId,
+        sender: 'expert',
+        text: SERVICE_COMPLETION_MESSAGE,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages((prev) => [...prev, newMsgObj]);
+      if (socket && user) {
+        // Persist the system message in chat
+        socket.emit('send_message', {
+          requestId: activeChatId,
+          senderId: user.id,
+          text: SERVICE_COMPLETION_MESSAGE
+        });
+        // Notify consumer's dashboard to update status tracker
+        socket.emit('job_completed', {
+          requestId: activeChatId,
+          status: 'completed',
+          consumerId: res.data?.consumer_id
+        });
+      }
+      await fetchProducerChats();
+    } catch (err) {
+      alert('Failed to mark as completed: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   useEffect(() => {
     if (view === 'dashboard' && role === 'consumer' && activeTab === 'fleet') {
-      fetchMachines();
+      fetchConsumerFleetSnapshot();
     }
   }, [view, role, activeTab]);
 
   useEffect(() => {
     if (view === 'dashboard' && role === 'producer') {
-      const fetchStats = async () => {
-        try {
-          const res = await api.get('/jobs/producer-stats');
-          setProducerDashStats(res.data);
-        } catch (err) {
-          console.error("Failed to load dashboard stats", err);
-        }
-      };
-
       fetchRadarJobs();
       fetchProducerChats();
-      fetchStats();
+      fetchProducerDashboardStats();
       const interval = setInterval(() => {
         fetchRadarJobs();
-        fetchStats();
+        fetchProducerDashboardStats();
       }, 10000);
       return () => clearInterval(interval);
     }
-  }, [view, role]);
+  }, [view, role, fetchProducerDashboardStats]);
 
   // When producer switches to messages tab, refresh their chat list
   useEffect(() => {
@@ -1689,12 +2469,54 @@ www.originode.com
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setView('landing');
+    localStorage.removeItem('isAuth');
+    setAuthenticated(false);
     setEmail('');
     setPassword('');
     setFirstName('');
     setLastName('');
     setActiveTab('fleet');
+    navigate('/', { replace: true });
+  };
+
+  const handleViewExpertProfile = async (chat) => {
+    if (!chat) return;
+
+    setSelectedExpert({ loading: true, name: chat.name, online: chat.online });
+    setShowExpertProfileModal(true);
+
+    try {
+      const expertId = chat.provider_id || chat.expertId || chat.userId || chat.id;
+      const res = await api.get(`/providers/${expertId}`);
+      const data = res.data;
+
+      let badgeLabel = "Verified Expert";
+      const spec = (data.category || data.specialty || chat.specialty || "").toLowerCase();
+      if (spec.includes('cnc')) badgeLabel = "CNC Specialist";
+      else if (spec.includes('hydraulic')) badgeLabel = "Hydraulics Expert";
+      else if (spec.includes('motor')) badgeLabel = "Motor Specialist";
+
+      setSelectedExpert({
+        loading: false,
+        name: data.name || chat.name || "Expert Technician",
+        specialization: data.specialty || data.category || chat.specialty || "Repair Expert",
+        rating: data.rating ? Number(data.rating).toFixed(1) : "5.0",
+        level: data.level || "Starter",
+        experience: data.experience || "5",
+        avatar: data.avatar || data.name?.[0] || chat.name?.[0] || "E",
+        online: chat.online || false,
+        machines: data.machines || "All Industrial Machinery",
+        city: data.city || "Local",
+        qualification: data.qualification || "Certified Technician",
+        jobsCompleted: data.jobsCompleted || "0",
+        responseTime: "Responds in ~2 hrs",
+        memberSince: data.memberSince ? new Date(data.memberSince).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : "Recently",
+        badge: badgeLabel,
+        error: false
+      });
+    } catch (err) {
+      setSelectedExpert({ loading: false, error: true });
+    }
   };
 
   const handlePayment = (amountStr, desc, requestId = null) => {
@@ -1741,37 +2563,57 @@ www.originode.com
               razorpay_signature: response.razorpay_signature
             });
             if (verifyRes.data.success) {
-              const successText = `✓ Payment of ₹${checkoutDetails.totalPayable} processed successfully. Ref: ${response.razorpay_payment_id}`;
+              const currentChatForRating =
+                chats.find((c) => c.id === activeChatId) || producerChats.find((c) => c.id === activeChatId);
+              const expertNameForRating = currentChatForRating?.name?.includes('(')
+                ? currentChatForRating.name.split('(')[1].replace(')', '').trim()
+                : currentChatForRating?.name?.split('—')[0]?.trim() || 'Expert';
 
-              setMessages(prev => [...prev, {
-                id: Date.now(),
-                chatId: activeChatId,
-                sender: 'system',
-                text: successText,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              }]);
+              setPostPaymentRatingContext({
+                requestId: checkoutDetails.requestId || activeChatId,
+                expertName: expertNameForRating,
+                amountPaid: checkoutDetails.totalPayable,
+                refId: response.razorpay_payment_id
+              });
+              setReviewData({ rating: 0, comment: '' });
+              const ratingJobId = String(checkoutDetails.requestId || activeChatId);
+              if (!ratedJobIds.has(ratingJobId)) {
+                setShowPostPaymentRatingModal(true);
+              }
+
+              // Mark invoice as paid (using desc and amount as unique key for mock)
+              setPaidInvoices(prev => [...prev, `${checkoutDesc}_${checkoutDetails.providerPrice}`]);
 
               if (socket) {
                 const userStr = localStorage.getItem('user');
                 const user = userStr ? JSON.parse(userStr) : { id: 'unknown' };
+                const successText = `✓ Payment of ₹${checkoutDetails.totalPayable} processed successfully. Ref: ${response.razorpay_payment_id}`;
                 socket.emit('send_message', {
                   requestId: activeChatId,
                   senderId: user.id || user.user_id,
                   text: successText
                 });
               }
-              setShowPaymentSuccess(true);
               setCompletedJobId(activeChatId);
 
-              // [NEW] Optimistic Service Ledger Update
-              setTransactionHistory(prev => [{
-                id: response.razorpay_payment_id || Date.now(),
+              // [NEW] Detailed Service Ledger Update
+              const currentChat = chats.find(c => c.id === activeChatId) || producerChats.find(c => c.id === activeChatId);
+              const machineName = currentChat?.name?.includes(' (') ? currentChat.name.split(' (')[0] : "Industrial Node Unit";
+              const expertName = currentChat?.name?.includes('(') ? currentChat.name.split('(')[1].replace(')', '') : "Expert Technician";
+
+              const newEntry = {
+                id: response.razorpay_payment_id || `INV-${Date.now()}`,
                 date: new Date().toLocaleDateString('en-GB').replace(/\//g, '.'),
-                client: "Online Payment",
-                service: checkoutDesc,
-                status: "Cleared",
-                amount: `₹${checkoutDetails.totalPayable}`
-              }, ...prev]);
+                machine: machineName,
+                service: checkoutDesc || "Maintenance Service",
+                expert: expertName,
+                status: "Completed",
+                cost: `₹${checkoutDetails.totalPayable}`,
+                amount: checkoutDetails.totalPayable,
+                paymentId: response.razorpay_payment_id
+              };
+
+              setTransactionHistory(prev => [newEntry, ...prev]);
 
               setEarningsStats(prev => ({
                 ...prev,
@@ -1840,6 +2682,8 @@ www.originode.com
       if (user) {
         if (socket) socket.emit('identify', user.id || user.user_id);
         if (token) localStorage.setItem('token', token);
+        localStorage.setItem('isAuth', 'true');
+        setAuthenticated(true);
         setView('dashboard');
         setRole(user.role || 'consumer');
         localStorage.setItem('user', JSON.stringify(user));
@@ -1927,47 +2771,308 @@ www.originode.com
   // --- SHARED UI COMPONENTS (MODALS) ---
   const sharedModals = (
     <>
+      {showExpertProfileModal && selectedExpert && (
+        <div className="modal-overlay" onClick={(e) => e.target.className === 'modal-overlay' && setShowExpertProfileModal(false)}>
+          <div className="premium-modal relative" style={{ width: '100%', maxWidth: '480px', borderRadius: '16px', background: 'white', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            
+            {/* Loading State */}
+            {selectedExpert.loading && (
+              <div className="p-8 text-center space-y-6">
+                <div className="animate-pulse flex flex-col items-center">
+                   <div className="w-24 h-24 bg-slate-200 rounded-full mb-4"></div>
+                   <div className="h-6 bg-slate-200 rounded w-1/2 mb-2"></div>
+                   <div className="h-4 bg-slate-200 rounded w-1/3 mb-6"></div>
+                   <div className="w-full grid grid-cols-2 gap-4">
+                     <div className="h-20 bg-slate-200 rounded-2xl"></div>
+                     <div className="h-20 bg-slate-200 rounded-2xl"></div>
+                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {!selectedExpert.loading && selectedExpert.error && (
+              <div className="p-8 text-center space-y-4">
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <AlertCircle size={32} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Profile Error</h3>
+                <p className="text-slate-500 text-sm">Could not load profile. Please try again.</p>
+                <button 
+                  className="mt-6 w-full h-12 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-all font-medium"
+                  onClick={() => setShowExpertProfileModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+            )}
+
+            {/* Success State */}
+            {!selectedExpert.loading && !selectedExpert.error && (
+              <>
+                <div className="modal-header-premium p-6 border-b border-slate-100 flex items-center justify-between">
+                   <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Expert Profile</h3>
+                   <button className="text-slate-400 hover:text-slate-600 transition-colors" onClick={() => setShowExpertProfileModal(false)}>
+                      <X size={20} />
+                   </button>
+                </div>
+                
+                <div className="modal-body-premium p-6 text-center space-y-6">
+                   {/* Top Section */}
+                   <div className="relative mx-auto w-24 h-24">
+                      <div className="w-24 h-24 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-500/20">
+                        {selectedExpert.avatar}
+                      </div>
+                      <div className={`absolute bottom-1 right-1 w-6 h-6 border-4 border-white rounded-full ${selectedExpert.online ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                   </div>
+
+                   <div className="space-y-1">
+                      <h4 className="text-2xl font-bold text-slate-900 tracking-tight">{selectedExpert.name}</h4>
+                      <p className="text-sm font-medium text-slate-500">{selectedExpert.specialization}</p>
+                      
+                      {/* Badges Section */}
+                      <div className="flex items-center justify-center gap-2 pt-2 pb-1">
+                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold tracking-tight">
+                            <ShieldCheck size={14} />
+                            {selectedExpert.badge}
+                         </span>
+                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-bold tracking-tight">
+                            ★ {selectedExpert.rating}
+                         </span>
+                      </div>
+                   </div>
+
+                   {/* Details Section */}
+                   <div className="grid grid-cols-2 gap-4 text-left border-t border-slate-100 pt-6">
+                      <div className="col-span-2 bg-slate-50 p-4 rounded-2xl mb-2 flex items-center justify-between">
+                         <div className="space-y-1">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reputation Level</p>
+                            <p className={cn(
+                              "text-base font-black uppercase tracking-tight",
+                              selectedExpert.level === 'Elite' ? "text-purple-600" :
+                              selectedExpert.level === 'Gold' ? "text-amber-600" :
+                              selectedExpert.level === 'Silver' ? "text-emerald-600" :
+                              selectedExpert.level === 'Bronze' ? "text-blue-600" : "text-slate-500"
+                            )}>
+                              {selectedExpert.level} Tier
+                            </p>
+                         </div>
+                         <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center">
+                            <Award size={20} className={cn(
+                              selectedExpert.level === 'Elite' ? "text-purple-600" : "text-slate-400"
+                            )} />
+                         </div>
+                      </div>
+
+                      <div>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Machine Types</p>
+                         <p className="text-[13px] font-semibold text-slate-900 leading-tight">{selectedExpert.machines}</p>
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Service City</p>
+                         <p className="text-[13px] font-semibold text-slate-900 flex items-center gap-1"><LocationIcon size={14} className="text-slate-400"/> {selectedExpert.city}</p>
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Experience</p>
+                         <p className="text-[13px] font-semibold text-slate-900">{selectedExpert.experience} Years</p>
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Success Rate</p>
+                         <p className="text-[13px] font-semibold text-emerald-600">98% Verified</p>
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Member Since</p>
+                         <p className="text-[13px] font-semibold text-slate-900">{selectedExpert.memberSince}</p>
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Typical Speed</p>
+                         <p className="text-[13px] font-semibold text-blue-600">{selectedExpert.responseTime}</p>
+                      </div>
+                   </div>
+
+                   <div className="text-left bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 space-y-3">
+                      <div>
+                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Technical Qualification</p>
+                        <p className="text-sm font-semibold text-slate-700 flex items-center gap-2 italic"><AssignmentIcon size={14} className="text-indigo-500"/> {selectedExpert.qualification}</p>
+                      </div>
+                      <div className="pt-2 border-t border-indigo-100/50 flex items-center gap-2">
+                         <ShieldCheck size={14} className="text-emerald-500" />
+                         <p className="text-[11px] font-bold text-slate-500">This expert is verified by origiNode and has completed {selectedExpert.jobsCompleted} jobs.</p>
+                      </div>
+                   </div>
+
+                   {/* Bottom / Close */}
+                   <div className="pt-2">
+                      <button 
+                        className="w-full h-12 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-all font-medium active:scale-95"
+                        onClick={() => setShowExpertProfileModal(false)}
+                      >
+                        Close
+                      </button>
+                   </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showPaymentSuccessModal && paymentSuccessData && (
+        <div className="modal-overlay">
+          <div className="premium-modal animate-fade-in" style={{ maxWidth: '400px', borderRadius: '16px', background: 'white', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <div className="p-10 text-center space-y-6">
+               <div className="w-20 h-20 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                  <CheckCircle className="w-10 h-10 text-emerald-600" strokeWidth={3} />
+               </div>
+               <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Payment Successful</h3>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed">Your payment has been completed successfully.</p>
+               </div>
+               
+               <div className="p-6 bg-slate-50 rounded-2xl space-y-3">
+                  <div className="flex justify-between items-center">
+                     <span className="text-xs font-medium text-slate-400">Amount Paid</span>
+                     <span className="text-sm font-bold text-slate-900">₹{paymentSuccessData.amount}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                     <span className="text-xs font-medium text-slate-400">Reference ID</span>
+                     <span className="text-xs font-mono text-slate-900">{paymentSuccessData.refId}</span>
+                  </div>
+               </div>
+
+               <button 
+                  className="w-full h-12 bg-slate-900 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all" 
+                  onClick={() => {
+                    setShowPaymentSuccessModal(false);
+                    setPaymentSuccessData(null);
+                  }}
+               >
+                  OK
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPostPaymentRatingModal && postPaymentRatingContext && (
+        <div className="modal-overlay">
+          <div
+            className="premium-modal animate-fade-in"
+            style={{
+              maxWidth: '440px',
+              borderRadius: '16px',
+              background: 'white',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-8 space-y-5">
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-bold text-slate-900 tracking-tight">Rate Your Experience</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  How was the service by{' '}
+                  <span className="font-semibold text-slate-900">{postPaymentRatingContext.expertName}</span>?
+                </p>
+                {postPaymentRatingContext.amountPaid != null && (
+                  <p className="text-xs text-slate-500 pt-1">
+                    Payment of ₹{postPaymentRatingContext.amountPaid} completed
+                    {postPaymentRatingContext.refId ? (
+                      <span className="block font-mono text-[11px] mt-1 text-slate-400">
+                        Ref: {postPaymentRatingContext.refId}
+                      </span>
+                    ) : null}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-center gap-1 py-1">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setReviewData((prev) => ({ ...prev, rating: i }))}
+                    className="p-1.5 rounded-xl hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    aria-label={`Rate ${i} star${i > 1 ? 's' : ''}`}
+                  >
+                    <Star
+                      className={`w-9 h-9 transition-colors ${
+                        i <= reviewData.rating
+                          ? 'text-amber-400 fill-amber-400'
+                          : 'text-slate-300'
+                      }`}
+                      strokeWidth={1.5}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Leave a comment (optional)
+                </label>
+                <textarea
+                  value={reviewData.comment}
+                  onChange={(e) => setReviewData((prev) => ({ ...prev, comment: e.target.value }))}
+                  placeholder="Share your experience (optional)"
+                  rows={3}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB]"
+                />
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handlePostPaymentRatingSkip}
+                  className="flex-1 h-11 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePostPaymentRatingSubmit}
+                  disabled={reviewData.rating < 1}
+                  className="flex-1 h-11 rounded-xl bg-[#2563EB] text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                >
+                  Submit Rating
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCheckoutModal && checkoutDetails && (
         <div className="modal-overlay">
-          <div className="premium-modal" style={{ maxWidth: '480px' }}>
-            <div className="modal-header-premium border-b border-slate-50">
-               <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center mb-8 shadow-xl">
-                  <CreditCard size={24} strokeWidth={2.5} />
-               </div>
-               <h3 className="text-3xl font-black text-slate-900 tracking-tight">Secure Checkout</h3>
-               <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">Protocol Version 4.02 // Encrypted</p>
+          <div className="premium-modal" style={{ maxWidth: '480px', borderRadius: '16px', background: 'white', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <div className="modal-header-premium border-b border-slate-100 p-6">
+               <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Payment Summary</h3>
                <button className="modal-close-btn" onClick={() => setShowCheckoutModal(false)}>
                   <X size={18} />
                </button>
             </div>
             
-            <div className="modal-body-premium pt-10 space-y-8">
-               <div className="space-y-4">
+            <div className="modal-body-premium p-6 space-y-4">
+               <div className="space-y-3">
                   {[
-                    { label: "Dispatch Value", value: `₹${checkoutDetails.providerPrice}` },
-                    { label: "Network Service Fee", value: `₹${checkoutDetails.commission}` },
-                    { label: "Government Levy (GST)", value: `₹${checkoutDetails.gst}` }
+                    { label: "Service Cost", value: `₹${checkoutDetails.providerPrice}` },
+                    { label: "Platform Fee", value: `₹${checkoutDetails.commission}` },
+                    { label: "GST", value: `₹${checkoutDetails.gst}` }
                   ].map((item, i) => (
-                    <div key={i} className="flex items-center justify-between pb-4 border-b border-slate-50 last:border-0 last:pb-0">
-                       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</span>
-                       <strong className="text-sm font-black text-slate-900">{item.value}</strong>
+                    <div key={i} className="flex items-center justify-between">
+                       <span className="text-sm text-[#6B7280]">{item.label}</span>
+                       <strong className="text-sm font-semibold text-slate-900">{item.value}</strong>
                     </div>
                   ))}
                </div>
 
-               <div className="p-8 bg-slate-50 rounded-[1.5rem] flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Total Settle</span>
-                  <span className="text-2xl font-black text-[var(--primary)]">₹{checkoutDetails.totalPayable}</span>
+               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-base font-semibold text-slate-900">Total</span>
+                  <span className="text-xl font-bold text-[#2563EB]">₹{checkoutDetails.totalPayable}</span>
                </div>
 
                <div className="grid grid-cols-2 gap-4 pt-4">
-                  <button className="secondary-action-btn h-14 rounded-2xl" onClick={() => setShowCheckoutModal(false)}>Cancel</button>
-                  <button className="main-action-btn h-14 rounded-2xl bg-[var(--primary)]" onClick={initiateRazorpayCheckout}>Execute Pay</button>
-               </div>
-
-               <div className="flex items-center justify-center gap-3 py-4 opacity-40">
-                  <Lock size={12} strokeWidth={3} className="text-slate-400" />
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Z-Trust Secure Sockets Established</span>
+                  <button className="secondary-action-btn h-12 rounded-lg" onClick={() => setShowCheckoutModal(false)}>Cancel</button>
+                  <button className="main-action-btn h-12 rounded-lg bg-[#2563EB]" onClick={initiateRazorpayCheckout}>Pay ₹{checkoutDetails.totalPayable}</button>
                </div>
             </div>
           </div>
@@ -1975,22 +3080,19 @@ www.originode.com
       )}
 
       {showAddMachineModal && (
-        <div className="modal-overlay">
-          <div className="premium-modal" style={{ maxWidth: '520px' }}>
+        <div className="modal-overlay" onClick={(e) => e.target.className === 'modal-overlay' && setShowAddMachineModal(false)}>
+          <div className="premium-modal">
             <div className="modal-header-premium">
-               <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-8 shadow-sm">
-                  <HardDrive size={24} strokeWidth={2.5} className="text-[var(--primary)]" />
-               </div>
-               <h3 className="modal-title">Register Node</h3>
-               <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">Initialize New Industrial Asset</p>
+               <h3 className="modal-title">Add Machine</h3>
+               <p className="text-slate-400 font-medium text-[10px] mt-1 uppercase tracking-widest">Industrial Node Registry</p>
                <button className="modal-close-btn" onClick={() => setShowAddMachineModal(false)}>
                   <X size={18} />
                </button>
             </div>
             
-            <div className="modal-body-premium space-y-8">
-               <div className="input-field-modern mb-0">
-                  <label>Machine Identifier</label>
+            <div className="modal-body-premium space-y-4">
+               <div className="input-field-modern">
+                  <label>Machine Name</label>
                   <input 
                     type="text" placeholder="e.g. Hydraulic Press #99"
                     value={newMachineData.name}
@@ -1998,11 +3100,10 @@ www.originode.com
                   />
                </div>
 
-               <div className="grid grid-cols-2 gap-6">
-                  <div className="input-field-modern mb-0">
-                    <label>Module Category</label>
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="input-field-modern">
+                    <label>Machine Type</label>
                     <select 
-                      className="w-full h-[52px] px-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-900 focus:bg-white focus:border-[var(--primary)] outline-none transition-all appearance-none"
                       value={newMachineData.machine_type}
                       onChange={(e) => setNewMachineData({ ...newMachineData, machine_type: e.target.value })}
                     >
@@ -2013,8 +3114,8 @@ www.originode.com
                       <option value="Generator">Generator</option>
                     </select>
                   </div>
-                  <div className="input-field-modern mb-0">
-                    <label>Epoch / Year</label>
+                  <div className="input-field-modern">
+                    <label>Machine Year</label>
                     <input 
                       type="number" placeholder="2024"
                       value={newMachineData.model_year}
@@ -2023,8 +3124,8 @@ www.originode.com
                   </div>
                </div>
 
-               <div className="input-field-modern mb-0">
-                  <label>OEM Source</label>
+               <div className="input-field-modern">
+                  <label>Manufacturer</label>
                   <input 
                     type="text" placeholder="e.g. Hydra-Tech Germany"
                     value={newMachineData.oem}
@@ -2032,7 +3133,9 @@ www.originode.com
                   />
                </div>
 
-               <button className="main-action-btn h-14 rounded-2xl mt-4" onClick={handleAddMachine}>Activate Node</button>
+               <button className="main-action-btn h-11 rounded-lg mt-4 bg-slate-900" onClick={handleAddMachine}>
+                  Add Machine
+               </button>
             </div>
           </div>
         </div>
@@ -2083,76 +3186,105 @@ www.originode.com
       )}
 
       {showDiagnosisModal && (
-        <div className="modal-overlay">
-          <div className="premium-modal" style={{ maxWidth: '600px' }}>
-            <div className="modal-header-premium">
-               <div className="w-14 h-14 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center mb-8">
-                  <Cpu size={24} className="text-[var(--primary)]" strokeWidth={2.5} />
+        <div className="modal-overlay" onClick={(e) => e.target.className === 'modal-overlay' && setShowDiagnosisModal(false)}>
+          <div className="premium-modal" style={{ maxWidth: '520px', borderRadius: '16px', background: 'white', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <div className="modal-header-premium border-b border-slate-100 p-6 flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                    <Wrench size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Request Service</h3>
+                    <p className="text-xs text-slate-500 font-medium">{activeJobMachine?.name || "Global Node"}</p>
+                  </div>
                </div>
-               <h3 className="modal-title">Smart Signal Analysis</h3>
-               <p className="text-slate-400 font-medium text-xs mt-2 uppercase tracking-widest">AI Hub Diagnosis // Local Mesh</p>
-               <button className="modal-close-btn" onClick={() => { setShowDiagnosisModal(false); setDiagnosisStep(1); }}>
-                  <X size={18} />
+               <button className="text-slate-400 hover:text-slate-600 transition-colors" onClick={() => { setShowDiagnosisModal(false); setDiagnosisStep(1); }}>
+                  <X size={20} />
                </button>
             </div>
             
-            <div className="modal-body-premium space-y-10">
+            <div className="modal-body-premium p-8">
                {diagnosisStep === 1 && (
-                 <div className="animate-fade-in space-y-8">
+                 <div className="animate-fade-in space-y-6">
                     <div 
-                      className="h-48 border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center gap-4 group hover:border-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all cursor-pointer overflow-hidden relative"
+                      className="h-44 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 group hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer overflow-hidden relative"
                       onClick={() => document.getElementById('video-input').click()}
                     >
-                       <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                          <Play size={20} className="text-[var(--primary)] ml-1" />
+                       <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform text-blue-600">
+                          <Video size={20} />
                        </div>
-                       <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-[var(--primary)] transition-colors">
-                          {videoFile ? videoFile.name : "Upload Anomaly Stream"}
-                       </p>
+                       <div className="text-center">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {videoFile ? videoFile.name : "Upload fault video"}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">MP4, MOV or AVI (Max 50MB)</p>
+                       </div>
                        <input type="file" id="video-input" hidden accept="video/*" onChange={handleVideoSelect} />
                     </div>
 
-                    <div className="input-field-modern mb-0">
-                       <label>Anomaly Context</label>
-                       <textarea 
-                         rows="3"
-                         placeholder="Describe the noise, visual fault, or signal variance..."
-                         className="w-full p-6 rounded-2xl border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:bg-white focus:border-[var(--primary)] outline-none transition-all resize-none"
-                         value={diagnosisDesc}
-                         onChange={(e) => setDiagnosisDesc(e.target.value)}
-                       />
+                    <div className="space-y-4">
+                       <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-slate-700 ml-1">Issue Description</label>
+                          <textarea 
+                            rows="3"
+                            placeholder="Describe the noise, visual fault, or signal variance..."
+                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-500 outline-none transition-all text-sm placeholder:text-slate-400"
+                            value={diagnosisDesc}
+                            onChange={(e) => setDiagnosisDesc(e.target.value)}
+                          />
+                       </div>
+                       <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-slate-700 ml-1">Physical Location</label>
+                          <input 
+                            type="text"
+                            placeholder="e.g. Front hydraulic valve, Main spindle..."
+                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-500 outline-none transition-all text-sm placeholder:text-slate-400"
+                            value={faultLocation}
+                            onChange={(e) => setFaultLocation(e.target.value)}
+                          />
+                       </div>
                     </div>
-                    <button className="main-action-btn h-14 rounded-2xl" onClick={handleBroadcastJob}>Broadcast Dispatch</button>
+                    <button 
+                      className="w-full h-12 bg-[#2563EB] text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]" 
+                      onClick={handleBroadcastJob}
+                    >
+                      Broadcast Service Request
+                    </button>
                  </div>
                )}
                
                {diagnosisStep === 2 && (
-                 <div className="py-20 flex flex-col items-center justify-center space-y-10 animate-fade-in">
+                 <div className="py-16 flex flex-col items-center justify-center space-y-8 animate-fade-in">
                     <div className="relative">
-                       <div className="w-24 h-24 border-8 border-slate-100 border-t-blue-600 rounded-full animate-spin" />
+                       <div className="w-20 h-20 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin" />
                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Globe size={24} className="text-[var(--primary)] animate-pulse" />
+                          <Globe size={24} className="text-blue-600 animate-pulse" />
                        </div>
                     </div>
-                    <div className="text-center space-y-3">
-                       <h4 className="text-2xl font-black text-slate-900 tracking-tight">Broadcasting Signal</h4>
-                       <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Scanning local expert nodes...</p>
+                    <div className="text-center space-y-2">
+                       <h4 className="text-xl font-bold text-slate-900 tracking-tight">Broadcasting Request</h4>
+                       <p className="text-sm font-medium text-slate-500">Scanning for available expert nodes...</p>
                     </div>
                  </div>
                )}
 
                {diagnosisStep === 3 && (
-                 <div className="text-center py-10 space-y-10 animate-fade-in">
-                    <div className="w-24 h-24 bg-emerald-50 border border-emerald-100 rounded-[2rem] flex items-center justify-center mx-auto shadow-sm">
-                       <CheckCircle className="w-10 h-10 text-[var(--success)]" strokeWidth={3} />
+                 <div className="text-center py-8 space-y-8 animate-fade-in">
+                    <div className="w-20 h-20 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                       <CheckCircle className="w-10 h-10 text-emerald-600" strokeWidth={3} />
                     </div>
-                    <div className="space-y-4">
-                       <h4 className="text-3xl font-black text-slate-900 tracking-tight">Signal Latched</h4>
+                    <div className="space-y-3">
+                       <h4 className="text-2xl font-bold text-slate-900 tracking-tight">Request Live</h4>
                        <p className="text-slate-500 font-medium text-sm leading-relaxed max-w-xs mx-auto">
-                          Your request for <strong>{activeJobMachine?.name}</strong> is now live on the industrial radar.
+                          Your request for <strong>{activeJobMachine?.name}</strong> has been broadcasted to our expert network.
                        </p>
                     </div>
-                    <button className="main-action-btn h-14 rounded-2xl bg-[var(--success)]" onClick={() => setShowDiagnosisModal(false)}>Return to Console</button>
+                    <button 
+                      className="w-full h-12 bg-slate-900 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all" 
+                      onClick={() => setShowDiagnosisModal(false)}
+                    >
+                      Return to Console
+                    </button>
                  </div>
                )}
             </div>
@@ -2161,42 +3293,49 @@ www.originode.com
       )}
 
       {showReportModal && selectedReport && (
-        <div className="modal-overlay">
-          <div className="premium-modal" style={{ maxWidth: '640px' }}>
-            <div className="modal-header-premium bg-slate-50">
-               <div className="flex items-center justify-between mb-8">
-                  <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm">
-                     <FileText size={28} className="text-slate-900" strokeWidth={2.5} />
-                  </div>
-                  <div className="text-right">
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invoice Serial</p>
-                     <p className="text-xl font-black text-slate-900 tracking-tighter">INV-{2020 + selectedReport.id}</p>
-                  </div>
-               </div>
-               <h3 className="modal-title">Service Maintenance Log</h3>
-               <button className="modal-close-btn" onClick={() => setShowReportModal(false)}>
-                  <X size={18} />
+        <div className="modal-overlay" onClick={(e) => e.target.className === 'modal-overlay' && setShowReportModal(false)}>
+          <div className="premium-modal" style={{ maxWidth: '480px', borderRadius: '16px', background: 'white', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <div className="modal-header-premium border-b border-slate-100 p-6 flex items-center justify-between">
+               <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Invoice Details</h3>
+               <button className="text-slate-400 hover:text-slate-600 transition-colors" onClick={() => setShowReportModal(false)}>
+                  <X size={20} />
                </button>
             </div>
             
-            <div className="modal-body-premium pt-12 space-y-12">
-               <div className="grid grid-cols-2 gap-x-12 gap-y-8">
-                  <ReportField label="Service Date" value={selectedReport.date} />
-                  <ReportField label="Node Identifier" value={selectedReport.machine} />
-                  <ReportField label="Verified Expert" value={selectedReport.expert} />
-                  <ReportField label="Settled Amount" value={selectedReport.cost} />
+            <div className="modal-body-premium p-8 space-y-6">
+               <div className="space-y-4">
+                  {[
+                    { label: "Machine Name", value: selectedReport.machine },
+                    { label: "Service Type", value: selectedReport.service || selectedReport.action || "Maintenance" },
+                    { label: "Expert Name", value: selectedReport.expert },
+                    { label: "Service Date", value: selectedReport.date }
+                  ].map((item, i) => (
+                    <div key={i} className="flex flex-col gap-1">
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</span>
+                       <span className="text-sm font-semibold text-slate-900">{item.value}</span>
+                    </div>
+                  ))}
                </div>
 
-               <div className="p-8 bg-slate-50 border border-slate-100 rounded-[2rem] space-y-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Maintenance Narrative</p>
-                  <p className="text-xs font-bold text-slate-800 leading-relaxed italic">
-                     "{selectedReport.action}. System diagnostics were run post-service to ensure compliance with operational safety standards."
-                  </p>
+               <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-base font-semibold text-slate-900">Amount Paid</span>
+                  <span className="text-xl font-bold text-[#2563EB]">{selectedReport.cost || selectedReport.amount}</span>
                </div>
 
-               <div className="flex items-center gap-4">
-                  <button className="main-action-btn flex-1" onClick={handleDownloadReport}>Download Artifact</button>
-                  <button className="secondary-action-btn flex-1" onClick={() => alert("Digital copy dispatched to " + email)}>Email Ledger</button>
+               <div className="grid grid-cols-2 gap-4 pt-4">
+                  <button 
+                    className="secondary-action-btn h-12 rounded-xl border-[#E5E7EB] text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all" 
+                    onClick={() => setShowReportModal(false)}
+                  >
+                    Close
+                  </button>
+                  <button 
+                    className="main-action-btn h-12 rounded-xl bg-[#2563EB] text-white font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2" 
+                    onClick={() => handleDownloadReport(selectedReport)}
+                  >
+                    <Download size={16} />
+                    Download Invoice
+                  </button>
                </div>
             </div>
           </div>
@@ -2301,13 +3440,22 @@ www.originode.com
     </>
   );
 
+  // --- VIEW 0: AUTH CHECKING (PREVENT FLICKERING) ---
+  if (authChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   // --- VIEW 1: PROFESSIONAL LANDING PAGE ---
   if (view === 'landing') {
     return (
       <div className="bg-white min-h-screen selection:bg-blue-100 selection:text-blue-900">
         {/* Navigation */}
         <nav className={`nav-sticky ${scrolled ? 'scrolled' : ''}`}>
-          <div className="logo-container" onClick={() => setView('landing')}>
+          <div className="logo-container" onClick={() => navigate('/')}>
             <div className="logo-text">origiNode</div>
           </div>
         </nav>
@@ -2467,7 +3615,6 @@ www.originode.com
               <p className="card-text mb-8">Manage service requests, dispatch technicians, and provide repair services.</p>
               <div className="flex flex-col gap-3">
                 <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} className="btn-primary w-full bg-indigo-600" onClick={() => navigateToAuth('producer', true)}>Login</motion.button>
-                <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} className="btn-secondary w-full" onClick={() => navigateToAuth('producer', false)}>Sign Up</motion.button>
               </div>
             </motion.div>
           </div>
@@ -2478,13 +3625,25 @@ www.originode.com
         <footer className="footer-simple">
           <div className="max-w-4xl mx-auto space-y-4">
             <div className="logo-container mx-auto justify-center mb-4" onClick={() => {
-              setView('landing');
+              navigate('/');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}>
               <div className="logo-text text-xl">origiNode</div>
             </div>
-            <p className="text-sm font-bold text-slate-900">Industrial Intelligence Platform</p>
-            <p className="text-xs text-slate-400">© 2026 origiNode. All rights reserved.</p>
+            <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-semibold text-slate-600">
+              <button type="button" onClick={() => navigate('/terms')} className="transition-colors hover:text-blue-600">
+                Terms & Conditions
+              </button>
+              <span className="text-slate-300">|</span>
+              <button type="button" onClick={() => navigate('/privacy')} className="transition-colors hover:text-blue-600">
+                Privacy Policy
+              </button>
+              <span className="text-slate-300">|</span>
+              <a href="mailto:support@originode.com" className="transition-colors hover:text-blue-600">
+                Contact Us
+              </a>
+            </div>
+            <p className="text-xs text-slate-400">© 2026 origiNode Systems. All rights reserved.</p>
           </div>
         </footer>
         {sharedModals}
@@ -2492,167 +3651,352 @@ www.originode.com
     );
   }
 
-  // VIEW 2: PROFESSIONAL AUTHENTICATION PORTAL
+  // VIEW 2: REDESIGNED AUTHENTICATION PORTAL (SaaS Style)
   if (view === 'auth' || view === 'forgot') {
+    const authTitle = view === 'forgot' ? 'Reset Password' : (isLogin ? 'Log In' : 'Sign Up');
+    const roleLabel = role === 'consumer' ? 'Fleet Operator' : 'Service Expert';
+    
     return (
-      <div className="auth-page-view">
-         <div className="landing-grid-bg" />
-         <div className="login-page-wrapper">
-           <button className="back-btn-top" onClick={() => setView('landing')}>
-             <ArrowRight size={14} className="rotate-180" />
-             Back to Main
-           </button>
-           <div className="glass-container">
-             <div className="login-visual">
-               <div className="visual-noise" />
-               <div className="p-16 text-white relative z-10 space-y-10 mt-auto">
-                 <div className="inline-flex items-center gap-3 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md border border-white/10 text-[10px] font-bold uppercase tracking-[0.2em]">
-                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.5)]" />
-                   Secure Protocol v4.02
-                 </div>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center">
+            <div className="logo-container mx-auto mb-6" onClick={() => navigate('/')}>
+              <div className="logo-text text-3xl">origiNode</div>
+            </div>
+            <h2 className="mt-6 text-3xl font-extrabold text-slate-900">
+              {authTitle}
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              {roleLabel} Portal
+            </p>
+          </div>
 
-                 <div>
-                    <h3 className="text-5xl font-black tracking-tight mb-6 leading-none">
-                      {view === 'forgot' ? 'Security Recovery' : (role === 'consumer' ? 'Fleet Operations' : 'Service Terminal')}
-                    </h3>
-                    <p className="text-white/60 font-medium max-w-sm leading-relaxed text-sm">
-                      {view === 'forgot'
-                        ? 'Restore your administrative access to the origiNode network.'
-                        : (role === 'consumer'
-                          ? 'Manage industrial assets with 21st-century precision and expert support.'
-                          : 'Connect with a global network for industrial diagnostics and professional service requests.')}
-                    </p>
-                 </div>
-
-                 <div className="grid grid-cols-2 gap-12 pt-10 border-t border-white/10">
-                    <div className="space-y-2">
-                       <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Verified Nodes</span>
-                       <p className="text-3xl font-black tabular-nums">1.2K+</p>
+          <motion.div 
+            className="bg-white py-8 px-6 shadow-lg rounded-3xl sm:px-10 border border-slate-100"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            {view === 'forgot' ? (
+              <div className="space-y-6">
+                {recoverySent ? (
+                  <div className="text-center space-y-6 animate-fade-in">
+                    <div className={`w-16 h-16 ${role === 'consumer' ? 'bg-blue-50 text-blue-600' : 'bg-indigo-50 text-indigo-600'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                      <MailIcon size={32} />
                     </div>
                     <div className="space-y-2">
-                       <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Active Experts</span>
-                       <p className="text-3xl font-black tabular-nums">8.4K</p>
+                      <h3 className="text-xl font-bold text-slate-900">Recovery Email Sent</h3>
+                      <p className="text-sm text-slate-500 leading-relaxed">
+                        If an account exists with this email, a password reset link has been sent.
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Please check your inbox and follow the link to reset your password.
+                      </p>
                     </div>
-                 </div>
-               </div>
-             </div>
-
-             <div className="login-form-area">
-               <div className="mb-12">
-                  <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-4">
-                    {view === 'forgot'
-                      ? 'Reset Password'
-                      : isLogin ? `${role === 'consumer' ? 'Operator' : 'Provider'} Portal` : `Identity Setup`}
-                  </h2>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">
-                     Industrial Authentication Required
-                  </p>
-               </div>
-
-               {isLogin ? (
-                 <div className="space-y-0">
-                   <div className="input-field-modern">
-                     <label>Professional Email Address</label>
-                     <input
-                       type="email"
-                       placeholder="e.g. name@industrial.com"
-                       value={email}
-                       onChange={(e) => setEmail(e.target.value)}
-                     />
-                   </div>
-
-                   {view !== 'forgot' && (
-                     <div className="input-field-modern">
-                       <div className="flex justify-between items-center mb-2">
-                         <label className="m-0">Security Credential</label>
-                         <span 
-                           className="text-[10px] font-black text-[var(--primary)] uppercase cursor-pointer hover:underline tracking-widest" 
-                           onClick={() => { setView('forgot'); setErrors({}); }}
-                         >
-                           Recover?
-                         </span>
-                       </div>
-                       <input
-                         type={showPassword ? "text" : "password"}
-                         placeholder="••••••••••••"
-                         value={password}
-                         onChange={(e) => setPassword(e.target.value)}
-                       />
-                     </div>
-                   )}
-                 </div>
-               ) : (
-                 <div className="space-y-0">
-                    {signupStep === 1 ? (
-                      <>
-                        <div className="grid grid-cols-2 gap-6">
-                           <div className="input-field-modern">
-                             <label>Given Name</label>
-                             <input type="text" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                           </div>
-                           <div className="input-field-modern">
-                             <label>Family Name</label>
-                             <input type="text" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                           </div>
-                        </div>
-                        <div className="input-field-modern">
-                          <label>Institutional Email</label>
-                          <input type="email" placeholder="name@corporation.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-                        </div>
-                        <div className="input-field-modern">
-                          <label>Create Secure Password</label>
-                          <input type="password" placeholder="Select a strong credential" value={password} onChange={(e) => setPassword(e.target.value)} />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="input-field-modern">
-                         <label>{role === 'consumer' ? 'Enterprise Identity' : 'Technical Discipline'}</label>
-                         <input 
-                           type="text" 
-                           placeholder={role === 'consumer' ? "e.g. Acme Industrial Systems" : "e.g. Precision CNC Maintenance"} 
-                           onChange={(e) => setExtraInfo(e.target.value)} 
-                         />
+                    <button 
+                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === 'consumer' ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`} 
+                      onClick={() => { setView('auth'); setRecoverySent(false); }}
+                    >
+                      Back to Login
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="email-address" className="block text-sm font-medium text-slate-700 mb-1">
+                          Professional Email
+                        </label>
+                        <input
+                          id="email-address"
+                          name="email"
+                          type="email"
+                          autoComplete="email"
+                          required
+                          className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                          placeholder="name@industrial.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <button 
+                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === 'consumer' ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`} 
+                      onClick={handleLogin}
+                    >
+                      Send Recovery Link
+                    </button>
+                    <div className="text-center text-sm">
+                      <button 
+                        type="button" 
+                        onClick={() => setView('auth')} 
+                        className={`font-medium ${role === 'consumer' ? 'text-blue-600 hover:text-blue-500' : 'text-indigo-600 hover:text-indigo-500'} transition-colors`}
+                      >
+                        Back to Login
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                {isLogin ? (
+                  <div className="space-y-6">
+                    <div>
+                      <label htmlFor="email-address" className="block text-sm font-medium text-slate-700 mb-1">
+                        Email Address
+                      </label>
+                      <input
+                        id="email-address"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                        placeholder="name@industrial.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+                          Password
+                        </label>
+                        <button 
+                          type="button" 
+                          className={`text-xs font-semibold ${role === 'consumer' ? 'text-blue-600 hover:text-blue-500' : 'text-indigo-600 hover:text-indigo-500'} transition-colors`}
+                          onClick={() => setView('forgot')}
+                        >
+                          Forgot your password?
+                        </button>
+                      </div>
+                      <input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        required
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                    </div>
+                    {errors.server && (
+                      <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium text-center">
+                        {errors.server}
                       </div>
                     )}
-                 </div>
-               )}
+                    <button 
+                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === 'consumer' ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`} 
+                      onClick={handleLogin}
+                    >
+                      Continue
+                    </button>
 
-               {errors.server && <div className="p-5 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-[10px] font-black my-6 uppercase tracking-widest leading-relaxed shadow-sm">{errors.server}</div>}
+                    <button 
+                      className={`mt-4 w-full flex justify-center py-3 px-4 rounded-xl border border-dashed border-slate-200 text-sm font-semibold text-slate-500 hover:border-${role === 'consumer' ? 'blue-200 hover:text-blue-600' : 'indigo-200 hover:text-indigo-600'} transition-all`}
+                      onClick={handleDemoLogin}
+                    >
+                      Quick Demo Access
+                    </button>
+                    
+                    {role === 'consumer' && (
+                      <div className="text-center text-sm">
+                        Don't have an account?{' '}
+                        <button 
+                          type="button" 
+                          onClick={() => navigateToAuth(role, false)} 
+                          className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                        >
+                          Sign Up
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <label htmlFor="full-name" className="block text-sm font-medium text-slate-700 mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        id="full-name"
+                        name="fullName"
+                        type="text"
+                        autoComplete="name"
+                        required
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                        placeholder="John Doe"
+                        value={firstName} 
+                        onChange={(e) => setFirstName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="institutional-email" className="block text-sm font-medium text-slate-700 mb-1">
+                        Institutional Email
+                      </label>
+                      <input
+                        id="institutional-email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                        placeholder="name@industrial.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="secure-password" className="block text-sm font-medium text-slate-700 mb-1">
+                        Secure Password
+                      </label>
+                      <input
+                        id="secure-password"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                    </div>
 
-               <button className="main-action-btn h-16 rounded-2xl" onClick={handleLogin}>
-                 {view === 'forgot' ? 'Dispatch Reset Token' : isLogin ? 'Authenticate Identity' : (signupStep === 1 ? 'Verify Protocol' : 'Finalize Identity')}
-               </button>
+                    {role === 'consumer' ? (
+                      <div>
+                        <label htmlFor="company-name" className="block text-sm font-medium text-slate-700 mb-1">
+                          Company / Industry Name
+                        </label>
+                        <input
+                          id="company-name"
+                          name="companyName"
+                          type="text"
+                          className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                          placeholder="Enterprise Co."
+                          value={extraInfo}
+                          onChange={(e) => setExtraInfo(e.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label htmlFor="expertise-type" className="block text-sm font-medium text-slate-700 mb-1">
+                            Expertise Type
+                          </label>
+                          <input
+                            id="expertise-type"
+                            name="expertiseType"
+                            type="text"
+                            className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                            placeholder="e.g. Hydraulics, CNC"
+                            value={extraInfo}
+                            onChange={(e) => setExtraInfo(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="years-experience" className="block text-sm font-medium text-slate-700 mb-1">
+                            Years of Experience
+                          </label>
+                          <input
+                            id="years-experience"
+                            name="yearsExperience"
+                            type="number"
+                            className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === 'consumer' ? 'blue-500' : 'indigo-500'} focus:border-${role === 'consumer' ? 'blue-500' : 'indigo-500'} sm:text-sm`}
+                            placeholder="5"
+                            value={yearsExp}
+                            onChange={(e) => setYearsExp(e.target.value)}
+                          />
+                        </div>
+                      </>
+                    )}
 
-               <div className="mt-10 space-y-8">
-                 <div className="relative">
-                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
-                   <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-300"><span className="bg-white px-4">Mesh Link</span></div>
-                 </div>
-                 
-                 <div className="flex justify-center">
-                   <GoogleLogin
-                     onSuccess={handleGoogleSuccess}
-                     onError={handleGoogleError}
-                     theme="outline"
-                     shape="pill"
-                     width="100%"
-                   />
-                 </div>
-               </div>
+                    {errors.server && (
+                      <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium text-center">
+                        {errors.server}
+                      </div>
+                    )}
 
-               <p className="mt-12 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                 {isLogin ? "Need a professional account?" : "Existing operative?"}
-                 <button 
-                   onClick={() => { setIsLogin(!isLogin); setSignupStep(1); setErrors({}); }} 
-                   className="ml-2 text-[var(--primary)] font-black hover:underline"
-                 >
-                   {isLogin ? "Join System" : "Log In"}
-                 </button>
-               </p>
-             </div>
-           </div>
-         </div>
-          {sharedModals}
+                    <button 
+                      className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" 
+                      onClick={handleLogin}
+                    >
+                      Create Account
+                    </button>
+
+                    {role === 'consumer' && (
+                      <p className="text-center text-sm text-slate-500">
+                        By creating an account you agree to our{' '}
+                        <button
+                          type="button"
+                          onClick={() => navigate('/terms')}
+                          className="font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                        >
+                          Terms & Conditions
+                        </button>{' '}
+                        and{' '}
+                        <button
+                          type="button"
+                          onClick={() => navigate('/privacy')}
+                          className="font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                        >
+                          Privacy Policy
+                        </button>
+                      </p>
+                    )}
+
+                    <div className="text-center text-sm">
+                      Already have an account?{' '}
+                      <button 
+                        type="button" 
+                        onClick={() => navigateToAuth(role, true)} 
+                        className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                      >
+                        Log In
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-slate-200" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-slate-500 font-medium">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <GoogleLogin
+                      onSuccess={handleGoogleSuccess}
+                      onError={handleGoogleError}
+                      theme="outline"
+                      shape="pill"
+                      width="100%"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </motion.div>
+          <div className="text-center text-sm">
+            <button 
+              type="button" 
+              onClick={() => navigate('/')} 
+              className="font-medium text-slate-600 hover:text-slate-500 transition-colors"
+            >
+              ← Return to Landing Page
+            </button>
+          </div>
+        </div>
+        {sharedModals}
       </div>
     );
   }
@@ -2665,14 +4009,30 @@ www.originode.com
         switch (activeTab) {
           case 'fleet':
             return (
-              <FleetView
-                machines={machines}
-                notifications={notifications}
-                earningsStats={earningsStats}
-                chartData={chartData}
-                avgContinuity={avgContinuity}
-                setShowAddMachineModal={setShowAddMachineModal}
-                onDecommission={handleDeleteMachine}
+              <FleetView 
+                machines={machines} 
+                notifications={notifications} 
+                earningsStats={earningsStats} 
+                chartData={chartData} 
+                avgContinuity={avgContinuity} 
+                activeRequests={activeRequests}
+                setShowAddMachineModal={setShowAddMachineModal} 
+                setShowReportIssueModal={setShowDiagnosisModal}
+                setActiveJobMachine={setActiveJobMachine}
+                transactionHistory={transactionHistory}
+                chats={chats}
+                setActiveTab={setActiveTab}
+                onViewMachine={(m) => { setSelectedMachineNode(m); setActiveTab('machine-details'); }}
+                onDecommission={handleDeleteMachine} 
+              />
+            );
+          case 'machine-details':
+            return (
+              <MachineDetailView
+                machine={selectedMachineNode}
+                onBack={() => setActiveTab('fleet')}
+                onReportFault={() => setShowDiagnosisModal(true)}
+                onDecommission={() => { setNodeToDelete(selectedMachineNode); }}
               />
             );
           case 'messages':
@@ -2684,6 +4044,10 @@ www.originode.com
                 chatHistory={messages}
                 onSendMessage={handleSendMessage}
                 currentUser={{ id: 'user', name: firstName }}
+                onViewProfile={handleViewExpertProfile}
+                paidInvoices={paidInvoices}
+                onProcessPayment={handlePayment}
+                jobStatus={chats.find((c) => c.id === activeChatId)?.status}
               />
             );
           case 'history':
@@ -2692,14 +4056,24 @@ www.originode.com
                 serviceHistory={transactionHistory}
                 onDownloadReport={handleDownloadReport}
                 onViewReport={(item) => { setSelectedReport(item); setShowReportModal(true); }}
+                onRequestService={() => {
+                  const el = document.getElementById('fleet-tab');
+                  if (el) el.click();
+                  setActiveTab('fleet');
+                  setShowDiagnosisModal(true);
+                }}
               />
             );
-          case 'legacy':
+          case 'machines':
             return (
-              <LegacySearchView
-                results={legacyResults}
-                onSearch={handleLegacySearch}
-                onRequestSpecs={handleRequestSpecs}
+              <MachinesView 
+                machines={machines}
+                setShowAddMachineModal={setShowAddMachineModal}
+                onViewMachine={(m) => {
+                  /* Optional: could handle detailed view if established */
+                }}
+                setActiveJobMachine={() => {}}
+                setShowReportIssueModal={setShowDiagnosisModal}
               />
             );
           case 'profile':
@@ -2716,33 +4090,43 @@ www.originode.com
             );
           case 'help':
             return <SupportView onSubmitTicket={handleSubmitSupportTicket} />;
-          case 'settings':
+          // Settings page removed per user request
+          default:
             return (
-              <SettingsView
-                is2FA={isTwoFactorEnabled}
-                set2FA={setIsTwoFactorEnabled}
-                visibility={profileVisibility}
-                setVisibility={setProfileVisibility}
-                onDeleteAccount={() => setShowDeleteModal(true)}
+              <FleetView 
+                machines={machines} 
+                notifications={notifications} 
+                earningsStats={earningsStats} 
+                chartData={chartData} 
+                avgContinuity={avgContinuity} 
+                activeRequests={activeRequests}
+                expertPresence={expertPresence}
+                setShowAddMachineModal={setShowAddMachineModal} 
+                setShowReportIssueModal={setShowDiagnosisModal}
+                transactionHistory={transactionHistory}
+                chats={chats}
+                setActiveTab={setActiveTab}
+                onDecommission={handleDeleteMachine} 
               />
             );
-          default:
-            return <FleetView machines={machines} notifications={notifications} earningsStats={earningsStats} chartData={chartData} avgContinuity={avgContinuity} setShowAddMachineModal={setShowAddMachineModal} onDecommission={handleDeleteMachine} />;
         }
       } else {
         // Producer views
         switch (activeTab) {
-          case 'requests':
+          case 'fleet':
             return (
               <ProducerDashboard
                 stats={producerDashStats}
                 radarJobs={radarJobs}
                 user={{ firstName, lastName, photo: userPhoto, id: profileData.id }}
                 onAcceptJob={handleAcceptJob}
+                onDeclineJob={handleDeclineJob}
                 onViewDetails={() => {}}
               />
             );
-          case 'pro-messages':
+          case 'performance':
+            return <PerformanceView userId={profileData.id} />;
+          case 'messages':
             return (
                 <MessagesView
                   chats={producerChats}
@@ -2751,9 +4135,12 @@ www.originode.com
                   chatHistory={messages}
                   onSendMessage={handleSendMessage}
                   currentUser={{ id: 'expert', name: firstName }}
+                  onViewProfile={handleViewExpertProfile}
+                  jobStatus={producerChats.find((c) => c.id === activeChatId)?.status}
+                  onStartWork={handleExpertStartWork}
+                  onMarkComplete={handleExpertMarkComplete}
                 />
               );
-          case 'earnings':
           case 'history':
             return (
               <div className="space-y-12">
@@ -2774,6 +4161,15 @@ www.originode.com
                 <HistoryView serviceHistory={transactionHistory} onDownloadReport={handleDownloadReport} onViewReport={(item) => { setSelectedReport(item); setShowReportModal(true); }} />
               </div>
             );
+          case 'legacy':
+            return (
+              <LegacySearchView
+                onDownloadReport={handleDownloadReport}
+                results={legacyResults}
+                onSearch={handleLegacySearch}
+                onRequestSpecs={handleRequestSpecs}
+              />
+            );
           case 'profile':
               return (
                 <ProfileView
@@ -2783,11 +4179,18 @@ www.originode.com
                     extraInfo: profileData.role, 
                     phone: profileData.phone, 
                     taxId: profileData.id, 
-                    userPhoto: userPhoto 
+                    userPhoto: userPhoto,
+                    bankAccountNumber: profileData.bankAccountNumber,
+                    ifscCode: profileData.ifscCode,
+                    accountHolderName: profileData.accountHolderName,
+                    role: 'producer'
                   }}
                   isEditing={isEditingProfile}
                   setIsEditing={setIsEditingProfile}
-                  onSave={handleSaveConsumerProfile}
+                  onSave={(newData) => {
+                    setProfileData({...profileData, ...newData});
+                    handleSaveConsumerProfile();
+                  }}
                   onPhotoUpload={handlePhotoUpload}
                   onStartCamera={startCamera}
                   onDeleteIdentity={() => setShowDeleteModal(true)}
@@ -2797,19 +4200,18 @@ www.originode.com
           case 'help':
           case 'support':
               return <SupportView onSubmitTicket={handleSubmitSupportTicket} />;
-          case 'platform-settings':
-          case 'settings':
-              return (
-                <SettingsView
-                  is2FA={isTwoFactorEnabled}
-                  set2FA={setIsTwoFactorEnabled}
-                  visibility={profileVisibility}
-                  setVisibility={setProfileVisibility}
-                  onDeleteAccount={() => setShowDeleteModal(true)}
-                />
-              );
+          // Settings page removed per user request
           default:
-            return <ProducerDashboard stats={producerDashStats} radarJobs={radarJobs} user={{ firstName, lastName, photo: userPhoto, id: profileData.id }} onAcceptJob={handleAcceptJob} />;
+            return (
+              <ProducerDashboard
+                stats={producerDashStats}
+                radarJobs={radarJobs}
+                user={{ firstName, lastName, photo: userPhoto, id: profileData.id }}
+                onAcceptJob={handleAcceptJob}
+                onDeclineJob={handleDeclineJob}
+                onViewDetails={() => {}}
+              />
+            );
         }
       }
     };
@@ -2823,11 +4225,166 @@ www.originode.com
         notifications={notifications}
         onLogout={handleLogout}
         onClearNotifs={handleClearNotifs}
+        onMarkAsRead={handleMarkNotifRead}
+        onMarkAllRead={handleMarkAllNotifsRead}
+        socketReconnecting={socketReconnecting}
       >
       {sharedModals}
+      <AnimatePresence>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </AnimatePresence>
       <div className="animate-fade-in">
         {renderContent()}
       </div>
+      <AnimatePresence>
+        {showExpertTermsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 px-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              className="w-full max-w-2xl rounded-[2rem] bg-white p-8 shadow-2xl"
+            >
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <p className="text-xs font-black uppercase tracking-[0.3em] text-blue-600">Expert Agreement</p>
+                  <h2 className="text-3xl font-extrabold text-slate-900">Please review and accept our Terms & Conditions</h2>
+                  <p className="text-base text-slate-500">
+                    You must accept these terms before continuing to the expert dashboard.
+                  </p>
+                </div>
+
+                <div className="rounded-[1.5rem] border border-blue-100 bg-blue-50/70 p-6">
+                  <p className="mb-4 text-sm font-bold uppercase tracking-[0.25em] text-blue-700">Key points</p>
+                  <div className="space-y-3">
+                    {[
+                      'You must respond to requests within 24 hours.',
+                      'Declining requests will affect your performance level.',
+                      'origiNode takes 10% platform fee from each job.',
+                      'Monthly salary is based on your performance level.',
+                      'Inactivity for 10 days will reduce your points.'
+                    ].map((point) => (
+                      <p key={point} className="text-base text-slate-700">{point}</p>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/terms')}
+                  className="text-left text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                >
+                  Review full Terms & Conditions
+                </button>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4">
+                  <input
+                    type="checkbox"
+                    checked={expertTermsChecked}
+                    onChange={(event) => setExpertTermsChecked(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">
+                    I have read and agree to the Terms & Conditions
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  disabled={!expertTermsChecked}
+                  onClick={handleExpertTermsAccept}
+                  className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  Accept and Continue
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showCompleteProfileModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm px-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="w-full max-md rounded-[2.5rem] bg-white p-10 shadow-2xl border border-slate-100"
+            >
+              <div className="text-center space-y-6">
+                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-2">
+                  <CreditCard size={40} />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Complete Your Profile</h2>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed">
+                    To start receiving payments and access your dashboard, please provide your bank account details.
+                  </p>
+                </div>
+
+                <div className="space-y-4 text-left">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Holder Name</label>
+                    <input
+                      className="w-full h-12 px-4 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold"
+                      placeholder="As per bank records"
+                      value={bankDetailsForm.accountHolderName}
+                      onChange={(e) => setBankDetailsForm({...bankDetailsForm, accountHolderName: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bank Account Number</label>
+                    <input
+                      className="w-full h-12 px-4 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold"
+                      placeholder="Enter account number"
+                      type="password"
+                      value={bankDetailsForm.bankAccountNumber}
+                      onChange={(e) => setBankDetailsForm({...bankDetailsForm, bankAccountNumber: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">IFSC Code</label>
+                    <input
+                      className="w-full h-12 px-4 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold"
+                      placeholder="e.g. SBIN0012345"
+                      style={{ textTransform: 'uppercase' }}
+                      value={bankDetailsForm.ifscCode}
+                      onChange={(e) => setBankDetailsForm({...bankDetailsForm, ifscCode: e.target.value.toUpperCase()})}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSaveBankDetails}
+                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-sm shadow-xl shadow-indigo-200 hover:shadow-indigo-300 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  Save & Access Dashboard
+                </button>
+                
+                <p className="text-[10px] text-slate-400 font-medium">
+                  <Shield size={10} className="inline mr-1" /> Encrypted & Secure Payment Processing
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }
@@ -2838,4 +4395,3 @@ return null;
 
 
 export default App;
-

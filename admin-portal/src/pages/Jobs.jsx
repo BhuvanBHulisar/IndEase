@@ -57,7 +57,7 @@ const Jobs = () => {
     const fetchJobs = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/jobs');
+            const response = await api.get('/admin/jobs');
             setJobs(response.data);
         } catch (err) {
             console.error('Error fetching jobs:', err);
@@ -98,8 +98,11 @@ const Jobs = () => {
     const getStatusConfig = (status) => {
         switch (status) {
             case 'completed': return { color: 'success', icon: <CheckCircle sx={{ fontSize: 16 }} /> };
-            case 'in_progress': return { color: 'warning', icon: <Autorenew sx={{ fontSize: 16 }} /> };
-            case 'pending': return { color: 'info', icon: <Pending sx={{ fontSize: 16 }} /> };
+            case 'in_progress':
+            case 'accepted': return { color: 'info', icon: <Autorenew sx={{ fontSize: 16 }} /> };
+            case 'pending':
+            case 'broadcast': return { color: 'warning', icon: <Pending sx={{ fontSize: 16 }} /> };
+            case 'declined':
             case 'cancelled': return { color: 'error', icon: <Cancel sx={{ fontSize: 16 }} /> };
             default: return { color: 'default', icon: null };
         }
@@ -111,12 +114,14 @@ const Jobs = () => {
             headerName: 'JOB ID',
             width: 120,
             renderCell: (params) => (
-                <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main' }}>{params.value}</Typography>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main' }}>
+                    JOB-{String(params.value).padStart(3, '0')}
+                </Typography>
             )
         },
         {
             field: 'consumer',
-            headerName: 'Consumer / Creator',
+            headerName: 'Consumer',
             flex: 1,
             minWidth: 200,
             renderCell: (params) => (
@@ -130,7 +135,7 @@ const Jobs = () => {
         },
         {
             field: 'producer',
-            headerName: 'Pro Provider',
+            headerName: 'Expert',
             flex: 1,
             minWidth: 200,
             renderCell: (params) => (
@@ -143,21 +148,33 @@ const Jobs = () => {
                             <Typography variant="body2">{params.value}</Typography>
                         </>
                     ) : (
-                        <Chip label="Bidding..." size="small" variant="outlined" sx={{ borderStyle: 'dashed', fontSize: '0.65rem' }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.85rem' }}>
+                            Pending
+                        </Typography>
                     )}
                 </Box>
             )
         },
         {
+            field: 'machine_name',
+            headerName: 'Machine',
+            flex: 1,
+            minWidth: 150,
+            renderCell: (params) => (
+                <Typography variant="body2">{params.value || 'N/A'}</Typography>
+            )
+        },
+        {
             field: 'status',
-            headerName: 'Operational Status',
+            headerName: 'Status',
             width: 160,
             renderCell: (params) => {
                 const config = getStatusConfig(params.value);
+                const displayLabel = params.value === 'broadcast' ? 'PENDING' : params.value.replace('_', ' ').toUpperCase();
                 return (
                     <Chip
                         icon={config.icon}
-                        label={params.value.replace('_', ' ').toUpperCase()}
+                        label={displayLabel}
                         size="small"
                         color={config.color}
                         sx={{ fontWeight: 800, borderRadius: 1.5, fontSize: '0.6rem', px: 0.5 }}
@@ -166,51 +183,49 @@ const Jobs = () => {
             }
         },
         {
-            field: 'price',
-            headerName: 'Quote (INR)',
+            field: 'quoted_cost',
+            headerName: 'Amount',
             width: 120,
             renderCell: (params) => (
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>₹{params.value?.toLocaleString()}</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {params.value ? `₹${Number(params.value).toLocaleString()}` : '-'}
+                </Typography>
+            )
+        },
+        {
+            field: 'created_at',
+            headerName: 'Date',
+            width: 120,
+            renderCell: (params) => (
+                <Typography variant="body2">
+                    {params.value ? new Date(params.value).toLocaleDateString('en-GB') : '-'}
+                </Typography>
             )
         },
         {
             field: 'actions',
             headerName: 'Management',
-            width: 130,
-            renderCell: (params) => (
-                <FormControl size="small" fullWidth>
-                    <Select
-                        value={params.value || params.row.status}
-                        onChange={(e) => handleStatusChange(params.row.id, e.target.value)}
-                        sx={{
-                            height: 32,
-                            fontSize: '0.75rem',
-                            borderRadius: 2,
-                            bgcolor: 'background.paper'
-                        }}
-                    >
-                        <MenuItem value="pending">PENDING</MenuItem>
-                        <MenuItem value="accepted">ACCEPTED</MenuItem>
-                        <MenuItem value="in_progress">IN PROGRESS</MenuItem>
-                        <MenuItem value="completed">COMPLETED</MenuItem>
-                        <MenuItem value="cancelled">CANCELLED</MenuItem>
-                    </Select>
-                </FormControl>
+            width: 140,
+            renderCell: () => (
+                <Button size="small" variant="outlined" startIcon={<Visibility />}>
+                    View
+                </Button>
             )
         }
     ];
 
-    const filteredJobs = jobs.filter(job =>
-        (job.id || '').toLowerCase().includes(search.toLowerCase()) ||
-        (job.consumer || '').toLowerCase().includes(search.toLowerCase()) ||
-        (job.status || '').toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredJobs = jobs.filter(job => {
+        const jobIdStr = `JOB-${String(job.id).padStart(3, '0')}`.toLowerCase();
+        const consumerStr = (job.consumer || '').toLowerCase();
+        const searchLower = search.toLowerCase();
+        return jobIdStr.includes(searchLower) || consumerStr.includes(searchLower);
+    });
 
     return (
         <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 800 }}>Global Job Monitor</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800 }}>All Jobs</Typography>
                     <Typography variant="body2" color="text.secondary">Real-time surveillance of marketplace service requests and assignments</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
@@ -246,9 +261,9 @@ const Jobs = () => {
                     />
                     <Divider orientation="vertical" flexItem />
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Chip label="All: 156" color="primary" size="small" sx={{ fontWeight: 700 }} />
-                        <Chip label="Live: 42" color="warning" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
-                        <Chip label="Failed: 3" color="error" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+                        <Chip label={`All: ${jobs.length}`} color="primary" size="small" sx={{ fontWeight: 700 }} />
+                        <Chip label={`Live: ${jobs.filter(j => ['in_progress', 'accepted'].includes(j.status)).length}`} color="info" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+                        <Chip label={`Pending: ${jobs.filter(j => ['pending', 'broadcast'].includes(j.status)).length}`} color="warning" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
                     </Box>
                 </Box>
 
@@ -267,6 +282,13 @@ const Jobs = () => {
                                 bgcolor: theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc',
                                 borderBottom: `1px solid ${theme.palette.divider}`
                             }
+                        }}
+                        slots={{
+                            noRowsOverlay: () => (
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                    <Typography variant="body1" color="text.secondary">No service requests yet.</Typography>
+                                </Box>
+                            )
                         }}
                     />
                 </Box>

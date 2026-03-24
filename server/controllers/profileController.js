@@ -71,7 +71,11 @@ export const getProfile = async (req, res) => {
 // @desc    Update expert profile
 // @route   PATCH /api/profile
 export const updateProfile = async (req, res) => {
-    const { first_name, last_name, phone, dob, photo_url, organization, location, tax_id, skills, service_radius, status } = req.body;
+    const { 
+        first_name, last_name, phone, dob, photo_url, organization, location, tax_id, 
+        skills, service_radius, status, 
+        bank_account_number, ifsc_code, account_holder_name 
+    } = req.body;
     const userId = req.user.id;
     const role = req.user.role;
 
@@ -111,9 +115,12 @@ export const updateProfile = async (req, res) => {
                      SET skills = COALESCE($1, skills), 
                          service_radius = COALESCE($2, service_radius), 
                          status = COALESCE($3, status),
+                         bank_account_number = COALESCE($4, bank_account_number),
+                         ifsc_code = COALESCE($5, ifsc_code),
+                         account_holder_name = COALESCE($6, account_holder_name),
                          updated_at = CURRENT_TIMESTAMP
-                     WHERE user_id = $4`,
-                    [skills, service_radius, status, userId]
+                     WHERE user_id = $7`,
+                    [skills, service_radius, status, bank_account_number, ifsc_code, account_holder_name, userId]
                 );
             }
         }

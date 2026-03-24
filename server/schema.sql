@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS producer_profiles (
     certifications JSONB,
     service_radius INTEGER DEFAULT 50,
     rating DECIMAL(2,1) DEFAULT 5.0,
+    points INTEGER DEFAULT 0,
+    level VARCHAR(20) DEFAULT 'Starter',
+    level_salary INTEGER DEFAULT 0,
+    last_active_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) DEFAULT 'available',
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -55,6 +59,9 @@ CREATE TABLE IF NOT EXISTS service_requests (
     status VARCHAR(20) DEFAULT 'broadcast',
     quoted_cost DECIMAL(12,2),
     video_url TEXT,
+    accepted_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    overdue_penalty_applied BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -124,5 +131,13 @@ CREATE TABLE IF NOT EXISTS support_tickets (
     subject VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     status VARCHAR(50) DEFAULT 'open',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS expert_point_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    expert_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    point_change INTEGER NOT NULL,
+    reason TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

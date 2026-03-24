@@ -87,6 +87,9 @@ async function initSchema() {
                 video_url TEXT,
                 status VARCHAR(50) DEFAULT 'broadcast', -- broadcast, accepted, payment_pending, completed
                 quoted_cost DECIMAL(12,2),
+                accepted_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                overdue_penalty_applied BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -103,6 +106,10 @@ async function initSchema() {
                 certifications JSONB,
                 service_radius INTEGER DEFAULT 50,
                 rating DECIMAL(2,1) DEFAULT 5.0,
+                points INTEGER DEFAULT 0,
+                level VARCHAR(20) DEFAULT 'Starter',
+                level_salary INTEGER DEFAULT 0,
+                last_active_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 status VARCHAR(20) DEFAULT 'available',
                 location VARCHAR(255),
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -182,6 +189,16 @@ async function initSchema() {
                 producer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
                 rating INTEGER CHECK (rating >= 1 AND rating <= 5),
                 comment TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS expert_point_events (
+                id SERIAL PRIMARY KEY,
+                expert_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                point_change INTEGER NOT NULL,
+                reason TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);

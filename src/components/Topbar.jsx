@@ -3,13 +3,35 @@ import { Search, Bell, ChevronDown, UserCircle, Command, Sparkles, AlertCircle }
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './ui/base';
 
-const Topbar = ({ user, notifications = [] }) => {
+const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead }) => {
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getTimeAgo = (timestamp) => {
+    if (!timestamp) return 'Just now';
+    const diff = Math.floor((currentTime - timestamp) / 60000);
+    if (diff < 1) return 'Just now';
+    if (diff === 1) return '1 min ago';
+    if (diff < 60) return `${diff} mins ago`;
+    const hours = Math.floor(diff / 60);
+    if (hours === 1) return '1 hour ago';
+    if (hours < 24) return `${hours} hours ago`;
+    return `${Math.floor(hours / 24)} days ago`;
+  };
   const [showNotif, setShowNotif] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const notifRef = useRef(null);
   const unreadCount = notifications.filter(n => !n.read).length;
   const firstName = user?.firstName || 'User';
   const initial = firstName.charAt(0).toUpperCase();
+  const isExpert = role === 'producer';
+  const primaryColor = isExpert ? 'indigo-600' : '[#2563EB]';
+  const primaryText = isExpert ? 'text-indigo-600' : 'text-[#2563EB]';
+  const primaryRing = isExpert ? 'indigo-500/10' : 'blue-500/10';
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -20,49 +42,48 @@ const Topbar = ({ user, notifications = [] }) => {
   }, []);
 
   return (
-    <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 flex items-center justify-between px-10 sticky top-0 z-[100]">
+    <header className="h-20 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-10 sticky top-0 z-[100]">
       {/* Smart Search Bar */}
-      <div className="relative group w-full max-w-xl">
+      <div className="relative group w-full max-w-md">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-          <Search size={18} className={cn("transition-colors", isSearchFocused ? "text-[var(--primary)]" : "text-slate-400")} />
+          <Search size={16} className={cn("transition-colors", isSearchFocused ? primaryText : "text-slate-400")} />
         </div>
         <input
           type="text"
           onFocus={() => setIsSearchFocused(true)}
           onBlur={() => setIsSearchFocused(false)}
-          placeholder="Command center search... (Alt + K)"
-          className="w-full h-12 bg-slate-100/50 border border-slate-200/80 rounded-xl pl-12 pr-12 text-slate-900 font-bold text-sm focus:bg-white focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary)]/5 transition-all outline-none placeholder:text-slate-400 placeholder:font-medium"
+          placeholder="Search..."
+          className={cn(
+            "w-full h-10 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl pl-10 pr-4 text-slate-900 font-semibold text-sm transition-all focus:bg-white focus:outline-none focus:ring-4 placeholder:text-slate-400",
+            isSearchFocused ? `border-${isExpert ? 'indigo-600' : '[#2563EB]'} ring-${primaryRing}` : ""
+          )}
         />
-        <div className="absolute inset-y-0 right-4 flex items-center gap-1.5 pointer-events-none">
-           <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm">
-             <Command size={10} className="text-slate-400" />
-             <span className="text-[10px] font-black text-slate-500">K</span>
-           </div>
-        </div>
       </div>
 
       {/* Action Cluster */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-6">
         {/* Support Sparkle */}
-        <button className="hidden lg:flex items-center gap-2 px-4 py-2 bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--accent-light)] rounded-xl hover:bg-emerald-100 transition-all group">
-           <Sparkles size={14} className="group-hover:rotate-12 transition-transform" />
-           <span className="text-[10px] font-black uppercase tracking-widest">Priority Assist</span>
+        <button className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all group">
+           <Sparkles size={14} />
+           <span className="text-[10px] font-semibold uppercase tracking-widest">Support</span>
         </button>
-
-        <div className="w-px h-8 bg-slate-200 mx-2 hidden md:block" />
 
         {/* Notifications Dropdown */}
         <div ref={notifRef} className="relative">
           <button
-            onClick={() => setShowNotif(!showNotif)}
+            onClick={() => {
+              if (!showNotif && onMarkAllRead) onMarkAllRead();
+              setShowNotif(!showNotif);
+            }}
+            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
             className={cn(
-              "w-12 h-12 flex items-center justify-center rounded-xl transition-all relative group",
-              showNotif ? "bg-[var(--primary)] text-white shadow-xl shadow-[var(--primary)]/20" : "bg-slate-50 border border-slate-200 hover:bg-slate-100"
+              "w-10 h-10 flex items-center justify-center rounded-lg transition-all relative group",
+              showNotif ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
             )}
           >
-            <Bell size={20} strokeWidth={showNotif ? 2.5 : 2} className={cn("transition-colors", showNotif ? "text-white" : "text-slate-500 group-hover:text-[var(--primary)]")} />
+            <Bell size={20} strokeWidth={2} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--danger)] text-white text-[10px] font-black rounded-lg flex items-center justify-center border-2 border-white shadow-sm">
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 rounded-full border border-white text-[9px] font-bold text-white flex items-center justify-center pointer-events-none" aria-hidden="true">
                 {unreadCount}
               </span>
             )}
@@ -71,65 +92,61 @@ const Topbar = ({ user, notifications = [] }) => {
           <AnimatePresence>
             {showNotif && (
               <motion.div 
-                initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 15, scale: 0.95 }}
-                className="absolute right-0 mt-4 w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black/5"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute right-0 mt-2 w-80 bg-white border border-[#E5E7EB] rounded-xl shadow-lg overflow-hidden z-50"
               >
-                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">System Alerts</h3>
-                    <div className="flex items-center gap-2">
-                       <span className="text-[10px] font-black text-[var(--primary)] bg-[var(--accent-soft)] px-3 py-1 rounded-lg border border-[var(--accent-light)]">{unreadCount} Active</span>
-                    </div>
+                 <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-slate-50/50">
+                    <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Notifications</h3>
+                    <button onClick={() => onMarkAllRead && onMarkAllRead()} className="text-[10px] text-[#2563EB] font-semibold uppercase hover:underline">Mark all read</button>
                  </div>
                  
-                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                 <div className="max-h-80 overflow-y-auto no-scrollbar">
                     {notifications.length > 0 ? (
                       notifications.map((n, i) => (
-                        <div key={i} className="px-6 py-5 border-b border-slate-50 hover:bg-slate-50/80 transition-all cursor-pointer group flex gap-4">
-                           <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] flex items-center justify-center shrink-0">
-                              <AlertCircle size={18} className="text-[var(--primary)]" />
-                           </div>
-                           <div className="flex flex-col gap-1 flex-1">
-                              <p className="text-sm text-slate-700 font-bold group-hover:text-slate-900 transition-colors leading-tight">{n.message}</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{n.time || 'A moment ago'}</p>
-                           </div>
-                        </div>
+                         <div 
+                           key={n.id || i} 
+                           onClick={() => onMarkAsRead && onMarkAsRead(n.id)}
+                           className={`px-5 py-4 border-b border-[#E5E7EB] hover:bg-slate-50 transition-all cursor-pointer group flex gap-3 relative ${!n.read ? 'bg-blue-50/30' : ''}`}
+                         >
+                            {!n.read && <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-600" />}
+                            <div className={`w-8 h-8 rounded-lg ${isExpert ? 'bg-indigo-50' : 'bg-blue-50'} flex items-center justify-center shrink-0`}>
+                               <AlertCircle size={16} className={primaryText} />
+                            </div>
+                            <div className="flex flex-col gap-0.5 flex-1">
+                               <p className="text-xs text-slate-700 font-bold leading-tight tracking-tight">{n.message}</p>
+                               <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{getTimeAgo(n.timestamp)}</p>
+                            </div>
+                         </div>
                       ))
                     ) : (
-                      <div className="p-16 text-center">
-                         <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <Bell className="text-slate-200" size={32} />
-                         </div>
-                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No Active Alerts</p>
+                      <div className="p-10 text-center text-slate-500 text-xs">
+                        No notifications
                       </div>
                     )}
                  </div>
-                 
-                 <button className="w-full py-4 bg-white hover:bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest transition-all border-t border-slate-100">
-                    Enter Alert Management Terminal
-                 </button>
+                 {notifications.length > 0 && (
+                    <div className="p-3 border-t border-[#E5E7EB] text-center bg-slate-50">
+                       <button className="text-[11px] text-slate-500 hover:text-blue-600 font-semibold uppercase tracking-widest">View all</button>
+                    </div>
+                 )}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* User Identity Segment */}
-        <div className="flex items-center gap-3 pl-4 border-l border-slate-200 ml-2 group cursor-pointer">
-          <div className="relative">
-             <div className="w-12 h-12 rounded-xl bg-[var(--primary)] flex items-center justify-center text-white font-black text-xs shadow-lg shadow-[var(--primary)]/20 group-hover:scale-105 transition-transform">
-               {initial}
-             </div>
-             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[var(--success)] border-2 border-white rounded-full" />
+        <button aria-label={`Account menu for ${firstName}`} className="flex items-center gap-3 pl-6 border-l border-[#E5E7EB] h-10 group">
+          <div className={`w-8 h-8 rounded-lg bg-${isExpert ? 'indigo-600' : '[#2563EB]'} flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm`}>
+            {initial}
           </div>
-          <div className="hidden xl:flex flex-col">
-            <div className="flex items-center gap-1.5">
-               <span className="text-sm font-black text-slate-900 leading-none">{firstName}</span>
-               <ChevronDown size={12} className="text-slate-400 group-hover:text-slate-900 transition-colors" />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Super User</span>
+          <div className="hidden xl:flex flex-col text-left">
+            <span className="text-sm font-bold text-slate-900 leading-none tracking-tight">{firstName}</span>
+            <span className={`text-[10px] font-bold ${isExpert ? 'text-indigo-600' : 'text-[#2563EB]'} uppercase tracking-widest mt-1.5`}>{isExpert ? 'Service Expert' : 'Fleet Operator'}</span>
           </div>
-        </div>
+          <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-900 transition-colors" />
+        </button>
       </div>
     </header>
   );

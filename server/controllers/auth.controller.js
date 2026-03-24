@@ -164,7 +164,10 @@ export const login = async (req, res) => {
         
         // Query users table (admin users have role='admin')
         const userRes = await db.query(
-            'SELECT id, email, role, password_hash, first_name, last_name FROM users WHERE LOWER(email) = $1',
+            `SELECT u.id, u.email, u.role, u.password_hash, u.first_name, u.last_name, pp.status as expert_status
+             FROM users u
+             LEFT JOIN producer_profiles pp ON u.id = pp.user_id
+             WHERE LOWER(u.email) = $1`,
             [normalizedEmail]
         );
 
@@ -174,6 +177,11 @@ export const login = async (req, res) => {
         }
 
         const user = userRes.rows[0];
+
+        if (user.role === 'producer' && user.expert_status === 'removed') {
+            console.log('[Auth] Login blocked: Expert account removed -', normalizedEmail);
+            return res.status(403).json({ message: 'Account has been removed. Contact support.' });
+        }
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             console.log('[Auth] Login failed: Password mismatch for', normalizedEmail);

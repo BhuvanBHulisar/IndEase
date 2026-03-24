@@ -75,7 +75,7 @@ const Settings = () => {
         <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 800 }}>Platform Directives</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800 }}>Settings</Typography>
                     <Typography variant="body2" color="text.secondary">Master parameters of the OrigiNode Marketplace</Typography>
                 </Box>
                 <Button
@@ -85,7 +85,7 @@ const Settings = () => {
                     disabled={loading}
                     sx={{ borderRadius: 2.5, px: 3 }}
                 >
-                    {loading ? 'Committing...' : 'Commit Changes'}
+                    {loading ? 'Saving...' : 'Save Changes'}
                 </Button>
             </Box>
 
@@ -191,7 +191,7 @@ const Settings = () => {
                                         control={<Switch checked={platformSettings.realtimeLogging} onChange={(e) => handleUpdate('realtimeLogging', e.target.checked)} />}
                                         label={
                                             <Box>
-                                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Verbose JSON Logging</Typography>
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Enable Logging</Typography>
                                                 <Typography variant="caption" color="text.secondary">Enable full-body logging for administrative transactions</Typography>
                                             </Box>
                                         }
@@ -223,7 +223,7 @@ const Settings = () => {
                                 <Divider />
                                 <ListItem disableGutters sx={{ mt: 2 }}>
                                     <Button color="error" fullWidth sx={{ fontWeight: 700, p: 1.5, border: '1px dashed' }} startIcon={<AdminPanelSettings />}>
-                                        Purge Admin Session Cache
+                                        Clear Cache
                                     </Button>
                                 </ListItem>
                             </List>

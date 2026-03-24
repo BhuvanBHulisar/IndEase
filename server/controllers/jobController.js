@@ -1,5 +1,10 @@
 import db from '../config/db.js';
 import * as notificationController from './notificationController.js';
+import {
+    updateExpertPoints,
+    wasAcceptedUnderOneHour,
+    wasCompletedUnderTwentyFourHours
+} from '../services/expertPerformanceService.js';
 
 // @desc    Broadcast a new machine issue (Consumer)
 // @route   POST /api/jobs/broadcast
@@ -33,6 +38,11 @@ export const broadcastJob = async (req, res) => {
                     ...newJob,
                     machine_name: machine.rows[0].name
                 });
+                io.to(`user_${req.user.id}`).emit('request_created', { requestId: newJob.id, status: 'broadcast' });
+                io.to(`user_${req.user.id}`).emit('request_status_updated', {
+                    requestId: newJob.id,
+                    status: 'broadcast'
+                });
                 // Emit admin notification and new job event
                 io.emit('admin_notification', {
                     type: 'new_job',
@@ -61,6 +71,11 @@ export const broadcastJob = async (req, res) => {
                 io.to('radar_room').emit('new_signal', {
                     ...mockJob,
                     machine_name: 'Mock Machine'
+                });
+                io.to(`user_${req.user.id}`).emit('request_created', { requestId: mockJob.id, status: 'broadcast' });
+                io.to(`user_${req.user.id}`).emit('request_status_updated', {
+                    requestId: mockJob.id,
+                    status: 'broadcast'
                 });
             }
             return res.status(201).json(mockJob);
@@ -146,7 +161,13 @@ export const acceptJob = async (req, res) => {
     try {
         if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
             const result = await db.query(
-                'UPDATE service_requests SET producer_id = $1, status = $2 WHERE id = $3 AND status = $4 RETURNING *',
+                `UPDATE service_requests
+                 SET producer_id = $1,
+                     status = $2,
+                     accepted_at = CURRENT_TIMESTAMP,
+                     overdue_penalty_applied = FALSE
+                 WHERE id = $3 AND status = $4
+                 RETURNING *`,
                 [req.user.id, 'accepted', jobId, 'broadcast']
             );
 
@@ -155,8 +176,22 @@ export const acceptJob = async (req, res) => {
             }
 
             const acceptedJob = result.rows[0];
+            const acceptedWithinOneHour = wasAcceptedUnderOneHour(acceptedJob.created_at, acceptedJob.accepted_at);
+            if (acceptedWithinOneHour) {
+                await updateExpertPoints(req.user.id, 5, 'Request accepted under 1 hour');
+            }
+
             if (io) {
                 io.emit(`status_update_${acceptedJob.id}`, { status: 'accepted', producer_id: req.user.id });
+                const cid = acceptedJob.consumer_id;
+                if (cid) {
+                    io.to(`user_${cid}`).emit('request_accepted', { requestId: acceptedJob.id });
+                    io.to(`user_${cid}`).emit('request_status_updated', {
+                        requestId: acceptedJob.id,
+                        status: 'accepted',
+                        producer_id: req.user.id
+                    });
+                }
             }
 
             await notificationController.createNotification(
@@ -170,10 +205,114 @@ export const acceptJob = async (req, res) => {
             return res.json(acceptedJob);
         } else {
             // Mock Acceptance
+            if (io) {
+                io.emit(`status_update_${jobId}`, { status: 'accepted', producer_id: req.user.id });
+                io.emit('request_accepted', { requestId: jobId });
+                io.emit('request_status_updated', {
+                    requestId: jobId,
+                    status: 'accepted',
+                    producer_id: req.user.id
+                });
+            }
             res.json({ id: jobId, status: 'accepted', producer_id: req.user.id });
         }
     } catch (err) {
         console.error('[Jobs] Acceptance failure:', err);
+        res.status(500).json({ message: 'Internal failure' });
+    }
+};
+
+// @desc    Expert starts on-site / remote repair work
+// @route   PATCH /api/jobs/:id/start-work
+export const startWork = async (req, res) => {
+    const jobId = req.params.id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const io = req.app.get('socketio') || global.io;
+    try {
+        if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
+            const result = await db.query(
+                `UPDATE service_requests SET status = $1
+                 WHERE id = $2 AND producer_id = $3 AND status IN ('accepted', 'payment_pending')
+                 RETURNING *`,
+                ['in_progress', jobId, req.user.id]
+            );
+
+            if (result.rows.length === 0) {
+                return res.status(400).json({ message: 'Unable to start work on this request' });
+            }
+
+            const row = result.rows[0];
+            if (io) {
+                io.emit(`status_update_${jobId}`, { status: 'in_progress' });
+                if (row.consumer_id) {
+                    io.to(`user_${row.consumer_id}`).emit('request_status_updated', {
+                        requestId: jobId,
+                        status: 'in_progress'
+                    });
+                }
+            }
+            return res.json(row);
+        }
+        if (io) {
+            io.emit(`status_update_${jobId}`, { status: 'in_progress' });
+            io.emit('request_status_updated', { requestId: jobId, status: 'in_progress' });
+        }
+        return res.json({ id: jobId, status: 'in_progress' });
+    } catch (err) {
+        console.error('[Jobs] startWork failure:', err);
+        res.status(500).json({ message: 'Internal failure' });
+    }
+};
+
+// @desc    Expert marks repair work as completed
+// @route   PATCH /api/jobs/:id/complete-work
+export const completeWork = async (req, res) => {
+    const jobId = req.params.id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const io = req.app.get('socketio') || global.io;
+    try {
+        if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
+            const result = await db.query(
+                `UPDATE service_requests SET status = $1, completed_at = CURRENT_TIMESTAMP
+                 WHERE id = $2 AND producer_id = $3 AND status = 'in_progress'
+                 RETURNING *`,
+                ['completed', jobId, req.user.id]
+            );
+
+            if (result.rows.length === 0) {
+                return res.status(400).json({ message: 'Unable to complete this request' });
+            }
+
+            const row = result.rows[0];
+            const completedWithinTwentyFourHours = wasCompletedUnderTwentyFourHours(
+                row.accepted_at || row.created_at,
+                row.completed_at
+            );
+            await updateExpertPoints(req.user.id, 20, 'Job completed');
+            if (completedWithinTwentyFourHours) {
+                await updateExpertPoints(req.user.id, 10, 'Job completed under 24 hours');
+            }
+
+            if (io) {
+                io.emit(`status_update_${jobId}`, { status: 'completed' });
+                io.emit('service_completed', { requestId: jobId });
+                if (row.consumer_id) {
+                    io.to(`user_${row.consumer_id}`).emit('request_status_updated', {
+                        requestId: jobId,
+                        status: 'completed'
+                    });
+                    io.to(`user_${row.consumer_id}`).emit('request_completed', { requestId: jobId });
+                }
+            }
+            return res.json(row);
+        }
+        if (io) {
+            io.emit(`status_update_${jobId}`, { status: 'completed' });
+            io.emit('service_completed', { requestId: jobId });
+        }
+        return res.json({ id: jobId, status: 'completed' });
+    } catch (err) {
+        console.error('[Jobs] completeWork failure:', err);
         res.status(500).json({ message: 'Internal failure' });
     }
 };
@@ -185,10 +324,17 @@ export const declineJob = async (req, res) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     try {
         if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
-            await db.query(
-                'INSERT INTO declined_jobs (user_id, request_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            const declineResult = await db.query(
+                `INSERT INTO declined_jobs (user_id, request_id)
+                 VALUES ($1, $2)
+                 ON CONFLICT DO NOTHING
+                 RETURNING request_id`,
                 [req.user.id, jobId]
             );
+
+            if (declineResult.rows.length > 0) {
+                await updateExpertPoints(req.user.id, -10, 'Expert declined request');
+            }
         }
         res.json({ message: 'Job declined' });
     } catch (err) {
@@ -293,6 +439,16 @@ export const createInvoice = async (req, res) => {
                 status: 'payment_pending',
                 amount: amount,
                 message: `Expert has sent an invoice for ₹${amount}`
+            });
+            io.to(`user_${job.consumer_id}`).emit('invoice_sent', {
+                requestId: jobId,
+                amount,
+                status: 'payment_pending'
+            });
+            io.to(`user_${job.consumer_id}`).emit('request_status_updated', {
+                requestId: jobId,
+                status: 'payment_pending',
+                amount
             });
         }
 

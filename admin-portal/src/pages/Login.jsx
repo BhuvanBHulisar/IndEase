@@ -23,7 +23,7 @@ import {
 } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 const floatAnimation = keyframes`
   0% { transform: translateY(0px) rotate(0deg); }
@@ -187,10 +187,10 @@ const Login = () => {
                         <Box sx={{ maxWidth: 400, mx: 'auto' }}>
                             <Box sx={{ mb: 5 }}>
                                 <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
-                                    Core Access Initialization
+                                    Admin Login
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Please authenticate to access the command center.
+                                    Sign in to your admin account.
                                 </Typography>
                             </Box>
 
@@ -208,7 +208,7 @@ const Login = () => {
                             <form onSubmit={handleSubmit}>
                                 <TextField
                                     fullWidth
-                                    label="Operational ID / Email"
+                                    label="Email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
@@ -233,7 +233,7 @@ const Login = () => {
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Access Protocol / Password"
+                                    label="Password"
                                     name="password"
                                     type={showPassword ? 'text' : 'password'}
                                     value={formData.password}
@@ -289,19 +289,40 @@ const Login = () => {
                                         }
                                     }}
                                 >
-                                    {loading ? <CircularProgress size={28} color="inherit" /> : 'INITIALIZE SESSION'}
+                                    {loading ? <CircularProgress size={28} color="inherit" /> : 'Sign In'}
                                 </Button>
                             </form>
 
                             <Typography variant="caption" sx={{
                                 display: 'block',
-                                mt: 5,
+                                mt: 4,
                                 textAlign: 'center',
                                 color: 'text.secondary',
                                 opacity: 0.7
                             }}>
-                                &copy; 2026 OrigiNode Systems. Unauthorized access is logged.
+                                &copy; 2026 OrigiNode Systems.
                             </Typography>
+                            <Box sx={{ mt: 1.5, textAlign: 'center' }}>
+                                <Typography variant="caption" color="text.secondary">
+                                    <Typography
+                                        component={RouterLink}
+                                        to="/terms"
+                                        variant="caption"
+                                        sx={{ color: 'inherit', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+                                    >
+                                        Terms & Conditions
+                                    </Typography>
+                                    {' | '}
+                                    <Typography
+                                        component={RouterLink}
+                                        to="/privacy"
+                                        variant="caption"
+                                        sx={{ color: 'inherit', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+                                    >
+                                        Privacy Policy
+                                    </Typography>
+                                </Typography>
+                            </Box>
                         </Box>
                     </Grid>
                 </Grid>

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import db from './config/db.js';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';

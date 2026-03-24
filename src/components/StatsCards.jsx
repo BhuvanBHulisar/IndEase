@@ -48,51 +48,37 @@ const StatsCards = ({ machines }) => {
         return (
           <div
             key={stat.title}
-            className="bg-white border border-slate-200/60 rounded-[1.5rem] p-8 shadow-sm hover:shadow-premium transition-all duration-300 group cursor-pointer relative overflow-hidden"
+            className="bg-white border border-[#E5E7EB] rounded-[16px] p-6 shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer"
           >
-            {/* Background Accent */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 -mr-16 -mt-16 rounded-full group-hover:bg-[var(--accent-soft)]/50 transition-colors duration-500" />
-            
-            <div className="flex items-center justify-between mb-8 relative z-10">
+            <div className="flex items-start justify-between mb-4">
               <div 
-                className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm group-hover:scale-110 group-hover:rotate-3"
-                style={{ backgroundColor: `${color}10`, color: color }}
+                className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                style={{ backgroundColor: `${color}08`, color: color }}
               >
-                <Icon size={24} strokeWidth={2.5} />
+                <Icon size={20} strokeWidth={2} />
               </div>
               
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl group-hover:bg-white transition-colors">
-                <TrendingUp size={12} className={stat.trend.startsWith('+') ? 'text-[var(--success)]' : 'text-slate-400'} />
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#F1F5F9] rounded-lg">
+                <TrendingUp size={12} className={stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-slate-400'} />
                 <span className={cn(
-                  "text-[10px] font-black uppercase tracking-widest",
-                  stat.trend.startsWith('+') ? 'text-[var(--success)]' : 'text-slate-500'
+                  "text-[10px] font-semibold uppercase tracking-widest",
+                  stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-slate-400'
                 )}>
                   {stat.trend}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-1 relative z-10">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-slate-500 transition-colors">
+            <div className="text-left space-y-1">
+              <h4 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
                 {stat.title}
               </h4>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-slate-900 tracking-tighter leading-none group-hover:text-[var(--primary)] transition-colors">
+                <span className="text-3xl font-semibold text-slate-900 tracking-tight">
                   {values[idx].toLocaleString()}
                 </span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest opacity-80">Units</span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Units</span>
               </div>
-            </div>
-            
-            {/* Visual Progress Indicator */}
-            <div className="w-full h-1.5 bg-slate-100 rounded-full mt-8 overflow-hidden relative z-10">
-               <motion.div 
-                 initial={{ width: 0 }}
-                 animate={{ width: `${(values[idx] / (values[0] || 100)) * 100}%` }}
-                 transition={{ duration: 1.5, ease: "circOut", delay: idx * 0.1 }}
-                 className="h-full rounded-full shadow-[0_0_8px_rgba(58,134,183,0.2)]"
-                 style={{ backgroundColor: color }}
-               />
             </div>
           </div>
         );

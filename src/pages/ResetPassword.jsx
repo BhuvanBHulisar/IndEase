@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { CheckCircle2 as CheckCircleIcon } from 'lucide-react';
 import api from '../services/api';
 import '../App.css'; // Inherit styling
 
@@ -74,41 +76,64 @@ export default function ResetPassword() {
     };
 
     return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0F172A', padding: 24 }}>
-            <div style={{
-                maxWidth: 420,
-                width: '100%',
-                background: '#111827',
-                borderRadius: 12,
-                padding: 32,
-                boxShadow: '0 4px 32px rgba(0,0,0,0.18)',
-                textAlign: 'center',
-            }}>
-                <h2 style={{ fontSize: '1.8rem', color: '#E5E7EB', marginBottom: 10, fontWeight: 700, letterSpacing: '-0.01em' }}>Secure Reset</h2>
+        <div className="auth-page-view">
+            {/* SaaS Header */}
+            <div className="auth-logo-header">
+                <button className="logo-container" onClick={() => navigate('/')} aria-label="Go to home page">
+                    <div className="logo-text">origiNode</div>
+                </button>
+                <button 
+                    className="auth-return-link"
+                    onClick={() => navigate('/')}
+                >
+                    ← Return to Landing Page
+                </button>
+            </div>
+
+            <motion.div 
+                className="auth-card"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-1">Reset Your Password</h2>
+                    <p className="text-sm text-slate-500">Secure your industrial identity</p>
+                </div>
 
                 {isValidating ? (
-                    <div style={{ color: 'white', margin: '30px 0' }}>Validating your secure token...</div>
+                    <div className="text-center py-8">
+                        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <p className="text-slate-500 font-medium">Validating secure token...</p>
+                    </div>
                 ) : tokenError ? (
-                    <div style={{ margin: '20px 0' }}>
-                        <div className="error-alert animate-fade" style={{ marginBottom: '20px' }}>{tokenError}</div>
-                        <button className="btn btn-primary" onClick={() => navigate('/')}>Return to Login</button>
+                    <div className="space-y-6 text-center">
+                        <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium">
+                            {tokenError}
+                        </div>
+                        <button className="auth-submit-btn" onClick={() => navigate('/')}>
+                            Return to Login
+                        </button>
                     </div>
                 ) : resetSuccess ? (
-                    <div className="animate-fade" style={{ margin: '20px 0' }}>
-                        <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                            <span style={{ color: 'white', fontSize: '2rem' }}>✓</span>
+                    <div className="text-center space-y-6 animate-fade-in">
+                        <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CheckCircleIcon size={32} />
                         </div>
-                        <h3 style={{ color: 'white' }}>Credential Updated</h3>
-                        <p style={{ color: '#94a3b8', margin: '15px 0' }}>Your industrial identity has been secured. Redirecting you to the portal...</p>
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-bold text-slate-900">Credential Updated</h3>
+                            <p className="text-sm text-slate-500 leading-relaxed">
+                                Your account has been secured successfully.
+                            </p>
+                            <p className="text-xs text-slate-400">
+                                Redirecting you to the portal access...
+                            </p>
+                        </div>
                     </div>
                 ) : (
-                    <form onSubmit={handleReset} className="animate-fade" style={{ textAlign: 'left' }}>
-                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '25px', textAlign: 'center' }}>
-                            Your identity has been verified. Enter a new secure password below to regain access.
-                        </p>
-
-                        <div className="input-row" style={{ marginBottom: '15px' }}>
-                            <label style={{ color: 'var(--amber-gold)' }}>New Password</label>
+                    <form onSubmit={handleReset} className="space-y-5">
+                        <div className="auth-form-group">
+                            <label>New Password</label>
                             <input
                                 type="password"
                                 placeholder="Min 8 chars, 1 Uppercase, 1 Num"
@@ -118,8 +143,8 @@ export default function ResetPassword() {
                             />
                         </div>
 
-                        <div className="input-row" style={{ marginBottom: '20px' }}>
-                            <label style={{ color: 'var(--amber-gold)' }}>Confirm Password</label>
+                        <div className="auth-form-group">
+                            <label>Confirm Password</label>
                             <input
                                 type="password"
                                 placeholder="Repeat new password"
@@ -129,23 +154,28 @@ export default function ResetPassword() {
                             />
                         </div>
 
-                        {formError && <div className="error-alert animate-fade" style={{ marginBottom: '15px' }}>{formError}</div>}
+                        {formError && (
+                            <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-600 text-[11px] font-bold text-center">
+                                {formError}
+                            </div>
+                        )}
 
                         <button
                             type="submit"
-                            className="btn btn-primary"
-                            style={{ width: '100%', padding: '14px', fontSize: '1rem' }}
+                            className="auth-submit-btn"
                             disabled={isSubmitting}
                         >
-                            {isSubmitting ? 'Securing Update...' : 'Commit Password Reset'}
+                            {isSubmitting ? 'Securing Update...' : 'Update Password'}
                         </button>
 
-                        <div style={{ textAlign: 'center', marginTop: '15px' }}>
-                            <span onClick={() => navigate('/')} style={{ color: '#94a3b8', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline' }}>Cancel and Return</span>
+                        <div className="auth-footer">
+                            <button type="button" onClick={() => navigate('/')}>
+                                Cancel and return to Login
+                            </button>
                         </div>
                     </form>
                 )}
-            </div>
+            </motion.div>
         </div>
     );
 }

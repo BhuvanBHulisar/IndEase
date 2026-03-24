@@ -127,7 +127,7 @@ const Dashboard = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                        Executive Dashboard
+                        Dashboard
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Operational overview of the OrigiNode Marketplace

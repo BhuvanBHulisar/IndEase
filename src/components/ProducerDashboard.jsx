@@ -1,235 +1,354 @@
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Wallet, 
-  CheckCircle, 
-  Star, 
-  Zap, 
-  Search, 
-  Filter, 
-  ArrowUpRight, 
-  ExternalLink,
+import {
+  Wallet,
+  Star,
+  AlertCircle,
+  ChevronRight,
   MapPin,
   Clock,
-  ShieldCheck,
-  AlertCircle,
-  MoreVertical,
-  ChevronRight,
-  TrendingUp,
-  Cpu,
-  Activity,
-  User,
   CheckCircle2,
-  Radar,
   Terminal,
-  Award
+  Award,
+  Activity
 } from 'lucide-react';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardContent, 
-  CardFooter,
-  Button,
-  Badge,
-  Input,
-  cn
-} from '../components/ui/base';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../components/ui/base';
 
-export default function ProducerDashboard({ 
-  stats, 
-  radarJobs, 
-  user,
+const LEVEL_META = {
+  Starter: {
+    min: 0,
+    next: 100,
+    nextLevel: 'Bronze',
+    accent: '#6b7280',
+    cardClass: 'border-slate-200 bg-slate-50/70',
+    pillClass: 'bg-slate-200 text-slate-700',
+    progressClass: 'bg-slate-500'
+  },
+  Bronze: {
+    min: 100,
+    next: 300,
+    nextLevel: 'Silver',
+    accent: '#2563eb',
+    cardClass: 'border-blue-200 bg-blue-50/70',
+    pillClass: 'bg-blue-100 text-blue-700',
+    progressClass: 'bg-blue-600'
+  },
+  Silver: {
+    min: 300,
+    next: 600,
+    nextLevel: 'Gold',
+    accent: '#16a34a',
+    cardClass: 'border-emerald-200 bg-emerald-50/70',
+    pillClass: 'bg-emerald-100 text-emerald-700',
+    progressClass: 'bg-emerald-600'
+  },
+  Gold: {
+    min: 600,
+    next: 1000,
+    nextLevel: 'Elite',
+    accent: '#d97706',
+    cardClass: 'border-amber-200 bg-amber-50/70',
+    pillClass: 'bg-amber-100 text-amber-700',
+    progressClass: 'bg-amber-500'
+  },
+  Elite: {
+    min: 1000,
+    next: null,
+    nextLevel: null,
+    accent: '#7c3aed',
+    cardClass: 'border-violet-200 bg-violet-50/70',
+    pillClass: 'bg-violet-100 text-violet-700',
+    progressClass: 'bg-violet-600'
+  }
+};
+
+function formatCurrency(amount) {
+  return `\u20B9${Number(amount || 0).toLocaleString('en-IN')}`;
+}
+
+function getLevelMeta(level) {
+  return LEVEL_META[level] || LEVEL_META.Starter;
+}
+
+function getLevelProgress(points, level) {
+  const meta = getLevelMeta(level);
+  const currentPoints = Number(points || 0);
+
+  if (!meta.next || !meta.nextLevel) {
+    return {
+      value: 100,
+      label: `${currentPoints.toLocaleString('en-IN')} pts - Elite level reached`
+    };
+  }
+
+  const range = meta.next - meta.min;
+  const progressValue = range > 0 ? ((currentPoints - meta.min) / range) * 100 : 0;
+
+  return {
+    value: Math.max(0, Math.min(100, progressValue)),
+    label: `${currentPoints.toLocaleString('en-IN')} / ${meta.next.toLocaleString('en-IN')} pts to ${meta.nextLevel}`
+  };
+}
+
+function formatActivityReason(reason) {
+  if (!reason) return 'Points updated';
+  if (reason === 'Job completed') return 'Job completed';
+  if (reason === 'Job completed under 24 hours') return 'Job completed under 24 hours';
+  if (reason === 'Request accepted under 1 hour') return 'Request accepted under 1 hour';
+  if (reason === 'Expert declined request') return 'Request declined';
+  if (reason === 'Inactive for more than 10 days') return 'Inactive for more than 10 days';
+  if (reason.includes('not completed in 7 days')) return 'Job not completed in 7 days';
+  if (reason.startsWith('Consumer rating received:')) {
+    const stars = reason.split(':')[1]?.trim()?.split(' ')[0] || '';
+    return `${stars} star rating received`;
+  }
+  return reason;
+}
+
+function formatActivityDate(createdAt) {
+  if (!createdAt) return '';
+  return new Date(createdAt).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short'
+  });
+}
+
+export default function ProducerDashboard({
+  stats,
+  radarJobs,
   onAcceptJob,
+  onDeclineJob,
   onViewDetails
 }) {
   const [filter, setFilter] = useState('All');
 
-  const filteredJobs = (radarJobs || []).filter(job => {
+  const filteredJobs = (radarJobs || []).filter((job) => {
+    const status = (job.status || 'new').toLowerCase();
     if (filter === 'All') return true;
-    if (filter === 'Critical') return job.priority === 'critical';
-    if (filter === 'Standard') return job.priority !== 'critical';
+    if (filter === 'New') return status === 'new' || status === 'pending' || status === 'broadcast';
+    if (filter === 'In Progress') return status === 'in progress' || status === 'in_progress' || status === 'accepted';
+    if (filter === 'Completed') return status === 'completed';
     return true;
   });
 
+  const level = stats?.level || 'Starter';
+  const points = Number(stats?.points || 0);
+  const salary = Number(stats?.salary || 0);
+  const rating = Number(stats?.rating || 0);
+  const meta = getLevelMeta(level);
+  const progress = getLevelProgress(points, level);
+  const recentPointEvents = Array.isArray(stats?.recentPointEvents) ? stats.recentPointEvents : [];
+
   return (
-    <div className="space-y-12 pb-24 max-w-[1600px] mx-auto animate-fade-in">
-      {/* Premium Header Segment */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 border-b border-slate-100">
-        <div className="space-y-4">
-           <div className="flex items-center gap-3">
-              <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg px-3 py-1 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                <ShieldCheck size={12} strokeWidth={3} />
-                Verified Specialist
-              </Badge>
-              <div className="flex items-center gap-1.5 text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1 rounded-lg">
-                 <Star className="fill-amber-500 text-amber-500" size={12} />
-                 <span className="text-[10px] font-black uppercase tracking-widest">{stats.rating.toFixed(1)} Rating</span>
-              </div>
-           </div>
-           <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Expert Dashboard</h2>
-           <p className="text-slate-500 font-medium max-w-2xl leading-relaxed flex items-center gap-3">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Radar terminal online. Monitoring industrial network for authorized service signals.
-           </p>
-        </div>
-        
-        <div className="flex items-center gap-6 p-6 bg-white border border-slate-200/60 rounded-[1.5rem] shadow-sm">
-           <div className="text-right">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Lifetime Yield</span>
-              <span className="text-3xl font-black text-slate-900 tracking-tighter">₹{stats.earnings.toLocaleString()}</span>
-           </div>
-           <div className="w-px h-10 bg-slate-100 mx-2" />
-           <Button className="h-12 px-6 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all">
-              Performance Terminal
-              <TrendingUp size={14} className="ml-2.5" strokeWidth={3} />
-           </Button>
+    <div className="w-full animate-fade-in space-y-8 pb-12">
+      <div className="flex flex-col justify-between gap-8 pb-4 lg:flex-row lg:items-end">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">My Dashboard</h2>
+          <p className="max-w-2xl text-sm font-medium text-slate-500">
+            Here is your service overview.
+          </p>
         </div>
       </div>
 
-      {/* Analytics & Broadcast Segment */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-         <StatsCard 
-            label="Verified Revenue" 
-            value={`₹${stats.earnings.toLocaleString()}`} 
-            icon={Award} 
-            color="#2563eb" 
-            trend="+₹12,400"
-         />
-         <StatsCard 
-            label="Resolved Nodes" 
-            value={stats.completedJobs} 
-            icon={CheckCircle2} 
-            color="#10b981" 
-            trend="98% Effectiveness"
-         />
-         
-         <div className="lg:col-span-2 bg-slate-900 rounded-[2rem] p-10 text-white relative overflow-hidden shadow-2xl group border border-slate-800">
-            {/* Pulsing Decorative Element */}
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-all scale-[2] rotate-12 -translate-y-8 translate-x-8">
-               <Radar size={160} strokeWidth={1} className="animate-pulse" />
-            </div>
-            
-            <div className="relative z-10 flex flex-col justify-between h-full">
-               <div>
-                  <div className="flex items-center gap-2 mb-4 opacity-70">
-                     <Terminal size={14} />
-                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Global Comms Feed</h4>
-                  </div>
-                  <h3 className="text-2xl font-black tracking-tight leading-tight max-w-sm mb-4">
-                     Analyzing industrial signals across active sectors.
-                  </h3>
-                  <p className="text-xs font-medium text-slate-400 leading-relaxed max-w-xs">
-                     Submit technical proposals to industrial nodes within your authorized service radius.
-                  </p>
-               </div>
-               <div className="flex items-center gap-6 mt-10">
-                  <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-xl backdrop-blur-sm border border-white/10 group-hover:bg-white/20 transition-all">
-                    <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shadow-[0_0_8px_rgba(96,165,250,0.5)]" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Active High-Demand Area</span>
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Scan Range: 50.0km</span>
-               </div>
-            </div>
-         </div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <StatsCard
+          label="Total Earnings"
+          value={formatCurrency(stats?.earnings)}
+          icon={Wallet}
+          color="#3A86B7"
+        />
+        <StatsCard
+          label="Jobs Completed"
+          value={stats?.completedJobs || 0}
+          icon={CheckCircle2}
+          color="#16A34A"
+          suffix="Jobs"
+        />
+        <StatsCard
+          label="My Rating"
+          value={rating.toFixed(1)}
+          icon={Star}
+          color="#FBBF24"
+          suffix="/ 5.0"
+        />
+        <LevelCard level={level} points={points} salary={salary} meta={meta} progress={progress} />
       </div>
 
-      {/* Radar Board Interface */}
-      <div className="space-y-8 pt-8">
-         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 pb-8">
-            <div className="flex items-center gap-6">
-               <h3 className="text-3xl font-black text-slate-900 tracking-tighter">Radar Board</h3>
-               {(radarJobs || []).length > 0 && (
-                  <div className="px-4 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded-full text-[10px] font-black uppercase tracking-[0.1em] shadow-sm animate-fade-in flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                    {radarJobs.length} New Broadcasts Accessibile
-                  </div>
-               )}
-            </div>
-            
-            <div className="flex items-center p-1.5 bg-slate-50 border border-slate-200 rounded-2xl shadow-inner-sm">
-               {['All', 'Critical', 'Standard'].map(t => (
-                  <button 
-                    key={t}
-                    onClick={() => setFilter(t)}
-                    className={cn(
-                      "px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
-                      filter === t 
-                        ? "bg-white text-blue-600 shadow-premium border border-slate-100" 
-                        : "text-slate-400 hover:text-slate-900"
-                    )}
+      <section className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+            <Activity size={18} />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold leading-tight text-slate-900">Performance</h3>
+            <p className="text-sm font-medium text-slate-500">Last 5 point events</p>
+          </div>
+        </div>
+
+        <div className="rounded-[16px] border border-[#E5E7EB] bg-white p-4 shadow-sm">
+          {recentPointEvents.length > 0 ? (
+            <div className="space-y-3">
+              {recentPointEvents.map((event) => {
+                const change = Number(event.pointChange || 0);
+                const positive = change >= 0;
+                const changeText = `${positive ? '+' : '-'} ${Math.abs(change)} pts`;
+
+                return (
+                  <div
+                    key={event.id}
+                    className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    {t}
-                  </button>
-               ))}
-            </div>
-         </div>
-
-         {/* Broadcast Interaction Grid */}
-         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            <AnimatePresence mode="popLayout">
-               {filteredJobs.length > 0 ? filteredJobs.map((job, i) => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    index={i} 
-                    onAccept={() => onAcceptJob(job)}
-                  />
-               )) : (
-                  <div className="col-span-full py-48 bg-white border border-slate-200/60 rounded-[2.5rem] flex flex-col items-center justify-center text-center p-12 hover:shadow-premium transition-all duration-500 group overflow-hidden relative">
-                     {/* Concentric Signal Rings Decoration */}
-                     <div className="absolute inset-0 flex items-center justify-center -z-10 opacity-5">
-                         <div className="w-[300px] h-[300px] border border-blue-600 rounded-full animate-ping" />
-                         <div className="w-[200px] h-[200px] border border-blue-600 rounded-full absolute" />
-                     </div>
-                     
-                     <div className="w-24 h-24 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-center mb-10 group-hover:scale-110 group-hover:rotate-6 transition-transform">
-                        <Radar className="text-slate-300" size={40} strokeWidth={1.5} />
-                     </div>
-                     <h4 className="text-2xl font-black text-slate-900 tracking-tight mb-3">All Sectors Optimized</h4>
-                     <p className="text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">
-                        No active service broadcasts detected in your immediate vicinity. Standing by for telemetry anomalies.
-                     </p>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          'rounded-full px-2.5 py-1 text-xs font-bold',
+                          positive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        )}
+                      >
+                        {changeText}
+                      </span>
+                      <p className="text-sm font-medium text-slate-700">{formatActivityReason(event.reason)}</p>
+                    </div>
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      {formatActivityDate(event.createdAt)}
+                    </span>
                   </div>
-               )}
-            </AnimatePresence>
-         </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-6 py-12 text-center">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                <Award size={18} />
+              </div>
+              <h4 className="text-sm font-semibold text-slate-900">No recent point activity</h4>
+              <p className="mt-1 text-sm text-slate-500">Your latest performance events will appear here.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div className="space-y-6 pt-2">
+        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-semibold leading-tight text-slate-900">Incoming Requests</h3>
+            {(radarJobs || []).length > 0 && (
+              <div className="flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-600">
+                {radarJobs.length} New
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center rounded-lg border border-[#E5E7EB] bg-[#F1F5F9] p-1">
+            {['All', 'New', 'In Progress', 'Completed'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setFilter(tab)}
+                className={cn(
+                  'rounded-md px-4 py-1.5 text-[11px] font-semibold transition-all',
+                  filter === tab
+                    ? 'border border-[#E5E7EB] bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <AnimatePresence mode="popLayout">
+            {filteredJobs.length > 0 ? (
+              filteredJobs.map((job, index) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  index={index}
+                  onAccept={() => onAcceptJob(job)}
+                  onDecline={() => onDeclineJob(job)}
+                  onViewDetails={() => onViewDetails && onViewDetails(job)}
+                />
+              ))
+            ) : (
+              <div className="col-span-full flex flex-col items-center justify-center rounded-[16px] border border-[#E5E7EB] bg-white p-12 py-32 text-center transition-all duration-500">
+                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50">
+                  <Terminal className="text-slate-400" size={28} />
+                </div>
+                <h4 className="mb-2 text-lg font-semibold text-slate-900">No new requests.</h4>
+                <p className="mx-auto max-w-sm text-sm text-slate-500">
+                  You will be notified when a consumer in your area needs help.
+                </p>
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
 }
 
-function StatsCard({ label, value, icon: Icon, color, trend }) {
-   return (
-      <div className="p-10 bg-white border border-slate-200/60 rounded-[2rem] shadow-sm hover:shadow-premium group transition-all duration-500 cursor-pointer overflow-hidden relative">
-         <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 -mr-16 -mt-16 rounded-full group-hover:bg-blue-50/50 transition-all duration-500" />
-         
-         <div 
-           className="w-14 h-14 rounded-2xl flex items-center justify-center mb-10 transition-all duration-500 shadow-sm group-hover:scale-110 group-hover:rotate-6 relative z-10"
-           style={{ backgroundColor: `${color}10`, color: color }}
-         >
-            <Icon size={26} strokeWidth={2.5} />
-         </div>
-         
-         <div className="space-y-2 relative z-10">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-500 transition-colors">{label}</h4>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-blue-600 transition-colors">{value}</h3>
-            <div className="flex items-center gap-2 mt-6">
-               <div className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 text-[10px] font-black uppercase tracking-widest">
-                  {trend}
-               </div>
-            </div>
-         </div>
+function StatsCard({ label, value, icon: Icon, color, suffix }) {
+  return (
+    <div className="group cursor-pointer rounded-[16px] border border-[#E5E7EB] bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+      <div className="mb-4 flex items-start justify-between">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-lg transition-colors"
+          style={{ backgroundColor: `${color}08`, color }}
+        >
+          <Icon size={20} strokeWidth={2} />
+        </div>
       </div>
-   );
+      <div className="space-y-1 text-left">
+        <h4 className="text-[11px] font-semibold text-slate-500">{label}</h4>
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-semibold tracking-tight text-slate-900">{value}</span>
+          {suffix ? <span className="text-[10px] font-semibold text-slate-400">{suffix}</span> : null}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function JobCard({ job, index, onAccept }) {
+function LevelCard({ level, points, salary, meta, progress }) {
+  return (
+    <div className={cn('rounded-[16px] border p-6 shadow-sm transition-all duration-300 hover:shadow-md', meta.cardClass)}>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-lg"
+          style={{ backgroundColor: `${meta.accent}14`, color: meta.accent }}
+        >
+          <Award size={20} strokeWidth={2} />
+        </div>
+        <span className={cn('rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em]', meta.pillClass)}>
+          {level}
+        </span>
+      </div>
+
+      <div className="space-y-1 text-left">
+        <h4 className="text-[11px] font-semibold text-slate-500">My Level</h4>
+        <div className="text-3xl font-semibold tracking-tight text-slate-900">{level}</div>
+        <p className="text-sm font-semibold text-slate-600">{points.toLocaleString('en-IN')} pts</p>
+        <p className="text-sm font-semibold text-slate-600">{formatCurrency(salary)}/mo</p>
+      </div>
+
+      <div className="mt-5 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold text-slate-500">{progress.label}</span>
+          <span className="text-xs font-bold text-slate-700">{Math.round(progress.value)}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white/80">
+          <div
+            className={cn('h-full rounded-full transition-all duration-500', meta.progressClass)}
+            style={{ width: `${progress.value}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JobCard({ job, onAccept, onDecline, onViewDetails }) {
   const distHash = String(job.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const dist = 5 + (distHash % 45);
 
@@ -239,68 +358,85 @@ function JobCard({ job, index, onAccept }) {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.4, ease: "backOut" }}
+      transition={{ duration: 0.4, ease: 'backOut' }}
     >
-      <div className={cn(
-        "rounded-[2rem] p-10 bg-white border border-slate-200/60 shadow-xl shadow-slate-200/20 hover:shadow-premium transition-all duration-500 group relative overflow-hidden",
-        job.priority === 'critical' && 'border-red-100/50 hover:border-red-500/10'
-      )}>
-         {/* Background Subtle Accent */}
-         <div className={cn(
-            "absolute top-0 right-0 w-48 h-48 -mr-24 -mt-24 rounded-full transition-colors duration-700",
-            job.priority === 'critical' ? 'bg-red-50/50 group-hover:bg-red-100/50' : 'bg-slate-50 group-hover:bg-blue-50/50'
-         )} />
+      <div
+        className={cn(
+          'group relative flex h-full flex-col justify-between overflow-hidden rounded-[16px] border border-[#E5E7EB] bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md',
+          job.priority === 'critical' && 'border-red-200 bg-red-50/10'
+        )}
+      >
+        <div className="mb-6 flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                'flex h-12 w-12 items-center justify-center rounded-lg text-xl font-bold',
+                job.priority === 'critical' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+              )}
+            >
+              {job.client_name?.[0] || job.other_party?.[0] || 'C'}
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-slate-400">
+                  ID: {String(job.id).substring(0, 6).toUpperCase()}
+                </span>
+                {job.priority === 'critical' ? (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-red-600">
+                    <AlertCircle size={10} /> Urgent
+                  </span>
+                ) : null}
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+                {job.machine_name || 'Service Request'}
+              </h3>
+              <div className="pt-0.5 text-[13px] font-medium text-slate-500">
+                {job.client_name || job.other_party || 'Machine Owner'}
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="mb-1 text-[10px] font-semibold text-slate-400">Value</p>
+            <span className="text-lg font-semibold text-slate-900">{formatCurrency(5000 + (distHash % 15000))}</span>
+          </div>
+        </div>
 
-         <div className="flex justify-between items-start mb-10 relative z-10">
-            <div className="flex items-center gap-6">
-               <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 flex items-center justify-center font-black text-blue-600 text-2xl shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all">
-                  {job.client_name?.[0] || job.other_party?.[0] || "C"}
-               </div>
-               <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                     <span className="text-[10px] font-black text-slate-400 tracking-[0.15em] uppercase">Sector REF-{String(job.id).substring(0,6).toUpperCase()}</span>
-                     <div className="w-1 h-1 rounded-full bg-slate-200" />
-                     {job.priority === 'critical' && <span className="text-[9px] font-black text-red-600 uppercase tracking-widest border border-red-100 px-2 py-0.5 bg-red-50 rounded-lg">High Alert</span>}
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none group-hover:text-blue-600 transition-colors">{job.machine_name || 'Industrial Node'}</h3>
-               </div>
-            </div>
-            <div className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm group-hover:border-blue-600/10 transition-all flex flex-col items-end">
-               <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Contract Value</p>
-               <span className="text-2xl font-black text-slate-900 tracking-tighter group-hover:text-blue-700 transition-colors">₹{5000 + (distHash % 15000)}</span>
-            </div>
-         </div>
+        <div className="mb-6 flex-1 space-y-4">
+          <div className="rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] p-4 text-sm font-medium text-slate-700">
+            {job.issue_description || 'Standard service request.'}
+          </div>
 
-         <div className="space-y-8 mb-12 relative z-10">
-            <div className="p-8 bg-slate-50/80 rounded-[1.5rem] border border-slate-100 group-hover:bg-white transition-all text-[15px] font-medium leading-relaxed shadow-inset">
-               <p className="text-slate-600 italic">"{job.issue_description || 'Formal diagnostic telemetry pending secure handshake.'}"</p>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <MapPin size={14} />
+              <span className="text-[12px] font-medium">{dist}km away</span>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-4">
-               <div className="flex items-center gap-2.5 px-4 py-2 bg-white border border-slate-100 rounded-xl shadow-sm group-hover:border-blue-100 transition-colors">
-                  <MapPin className="text-blue-600" size={12} strokeWidth={2.5} />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">{dist}km Range</span>
-               </div>
-               <div className="flex items-center gap-2.5 px-4 py-2 bg-white border border-slate-100 rounded-xl shadow-sm group-hover:border-blue-100 transition-colors">
-                  <Clock className="text-slate-400" size={12} strokeWidth={2.5} />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Received {job.created_at ? new Date(job.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '3m ago'}</span>
-               </div>
-               <div className="w-px h-6 bg-slate-100 mx-1" />
-               <Badge className="bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-1 font-black text-[9px] uppercase tracking-widest">
-                  Standard Relay
-               </Badge>
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <Clock size={14} />
+              <span className="text-[12px] font-medium">
+                {job.created_at
+                  ? new Date(job.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : 'Just now'}
+              </span>
             </div>
-         </div>
+          </div>
+        </div>
 
-         <div className="grid grid-cols-2 gap-6 relative z-10 pt-8 border-t border-slate-100">
-            <button className="h-14 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 bg-slate-50/50 hover:bg-slate-100 transition-all flex items-center justify-center">
-               View Telemetry
-            </button>
-            <button onClick={onAccept} className="h-14 rounded-xl bg-slate-900 text-white font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-slate-900/10 hover:bg-black transition-all flex items-center justify-center gap-3">
-               Connect Service
-               <ChevronRight size={14} strokeWidth={3} />
-            </button>
-         </div>
+        <div className="mt-auto grid grid-cols-2 gap-4">
+          <button
+            onClick={onDecline}
+            className="flex h-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-[12px] font-semibold text-red-600 transition-all hover:bg-red-600 hover:text-white"
+          >
+            Decline
+          </button>
+          <button
+            onClick={onAccept}
+            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 text-[12px] font-semibold text-white shadow-sm transition-all hover:bg-emerald-700"
+          >
+            Accept
+            <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
     </motion.div>
   );

@@ -20,6 +20,10 @@ import { saveMessage } from './controllers/chatController.js';
 import adminRouter from './routes/admin.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
+import providerRoutes from './routes/providerRoutes.js';
+import { ensureExpertPerformanceSchema } from './services/expertPerformanceSchema.js';
+import { ensurePaymentSchema } from './services/paymentSchema.js';
+import { startExpertPerformanceCron } from './services/expertPerformanceService.js';
 
 const app = express();
 const server = createServer(app);
@@ -72,6 +76,7 @@ app.use('/api/admin/notifications', notificationsRoutes);
 app.use('/api/analytics', adminRouter); // For /api/analytics/job-distribution
 app.use('/api/admin', adminRouter);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/providers', providerRoutes);
 
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
@@ -85,10 +90,15 @@ io.on('connection', (socket) => {
     console.log('Socket connected:', socket.id);
     socket.on('disconnect', () => {
         console.log('Socket disconnected:', socket.id);
+        if (socket.data.userId) {
+            io.emit('expert_offline', { userId: socket.data.userId });
+        }
     });
     socket.on('identify', (userId) => {
         socket.join(`user_${userId}`);
+        socket.data.userId = userId;
         console.log(`[Socket] Registered user room: user_${userId}`);
+        io.emit('expert_online', { userId });
     });
 
     socket.on('send_message', async (data) => {
@@ -107,6 +117,9 @@ async function startServer(retries = 5) {
     const PORT = process.env.PORT || 5000;
     try {
         await db.query('SELECT NOW()');
+        await ensureExpertPerformanceSchema();
+        await ensurePaymentSchema();
+        startExpertPerformanceCron();
         console.log('Database connection verified');
 
         server.on('error', (err) => {
