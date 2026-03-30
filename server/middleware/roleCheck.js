@@ -9,12 +9,14 @@ export const roleCheck = (roles) => {
             return res.status(401).json({ message: 'Authentication required' });
         }
 
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({
-                message: `Industrial clearance failure. Required role: ${roles.join(' or ')}`
-            });
+        console.log(`[RBAC] User: ${req.user.email}, Role: ${req.user.role}, Required: ${roles.join(', ')}`);
+        
+        if (req.user.role === 'admin' || roles.includes(req.user.role)) {
+            return next();
         }
 
-        next();
+        return res.status(403).json({
+            message: `Industrial clearance failure. Required role: ${roles.join(' or ')}`
+        });
     };
 };

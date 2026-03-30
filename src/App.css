@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
   --primary: #3b82f6;
@@ -26,7 +26,7 @@ body {
   padding: 0;
   background-color: var(--bg-base);
   color: var(--text-main);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Outfit', sans-serif;
   line-height: 1.6;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
@@ -262,7 +262,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 12px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Outfit', sans-serif;
 }
 
 .saas-heading {
@@ -272,14 +272,14 @@ body {
   margin-bottom: 16px;
   color: #0f172a;
   letter-spacing: -0.02em;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Outfit', sans-serif;
 }
 
 .saas-description {
   font-size: 1rem;
   line-height: 1.6;
   color: #64748b;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Outfit', sans-serif;
 }
 
 /* --- BUTTONS --- */
@@ -290,7 +290,7 @@ body {
   border-radius: 12px;
   font-weight: 500;
   font-size: 1rem;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Outfit', sans-serif;
   border: none;
   cursor: pointer;
   transition: 0.2s;
@@ -303,7 +303,7 @@ body {
   border-radius: 12px;
   font-weight: 500;
   font-size: 1rem;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Outfit', sans-serif;
   border: 1px solid var(--border-light);
   cursor: pointer;
   transition: 0.2s;
@@ -450,7 +450,7 @@ body {
   border: 1px solid #e2e8f0;
   background: #ffffff;
   font-size: 0.9375rem;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Outfit', sans-serif;
   transition: all 0.2s ease;
   color: var(--text-main);
 }

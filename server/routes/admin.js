@@ -11,10 +11,14 @@ const router = express.Router();
 // All routes require admin authentication
 router.use(adminOnly);
 
-// Ensure is_deleted column exists for Point 5 requirements
-db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`).catch(err => {
-    console.error('[DB] Failed to ensure is_deleted column:', err.message);
-});
+export async function ensureAdminSchema() {
+    try {
+        await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`);
+        console.log('[DB] is_deleted column verified.');
+    } catch (err) {
+        console.error('[DB] Failed to ensure is_deleted column:', err.message);
+    }
+}
 
 // ────────────── Summary ──────────────
 router.get('/summary', async (req, res) => {

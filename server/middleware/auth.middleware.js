@@ -22,11 +22,11 @@ export const protect = async (req, res, next) => {
 
         // [DEMO BYPASS]
         if (token === 'demo-token' || token === 'demo-token-consumer' || token === 'demo-token-xyz') {
-            req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'consumer' };
+            req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'admin' };
             return next();
         }
         if (token === 'demo-token-producer') {
-            req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'producer' };
+            req.user = { id: 'demo-123', email: 'admin@originode.com', role: 'admin' };
             return next();
         }
 
@@ -47,9 +47,10 @@ export const protect = async (req, res, next) => {
  */
 export const restrictTo = (...roles) => {
     return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
-            return next(new AppError('You do not have permission to perform this operation', 403));
+        if (req.user.role === 'admin' || roles.includes(req.user.role)) {
+            return next();
         }
+        return next(new AppError('You do not have permission to perform this operation', 403));
         next();
     };
 };

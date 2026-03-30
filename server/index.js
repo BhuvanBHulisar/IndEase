@@ -17,10 +17,12 @@ import chatRoutes from './routes/chatRoutes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import machineRoutes from './routes/machineRoutes.js';
 import { saveMessage } from './controllers/chatController.js';
-import adminRouter from './routes/admin.js';
+import adminRouter, { ensureAdminSchema } from './routes/admin.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import providerRoutes from './routes/providerRoutes.js';
+import profileRoutes from './routes/profileRoutes.js';
+import supportRoutes from './routes/supportRoutes.js';
 import { ensureExpertPerformanceSchema } from './services/expertPerformanceSchema.js';
 import { ensurePaymentSchema } from './services/paymentSchema.js';
 import { startExpertPerformanceCron } from './services/expertPerformanceService.js';
@@ -39,10 +41,16 @@ app.set('socketio', io);
 global.io = io; // For controllers to access without req object
 
 // 1. GLOBAL MIDDLEWARE
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: false,
+}));
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5176"],
-    credentials: true
+    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5176", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5176"],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+    exposedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -61,9 +69,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 2. SOCKET INITIALIZATION (configured above with CORS)
-
-// 3. ROUTES
+// 2. ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/payment', paymentRoutes);
@@ -73,16 +79,18 @@ app.use('/api/finance', financeRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin/notifications', notificationsRoutes);
-app.use('/api/analytics', adminRouter); // For /api/analytics/job-distribution
+app.use('/api/analytics', adminRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/providers', providerRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/support', supportRoutes);
 
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
 
-// 5. ERROR HANDLING
+// 3. ERROR HANDLING
 app.use(errorHandler);
 
 // 4. REAL-TIME SIGNALS
@@ -104,44 +112,48 @@ io.on('connection', (socket) => {
     socket.on('send_message', async (data) => {
         const { requestId, senderId, text } = data;
         console.log(`[Socket] Incoming signal in session ${requestId} from source ${senderId}`);
-
-        // Persist to DB (Mock or Real)
         const saved = await saveMessage(requestId, senderId, text);
-
-        // Broadcast to all (for demo simplicity)
         io.emit('new_message', saved);
     });
 });
 
 async function startServer(retries = 5) {
     const PORT = process.env.PORT || 5000;
-    try {
-        await db.query('SELECT NOW()');
-        await ensureExpertPerformanceSchema();
-        await ensurePaymentSchema();
-        startExpertPerformanceCron();
-        console.log('Database connection verified');
+    while (retries > 0) {
+        try {
+            console.log(`[Startup] Attempting database connection (Retries left: ${retries})...`);
+            await db.query('SELECT NOW()');
+            
+            // Sequential schema verification
+            await ensureAdminSchema();
+            await ensureExpertPerformanceSchema();
+            await ensurePaymentSchema();
+            
+            startExpertPerformanceCron();
+            // Database connection verified...
 
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE' && retries > 0) {
-                console.log(`Port ${PORT} busy, retrying in 1s... (${retries} attempts left)`);
-                setTimeout(() => {
-                    server.close();
-                    server.listen(PORT);
-                }, 1000);
-                retries--;
-            } else if (err.code === 'EADDRINUSE') {
-                console.error(`Port ${PORT} is still in use after retries. Kill the process manually: npx kill-port ${PORT}`);
+            server.on('error', (err) => {
+                if (err.code === 'EADDRINUSE') {
+                    console.error(`Port ${PORT} is in use. Kill the process: npx kill-port ${PORT}`);
+                    process.exit(1);
+                }
+            });
+
+            server.listen(PORT, () => {
+                console.log('Server running on port', PORT);
+                console.log('-----------------------------------');
+            });
+            return; 
+        } catch (error) {
+            console.error(`[Startup] Connection attempt failed: ${error.message}`);
+            retries--;
+            if (retries === 0) {
+                console.error('[Startup] Critical system failure: Could not connect to database after multiple attempts.');
                 process.exit(1);
             }
-        });
-
-        server.listen(PORT, () => {
-            console.log('Server running on port', PORT);
-        });
-    } catch (error) {
-        console.error('[Startup] Critical system failure:', error.message);
-        process.exit(1);
+            console.log('Retrying in 5 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
     }
 }
 

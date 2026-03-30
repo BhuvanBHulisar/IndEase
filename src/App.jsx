@@ -48,14 +48,15 @@ import {
   Building2,
   Wrench,
   Star,
-  ShieldCheck
+  ShieldCheck,
+  ChevronLeft
 } from 'lucide-react';
 
 // Modern SaaS Dashboard Components
 import PerformanceView from './components/PerformanceView';
 
 // --- Shared Components ---
-import { Button, Card, Badge, Toast } from './components/ui/base';
+import { Button, Card, Badge, Toast, cn } from './components/ui/base';
 import DashboardLayout from './layouts/DashboardLayout';
 import FleetView from './components/FleetView';
 import MachinesView from './components/MachinesView';
@@ -228,6 +229,12 @@ function App() {
 
     if (path === '/') {
       setView(isAuth ? 'dashboard' : 'landing');
+    } else if (path === '/dashboard' || path === '/expert-dashboard') {
+      if (isAuth) {
+        setView('dashboard');
+      } else {
+        navigate('/consumer/login', { replace: true });
+      }
     } else if (path.startsWith('/expert/')) {
       if (isAuth) {
         setView('dashboard');
@@ -344,14 +351,20 @@ function App() {
 
   // [NEW] PROFILE EDITING STATE
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [profileData, setProfileData] = useState({
-    name: "Expert Technician",
-    role: "Industrial Automation Specialist",
-    location: "Mumbai, India",
-    phone: "+91 98765 43210",
-    email: "expert@originode.com",
-    id: "IND-88219",
-    skills: []
+  const [profileData, setProfileData] = useState(() => {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    return {
+      name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || "Expert Technician" : "Expert Technician",
+      role: user ? (user.role === 'producer' ? 'Industrial Automation Specialist' : 'Business Owner') : "Industrial Specialist",
+      location: user?.location || "Not Set",
+      phone: user?.phone || "",
+      email: user?.email || "",
+      id: user?.id || "IND-00000",
+      skills: user?.skills || [],
+      bankAccountNumber: user?.bank_account_number || '',
+      ifscCode: user?.ifsc_code || '',
+      accountHolderName: user?.account_holder_name || ''
+    };
   });
 
   // [NEW] FILTER STATE & LOGIC
@@ -464,6 +477,8 @@ function App() {
   const [showExpertTermsModal, setShowExpertTermsModal] = useState(false);
   const [expertTermsChecked, setExpertTermsChecked] = useState(false);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [showPayoutSkipConfirm, setShowPayoutSkipConfirm] = useState(false);
+  const [bankDetailsErrors, setBankDetailsErrors] = useState({});
   const [bankDetailsForm, setBankDetailsForm] = useState({
     bankAccountNumber: '',
     ifscCode: '',
@@ -699,16 +714,25 @@ function App() {
     }
   }, [activeTab, view]);
 
+  const [hasSkippedPayout, setHasSkippedPayout] = useState(false);
+
   // Mandatory Profile Completion Check
   useEffect(() => {
-    if (view === 'dashboard' && role === 'producer' && profileData.email) {
+    if (view === 'dashboard' && role === 'producer' && profileData.email && !hasSkippedPayout) {
       // Check if bank details are missing
-      const isMissingBank = !profileData.bankAccountNumber || !profileData.ifscCode || !profileData.accountHolderName;
+      const isMissingBank = !profileData.bankAccountNumber || !profileData.ifscCode;
       if (isMissingBank) {
         setShowCompleteProfileModal(true);
+        // Pre-fill name if missing in form but present in profile
+        if (!bankDetailsForm.accountHolderName) {
+          setBankDetailsForm(prev => ({
+            ...prev,
+            accountHolderName: `${firstName} ${lastName}`.trim()
+          }));
+        }
       }
     }
-  }, [view, role, profileData]);
+  }, [view, role, profileData.bankAccountNumber, profileData.ifscCode, profileData.email, firstName, lastName, hasSkippedPayout]);
 
   const handleSaveConsumerProfile = async () => {
     const hasChanged =
@@ -901,35 +925,18 @@ function App() {
     if (isAuth && token && userStr) {
       const user = JSON.parse(userStr);
       
-      // If it's a demo session, bypass backend verification
       if (token === 'demo-token-xyz') {
         setView('dashboard');
-        setEmail(user.email || '');
         setRole(user.role || 'consumer');
-        setFirstName(user.first_name || '');
-        setLastName(user.last_name || '');
-        setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
-        setAuthChecking(false);
         setAuthenticated(true);
+        setAuthChecking(false);
       } else {
-        // Actually verify with the backend for real tokens
         api.get('/auth/me')
           .then(res => {
-            // /auth/me returns { status: 'success', user: {...} }
             const user = res.data.user || res.data;
             setView('dashboard');
-            setEmail(user.email || '');
-            setRole(user.role || 'consumer');
-            setFirstName(user.firstName || user.first_name || '');
-            setLastName(user.lastName || user.last_name || '');
-            setActiveTab((user.role || 'consumer') === 'consumer' ? 'fleet' : 'requests');
-
-            // Update local storage in case it was stale
-            localStorage.setItem('user', JSON.stringify(user));
-            localStorage.setItem('isAuth', 'true');
             setAuthenticated(true);
-
-            // Initial notification fetch
+            setRole(user.role || 'consumer');
             fetchNotifications();
           })
           .catch(err => {
@@ -944,77 +951,57 @@ function App() {
             setAuthChecking(false);
           });
       }
-    } else {
-      setAuthChecking(false);
-      setAuthenticated(false);
-    }
 
-    // 2. Initialize Socket Connection
-    const newSocket = io('http://localhost:5000');
-
-    // Identify user for targeted events
-    if (token) {
-      try {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (user && user.id) {
-          newSocket.emit('identify', user.id);
-        }
-      } catch (e) { }
-    }
-
-    newSocket.on('notification', (notif) => {
-      setNotifications(prev => [notif, ...prev]);
-    });
-
-    // Handle real-time invoice receipt
-    newSocket.on('invoice_received', (data) => {
-      console.log("[Socket] Targeted Invoice Received:", data);
-      // Trigger the premium checkout flow directly
-      handlePayment(`₹${data.amount}`, data.message || "Expert Service Invoice", data.requestId);
-    });
-
-    // Real-time: status updates for jobs
-    newSocket.on('status_update', (data) => {
-      console.log("[Socket] Status Update:", data);
-      // Update UI if needed, e.g., mark as completed if status is 'completed'
-      if (data.status === 'completed') {
-        setMessages(prev => [...prev, {
-          id: Date.now(),
-          chatId: data.requestId,
-          sender: 'system',
-          text: "✓ Service request marked as completed. Payment verified.",
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }]);
+      // 2. Initialize Socket Connection
+      const newSocket = io('http://localhost:5000');
+      if (user && user.id) {
+        newSocket.emit('identify', user.id);
       }
-    });
-
-    // Real-time: job completion specific event
-    newSocket.on('job_completed', (data) => {
-      console.log("[Socket] Job Completed:", data);
-      if (role === 'producer') {
-        setShowPaymentReceived(true);
-      }
-      // Update consumer's chat status tracker in real time
-      if (data?.requestId) {
-        setChats((prev) =>
-          prev.map((c) => String(c.id) === String(data.requestId) ? { ...c, status: 'completed' } : c)
-        );
-      }
-    });
-
-    // Real-time: new service broadcast from a consumer
-    newSocket.on('new_signal', (newJob) => {
-      setRadarJobs(prev => {
-        // Avoid duplicates if we already have this job
-        if (prev.some(j => j.id === newJob.id)) return prev;
-        return [newJob, ...prev];
+      
+      newSocket.on('notification', (notif) => {
+        setNotifications(prev => [notif, ...prev]);
       });
-    });
 
-    setSocket(newSocket);
+      newSocket.on('invoice_received', (data) => {
+        handlePayment(`₹${data.amount}`, data.message || "Expert Service Invoice", data.requestId);
+      });
 
-    return () => newSocket.close();
-  }, []);
+      newSocket.on('status_update', (data) => {
+        if (data.status === 'completed') {
+          setMessages(prev => [...prev, {
+            id: Date.now(),
+            chatId: data.requestId,
+            sender: 'system',
+            text: "✓ Service request marked as completed. Payment verified.",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]);
+        }
+      });
+
+      newSocket.on('job_completed', (data) => {
+        if (role === 'producer') setShowPaymentReceived(true);
+        if (data?.requestId) {
+          setChats((prev) =>
+            prev.map((c) => String(c.id) === String(data.requestId) ? { ...c, status: 'completed' } : c)
+          );
+        }
+      });
+
+      newSocket.on('new_signal', (newJob) => {
+        setRadarJobs(prev => {
+          if (prev.some(j => j.id === newJob.id)) return prev;
+          return [newJob, ...prev];
+        });
+      });
+
+      setSocket(newSocket);
+      return () => newSocket.disconnect();
+    } else {
+      setAuthenticated(false);
+      setAuthChecking(false);
+      setView('landing');
+    }
+  }, [authenticated]);
 
   const fetchNotifications = async () => {
     try {
@@ -1829,39 +1816,69 @@ function App() {
   };
 
   const handleSaveBankDetails = async () => {
-    if (!bankDetailsForm.bankAccountNumber || !bankDetailsForm.ifscCode || !bankDetailsForm.accountHolderName) {
-      setToast({ message: "Please fill all bank details to continue.", type: 'error' });
-      return;
+    const errors = {};
+    const accountNumberDigits = bankDetailsForm.bankAccountNumber.replace(/\s/g, '');
+    
+    if (!bankDetailsForm.accountHolderName.trim()) {
+      errors.accountHolderName = "Account holder name is required";
     }
     
-    // Quick validation for IFSC
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankDetailsForm.ifscCode)) {
-        setToast({ message: "Invalid IFSC Code format.", type: 'error' });
-        return;
+    if (!accountNumberDigits) {
+      errors.bankAccountNumber = "Account number is required";
+    } else if (!/^\d{9,18}$/.test(accountNumberDigits)) {
+      errors.bankAccountNumber = "Account number must be 9–18 digits";
+    }
+    
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!bankDetailsForm.ifscCode) {
+      errors.ifscCode = "IFSC code is required";
+    } else if (!ifscRegex.test(bankDetailsForm.ifscCode)) {
+      errors.ifscCode = "Invalid IFSC code format (e.g., SBIN0001234)";
     }
 
+    if (Object.keys(errors).length > 0) {
+      setBankDetailsErrors(errors);
+      return;
+    }
+
+    setBankDetailsErrors({});
     try {
       await api.patch('/profile', {
-        bank_account_number: bankDetailsForm.bankAccountNumber,
+        bank_account_number: accountNumberDigits,
         ifsc_code: bankDetailsForm.ifscCode,
         account_holder_name: bankDetailsForm.accountHolderName
       });
       
-      // Update local profile state so the useEffect doesn't trigger again
       setProfileData(prev => ({
         ...prev,
-        bankAccountNumber: bankDetailsForm.bankAccountNumber,
+        bankAccountNumber: accountNumberDigits,
         ifscCode: bankDetailsForm.ifscCode,
         accountHolderName: bankDetailsForm.accountHolderName
       }));
       
       setShowCompleteProfileModal(false);
-      setToast({ message: "Profile completed! Welcome to your dashboard.", type: 'success' });
-      
-      // Refresh statistics
+      setToast({ message: "Payout setup complete! Your earnings are ready for transfer.", type: 'success' });
       fetchProducerDashboardStats();
     } catch (err) {
+      setBankDetailsErrors({ server: "Server error — please try again" });
       setToast({ message: "Failed to save bank details. Please try again.", type: 'error' });
+    }
+  };
+
+  const handleFormatAccountNumber = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 18);
+    const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+    setBankDetailsForm({ ...bankDetailsForm, bankAccountNumber: formatted });
+    if (bankDetailsErrors.bankAccountNumber) {
+      setBankDetailsErrors(prev => ({ ...prev, bankAccountNumber: '' }));
+    }
+  };
+
+  const handleIFSCChange = (value) => {
+    const upperValue = value.toUpperCase().slice(0, 11);
+    setBankDetailsForm({ ...bankDetailsForm, ifscCode: upperValue });
+    if (bankDetailsErrors.ifscCode) {
+      setBankDetailsErrors(prev => ({ ...prev, ifscCode: '' }));
     }
   };
 
@@ -2656,63 +2673,41 @@ function App() {
       const { credential } = credentialResponse;
       setErrors({});
 
+      // STEP 1 — Fix Frontend Google Handler
       const res = await api.post('/auth/google', {
-        id_token: credential,
+        token: credential, // User snippet asked for "token"
       }, { withCredentials: true });
 
-      if (res.data && res.data.status === 'USER_NOT_FOUND') {
-        if (isLogin) {
-          setIsLogin(false);
-          setSignupStep(1);
-          setEmail(res.data.email || '');
-          setFirstName(res.data.given_name || '');
-          setLastName(res.data.family_name || '');
-          setPhone('');
-          setErrors({ server: 'No industrial account found for this Google identity. Please complete signup.' });
-        } else {
-          setEmail(res.data.email || '');
-          setFirstName(res.data.given_name || '');
-          setLastName(res.data.family_name || '');
-          setErrors({});
-        }
-        return;
-      }
-
       const { user, token } = res.data;
+      
       if (user) {
-        if (socket) socket.emit('identify', user.id || user.user_id);
+        if (socket) socket.emit('identify', user.id);
         if (token) localStorage.setItem('token', token);
-        localStorage.setItem('isAuth', 'true');
-        setAuthenticated(true);
-        setView('dashboard');
-        setRole(user.role || 'consumer');
         localStorage.setItem('user', JSON.stringify(user));
-        setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
+        localStorage.setItem('isAuth', 'true');
+        
+        setAuthenticated(true);
+        setRole(user.role || 'consumer');
+        setView('dashboard');
+        
+        // Navigation based on role (Redirect based on role)
+        if (user.role === 'consumer') {
+          setActiveTab('fleet');
+          navigate("/dashboard"); // User snippet asked for navigate
+        } else {
+          setActiveTab('requests');
+          navigate("/expert-dashboard"); // User snippet asked for navigate
+        }
+        
         fetchNotifications();
         return;
       }
-
-      setErrors({ server: 'Authentication failed. Please try traditional credentials.' });
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.status === 'USER_NOT_FOUND') {
-        if (isLogin) {
-          setIsLogin(false);
-          setSignupStep(1);
-          setEmail(err.response.data.email || '');
-          setFirstName(err.response.data.given_name || '');
-          setLastName(err.response.data.family_name || '');
-          setErrors({ server: 'No account found. Complete your identity profile below.' });
-        } else {
-          setEmail(err.response.data.email || '');
-          setFirstName(err.response.data.given_name || '');
-          setLastName(err.response.data.family_name || '');
-          setErrors({});
-        }
-        return;
-      }
-      setErrors({ server: 'Google authentication encountered a network error.' });
+      console.error("Google login error:", err);
+      setErrors({ server: err.response?.data?.message || 'Google identity verification failed.' });
     }
   };
+
 
   const handleGoogleError = () => {
     setErrors({ server: 'Google login was cancelled or failed.' });
@@ -3092,8 +3087,9 @@ function App() {
             
             <div className="modal-body-premium space-y-4">
                <div className="input-field-modern">
-                  <label>Machine Name</label>
+                  <label htmlFor="machine-name">Machine Name</label>
                   <input 
+                    id="machine-name" name="machine-name"
                     type="text" placeholder="e.g. Hydraulic Press #99"
                     value={newMachineData.name}
                     onChange={(e) => setNewMachineData({ ...newMachineData, name: e.target.value })}
@@ -3102,8 +3098,9 @@ function App() {
 
                <div className="grid grid-cols-2 gap-4">
                   <div className="input-field-modern">
-                    <label>Machine Type</label>
+                    <label htmlFor="machine-type">Machine Type</label>
                     <select 
+                      id="machine-type" name="machine-type"
                       value={newMachineData.machine_type}
                       onChange={(e) => setNewMachineData({ ...newMachineData, machine_type: e.target.value })}
                     >
@@ -3115,8 +3112,9 @@ function App() {
                     </select>
                   </div>
                   <div className="input-field-modern">
-                    <label>Machine Year</label>
+                    <label htmlFor="machine-year">Machine Year</label>
                     <input 
+                      id="machine-year" name="machine-year"
                       type="number" placeholder="2024"
                       value={newMachineData.model_year}
                       onChange={(e) => setNewMachineData({ ...newMachineData, model_year: e.target.value })}
@@ -3125,8 +3123,9 @@ function App() {
                </div>
 
                <div className="input-field-modern">
-                  <label>Manufacturer</label>
+                  <label htmlFor="machine-oem">Manufacturer</label>
                   <input 
+                    id="machine-oem" name="machine-oem"
                     type="text" placeholder="e.g. Hydra-Tech Germany"
                     value={newMachineData.oem}
                     onChange={(e) => setNewMachineData({ ...newMachineData, oem: e.target.value })}
@@ -4240,6 +4239,31 @@ function App() {
         )}
       </AnimatePresence>
       <div className="animate-fade-in">
+        {role === 'producer' && (!profileData.bankAccountNumber || !profileData.ifscCode) && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="mb-6 overflow-hidden"
+          >
+            <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-100 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
+                  <CreditCard size={20} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-amber-900 leading-none mb-1">Receiver details missing</h4>
+                  <p className="text-[11px] font-medium text-amber-700">Complete payout setup to receive earnings and bonuses directly to your bank account.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowCompleteProfileModal(true)}
+                className="px-4 py-2 bg-amber-600 text-white text-[11px] font-bold rounded-lg hover:bg-amber-700 transition-colors shadow-sm shadow-amber-200"
+              >
+                Set up now
+              </button>
+            </div>
+          </motion.div>
+        )}
         {renderContent()}
       </div>
       <AnimatePresence>
@@ -4320,66 +4344,191 @@ function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm px-4"
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/80 backdrop-blur-md px-4"
           >
             <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="w-full max-md rounded-[2.5rem] bg-white p-10 shadow-2xl border border-slate-100"
+              exit={{ opacity: 0, y: 30, scale: 0.95 }}
+              className="relative w-full max-w-xl overflow-hidden rounded-[2.5rem] bg-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] border border-slate-100 font-['Outfit',_sans-serif]"
             >
-              <div className="text-center space-y-6">
-                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-2">
-                  <CreditCard size={40} />
+              {/* Back Button */}
+              <button 
+                onClick={() => setShowPayoutSkipConfirm(true)}
+                className="absolute top-8 left-8 p-2 rounded-xl bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all z-20"
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              {/* Header Gradient */}
+              <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600" />
+              
+              <div className="p-8 md:p-12 text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 rounded-[1.75rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
+                  <CreditCard size={40} strokeWidth={1.5} />
                 </div>
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Complete Your Profile</h2>
-                  <p className="text-slate-500 font-medium text-sm leading-relaxed">
-                    To start receiving payments and access your dashboard, please provide your bank account details.
+                
+                <div className="space-y-3 mb-10">
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none font-['Outfit',_sans-serif]">Set up payouts (optional)</h2>
+                  <p className="text-slate-500 font-semibold text-base">
+                    You can complete this later anytime.
                   </p>
                 </div>
 
-                <div className="space-y-4 text-left">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Holder Name</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left mb-10">
+                  <div className="md:col-span-2 space-y-2">
+                    <div className="flex justify-between items-center ml-1">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                        <Lock size={10} className="text-slate-300" /> Account Holder Name
+                      </label>
+                      {bankDetailsErrors.accountHolderName && (
+                        <span className="text-[10px] font-bold text-red-500">{bankDetailsErrors.accountHolderName}</span>
+                      )}
+                    </div>
                     <input
-                      className="w-full h-12 px-4 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold"
-                      placeholder="As per bank records"
+                      className={cn(
+                        "w-full h-14 px-5 rounded-2xl bg-slate-50 border-2 transition-all text-sm font-bold placeholder:text-slate-300 shadow-sm",
+                        bankDetailsErrors.accountHolderName 
+                          ? "border-red-100 focus:border-red-500 focus:ring-red-500/5 bg-red-50/30" 
+                          : "border-slate-100 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      )}
+                      placeholder="Full name as per bank records"
                       value={bankDetailsForm.accountHolderName}
-                      onChange={(e) => setBankDetailsForm({...bankDetailsForm, accountHolderName: e.target.value})}
+                      onChange={(e) => {
+                        setBankDetailsForm({...bankDetailsForm, accountHolderName: e.target.value});
+                        if(bankDetailsErrors.accountHolderName) setBankDetailsErrors(p=>({...p, accountHolderName: ''}));
+                      }}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bank Account Number</label>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center ml-1">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                        <Lock size={10} className="text-slate-300" /> Account Number
+                      </label>
+                    </div>
                     <input
-                      className="w-full h-12 px-4 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold"
-                      placeholder="Enter account number"
-                      type="password"
+                      className={cn(
+                        "w-full h-14 px-5 rounded-2xl bg-slate-50 border-2 transition-all text-sm font-bold placeholder:text-slate-300 shadow-sm",
+                        bankDetailsErrors.bankAccountNumber 
+                          ? "border-red-100 focus:border-red-500 focus:ring-red-500/5 bg-red-50/30" 
+                          : "border-slate-100 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      )}
+                      placeholder="Enter 9–18 digit account number"
                       value={bankDetailsForm.bankAccountNumber}
-                      onChange={(e) => setBankDetailsForm({...bankDetailsForm, bankAccountNumber: e.target.value})}
+                      onChange={(e) => handleFormatAccountNumber(e.target.value)}
                     />
+                    {bankDetailsErrors.bankAccountNumber && (
+                      <span className="text-[10px] font-bold text-red-500 ml-1">{bankDetailsErrors.bankAccountNumber}</span>
+                    )}
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">IFSC Code</label>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center ml-1">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                        <Lock size={10} className="text-slate-300" /> IFSC Code
+                      </label>
+                    </div>
                     <input
-                      className="w-full h-12 px-4 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold"
-                      placeholder="e.g. SBIN0012345"
-                      style={{ textTransform: 'uppercase' }}
+                      className={cn(
+                        "w-full h-14 px-5 rounded-2xl bg-slate-50 border-2 transition-all text-sm font-bold placeholder:text-slate-300 shadow-sm uppercase",
+                        bankDetailsErrors.ifscCode 
+                          ? "border-red-100 focus:border-red-500 focus:ring-red-500/5 bg-red-50/30" 
+                          : "border-slate-100 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      )}
+                      placeholder="SBIN0001234"
                       value={bankDetailsForm.ifscCode}
-                      onChange={(e) => setBankDetailsForm({...bankDetailsForm, ifscCode: e.target.value.toUpperCase()})}
+                      onChange={(e) => handleIFSCChange(e.target.value)}
                     />
+                    {bankDetailsErrors.ifscCode && (
+                      <span className="text-[10px] font-bold text-red-500 ml-1">{bankDetailsErrors.ifscCode}</span>
+                    )}
                   </div>
+
+                  {bankDetailsErrors.server && (
+                    <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-[11px] font-bold">
+                       <AlertCircle size={14} /> {bankDetailsErrors.server}
+                    </div>
+                  )}
                 </div>
 
+                <div className="space-y-4">
+                  <button
+                    onClick={handleSaveBankDetails}
+                    disabled={!bankDetailsForm.accountHolderName || !bankDetailsForm.bankAccountNumber || !bankDetailsForm.ifscCode}
+                    className="group relative w-full h-16 overflow-hidden rounded-2xl bg-slate-900 text-white font-bold text-base shadow-2xl shadow-slate-200 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <span className="relative z-10 flex items-center justify-center gap-2 text-base">
+                      Complete Verification & Enter <ArrowRight size={20} />
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowPayoutSkipConfirm(true)}
+                    className="w-full text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors py-2"
+                  >
+                    Skip for now
+                  </button>
+                  
+                  <div className="flex border-t border-slate-50 pt-8 items-center justify-center gap-6 text-slate-400">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                        <Shield size={12} className="text-emerald-500" /> AES-256 Encrypted
+                      </div>
+                      <span className="text-[8px] font-bold text-slate-300">Your data is encrypted and secure</span>
+                    </div>
+                    <div className="w-[1px] h-6 bg-slate-100" />
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                      <Lock size={12} className="text-emerald-500" /> Secure SSL
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showPayoutSkipConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm px-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl border border-slate-100 text-center"
+            >
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <InfoIcon size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">Complete later?</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
+                You can finish setting up payouts anytime from your profile settings.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={handleSaveBankDetails}
-                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-sm shadow-xl shadow-indigo-200 hover:shadow-indigo-300 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  onClick={() => setShowPayoutSkipConfirm(false)}
+                  className="h-12 rounded-xl border-2 border-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
                 >
-                  Save & Access Dashboard
+                  Stay
                 </button>
-                
-                <p className="text-[10px] text-slate-400 font-medium">
-                  <Shield size={10} className="inline mr-1" /> Encrypted & Secure Payment Processing
-                </p>
+                <button
+                  onClick={() => {
+                    setHasSkippedPayout(true);
+                    setShowPayoutSkipConfirm(false);
+                    setShowCompleteProfileModal(false);
+                    setToast({ message: "Dashboard access granted. Complete payout setup later.", type: 'info' });
+                  }}
+                  className="h-12 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-all"
+                >
+                  Continue
+                </button>
               </div>
             </motion.div>
           </motion.div>

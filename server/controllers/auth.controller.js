@@ -22,66 +22,82 @@ export const googleAuthReact = async (req, res) => {
         const { email, name, picture } = payload;
         if (!email) return res.status(400).json({ error: 'No email in token' });
         const normalizedEmail = email.toLowerCase();
+        let userResult = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
         let user;
-        try {
-            const insertQuery = `INSERT INTO users (email, first_name, picture, provider) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO NOTHING RETURNING *`;
-            const values = [normalizedEmail, name, picture, 'google'];
-            const result = await db.query(insertQuery, values);
-            if (result.rows.length > 0) {
-                user = result.rows[0];
-                return res.status(201).json({ message: 'Account created', user: { id: user.id, email: user.email, name: user.first_name, picture: user.picture, provider: user.provider, role: user.role } });
-            } else {
-                const userResult = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
-                if (userResult.rows.length > 0) {
-                    user = userResult.rows[0];
-                    return res.status(200).json({ message: 'Login successful', user: { id: user.id, email: user.email, name: user.first_name, picture: user.picture, provider: user.provider, role: user.role } });
-                } else {
-                    return res.status(409).json({ error: 'Account already exists. Please login.' });
-                }
+
+        if (userResult.rows.length > 0) {
+            user = userResult.rows[0];
+            // Update photo if missing
+            if (!user.photo_url) {
+                await db.query('UPDATE users SET photo_url = $1 WHERE id = $2', [picture, user.id]);
             }
-        } catch {
-            return res.status(500).json({ error: 'Database error' });
+        } else {
+            const result = await db.query(
+                `INSERT INTO users (email, first_name, photo_url, role, password) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                [normalizedEmail, name, picture, 'consumer', 'google-auth-react']
+            );
+            user = result.rows[0];
         }
-    } catch {
-        return res.status(500).json({ error: 'Internal server error' });
+
+        const token = generateAccessToken(user);
+        return res.status(200).json({ 
+            token, 
+            message: 'Login successful', 
+            user: { id: user.id, email: user.email, name: user.first_name, picture: user.photo_url, role: user.role } 
+        });
+    } catch (err) {
+        console.error('Google Auth React failed:', err);
+        return res.status(500).json({ error: 'Database or internal error' });
     }
 };
 // Google ID Token Login (API)
 export const googleIdTokenLogin = async (req, res) => {
     try {
-        const { id_token } = req.body;
-        if (!id_token) return res.status(400).json({ error: 'ID token required' });
-        let payload;
-        try {
-            const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-            const ticket = await client.verifyIdToken({
-                idToken: id_token,
-                audience: process.env.GOOGLE_CLIENT_ID,
-            });
-            payload = ticket.getPayload();
-        } catch {
-            return res.status(401).json({ error: 'Invalid or expired Google token' });
-        }
+        const { token: googleToken } = req.body;
+        if (!googleToken) return res.status(400).json({ error: 'ID token required' });
+        
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        const ticket = await client.verifyIdToken({
+            idToken: googleToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
         const normalizedEmail = payload.email.toLowerCase();
-        let userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
-        if (userRes.rows.length > 0) {
-            let user = userRes.rows[0];
+
+        // STEP 4 — Fix User Creation Logic
+        let userResult = await db.query(
+            "SELECT * FROM users WHERE email = $1",
+            [normalizedEmail]
+        );
+
+        let user;
+        if (!userResult.rows.length) {
+            // STEP 4 — Fix Google Login Logic (Do NOT require password)
+            const newUserRes = await db.query(
+                `INSERT INTO users (email, first_name, photo_url, google_id, provider, email_verified, role)
+                 VALUES ($1, $2, $3, $4, 'google', true, 'consumer')
+                 RETURNING *`,
+                [normalizedEmail, payload.name, payload.picture || '', payload.sub]
+            );
+            user = newUserRes.rows[0];
+        } else {
+            user = userResult.rows[0];
+            // Link Google ID if missing
             if (!user.google_id) {
                 await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [payload.sub, user.id]);
             }
-            const token = generateAccessToken(user);
-            res.cookie('session', token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'Strict',
-                maxAge: 60 * 60 * 1000
-            });
-            return res.json({ token, user: { id: user.id, email: user.email, name: user.first_name || '', picture: user.picture || '', role: user.role } });
-        } else {
-            return res.status(200).json({ status: "USER_NOT_FOUND", email: normalizedEmail, given_name: payload.given_name, family_name: payload.family_name });
         }
+
+        // STEP 5 — Return Token Properly
+        const token = generateAccessToken(user);
+
+        res.json({
+            token,
+            user: user
+        });
     } catch (err) {
-        res.status(500).json({ error: 'Google login failed', details: err.message });
+        console.error('Google login error:', err);
+        res.status(500).json({ error: 'Google login failed', message: err.message });
     }
 };
 
@@ -105,13 +121,25 @@ export const register = async (req, res) => {
         }
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUserRes = await db.query(
-            'INSERT INTO users (email, password_hash, role, first_name, last_name, phone, dob, organization) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [normalizedEmail, hashedPassword, role, firstName || null, lastName || null, phone || null, dob || null, organization || null]
+            'INSERT INTO users (email, password, role, first_name, last_name, phone_number, date_of_birth, organization, provider) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+            [normalizedEmail, hashedPassword, role, firstName || null, lastName || null, phone || null, dob || null, organization || null, 'local']
         );
         const user = newUserRes.rows[0];
+
+        // If role = expert (producer) → create producer_profiles
+        if (role === 'producer') {
+            await db.query(
+                'INSERT INTO producer_profiles (user_id) VALUES ($1)',
+                [user.id]
+            );
+        }
+
         const token = generateAccessToken(user);
         res.status(201).json({ token, user });
     } catch (err) {
+        if (err.code === '23505') { // Code for unique violation
+             return res.status(400).json({ message: 'Account already exists. Please login.' });
+        }
         res.status(500).json({ message: 'Registration failed', error: err.message });
     }
 };
@@ -135,20 +163,28 @@ export const socialLogin = async (req, res) => {
             return res.status(401).json({ message: 'Invalid Google token.' });
         }
         const normalizedEmail = payload.email.toLowerCase();
-        let userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
-        if (userRes.rows.length > 0) {
-            let user = userRes.rows[0];
+        let userResult = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
+        let user;
+
+        if (userResult.rows.length > 0) {
+            user = userResult.rows[0];
             if (!user.google_id) {
                 await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [payload.sub, user.id]);
             }
-            const jwtToken = generateAccessToken(user);
-            return res.json({ token: jwtToken, user });
         } else {
-            // User not found, do not auto-create
-            return res.status(200).json({ status: "USER_NOT_FOUND", email: normalizedEmail, given_name: payload.given_name, family_name: payload.family_name });
+            // STEP 4 — Fix Google Login Logic (Do NOT require password)
+            const newUserRes = await db.query(
+                'INSERT INTO users (email, first_name, photo_url, google_id, provider, email_verified, role) VALUES ($1, $2, $3, $4, \'google\', true, \'consumer\') RETURNING *',
+                [normalizedEmail, payload.name, payload.picture || '', payload.sub]
+            );
+            user = newUserRes.rows[0];
         }
+
+        const jwtToken = generateAccessToken(user);
+        return res.json({ token: jwtToken, user });
     } catch (err) {
-        res.status(500).json({ message: 'Google login failed', error: err.message });
+        console.error('Social login failed:', err);
+        res.status(500).json({ status: "error", message: 'Social authentication via Google failed.' });
     }
 };
 
@@ -164,10 +200,7 @@ export const login = async (req, res) => {
         
         // Query users table (admin users have role='admin')
         const userRes = await db.query(
-            `SELECT u.id, u.email, u.role, u.password_hash, u.first_name, u.last_name, pp.status as expert_status
-             FROM users u
-             LEFT JOIN producer_profiles pp ON u.id = pp.user_id
-             WHERE LOWER(u.email) = $1`,
+            "SELECT * FROM users WHERE LOWER(email) = $1",
             [normalizedEmail]
         );
 
@@ -178,11 +211,11 @@ export const login = async (req, res) => {
 
         const user = userRes.rows[0];
 
-        if (user.role === 'producer' && user.expert_status === 'removed') {
-            console.log('[Auth] Login blocked: Expert account removed -', normalizedEmail);
+        if (user.is_deleted) {
+            console.log('[Auth] Login blocked: User account deleted -', normalizedEmail);
             return res.status(403).json({ message: 'Account has been removed. Contact support.' });
         }
-        const isMatch = await bcrypt.compare(password, user.password_hash);
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             console.log('[Auth] Login failed: Password mismatch for', normalizedEmail);
             return res.status(401).json({ message: 'Invalid email or password' });
@@ -307,10 +340,11 @@ export const verifyToken = async (req, res, next) => {
 
 export const getMe = async (req, res, next) => {
     try {
-        const result = await db.query('SELECT id, email, role, first_name, last_name, email_verified, company_name FROM users WHERE id = $1', [req.user.id]);
-        if (result.rows.length === 0) throw new AppError('Identity lost', 404);
+        const result = await db.query('SELECT id, email, role, first_name, last_name, email_verified, organization, photo_url FROM users WHERE id = $1', [req.user.id]);
+        if (result.rows.length === 0) return res.status(401).json({ message: 'Identity lost' });
         res.json({ status: 'success', user: result.rows[0] });
     } catch (err) {
+        console.error('getMe failure:', err);
         next(err);
     }
 };

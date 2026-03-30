@@ -36,8 +36,8 @@ passport.use(new GoogleStrategy({
 
         // 3. Create new user
         const newUserResult = await db.query(
-            'INSERT INTO users (email, password_hash, first_name, last_name, google_id, role, email_verified) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-            [email.toLowerCase(), 'oauth_managed', firstName, lastName, googleId, 'consumer', true]
+            'INSERT INTO users (email, password, first_name, last_name, google_id, role, email_verified, provider) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [email.toLowerCase(), 'oauth_managed', firstName, lastName, googleId, 'consumer', true, 'google']
         );
         console.log('[GoogleStrategy] New user created:', newUserResult.rows[0]);
         return done(null, newUserResult.rows[0]);

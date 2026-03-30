@@ -1,20 +1,24 @@
-console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Loaded' : 'Missing');
+import 'dotenv/config';
 import pkg from 'pg';
 const { Pool } = pkg;
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: process.env.NODE_ENV === 'production' && !process.env.DB_ALLOW_INSECURE_SSL
-    }
-});
+const connectionString = process.env.DATABASE_URL;
+console.log('DATABASE_URL:', connectionString ? 'Loaded' : 'MISSING - server will fail to start');
 
-pool.on('connect', () => {
-    console.log('PostgreSQL connected successfully');
+const pool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false }, // Required for Neon (and was needed for Render too)
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 60000,
+    max: 10,
 });
 
 pool.on('error', (err) => {
-    console.error('Unexpected PostgreSQL error:', err);
+    console.error('[DB] Unexpected pool error:', err.message);
+});
+
+pool.on('connect', () => {
+    console.log("Database connected successfully");
 });
 
 export default pool;
