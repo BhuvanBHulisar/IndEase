@@ -1,4 +1,0 @@
-# Industrial Service Platform
-
-
-

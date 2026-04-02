@@ -1,158 +1,284 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   HelpCircle, 
   Phone, 
   Mail, 
-  ArrowUpRight, 
   MessagesSquare, 
-  FileQuestion, 
-  ShieldAlert,
-  Zap,
-  CheckCircle,
-  Clock,
-  Send,
-  ExternalLink,
-  ChevronRight,
   ShieldCheck,
   Terminal,
-  Activity,
-  Lock,
-  Eye,
-  Trash2,
-  LifeBuoy
+  Send,
+  ChevronRight,
+  CheckCircle,
+  Zap,
+  LifeBuoy,
+  Loader2,
 } from 'lucide-react';
 import { 
   Card, 
   Button, 
   Badge, 
-  Input, 
   cn 
 } from '../components/ui/base';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import api from '../services/api';
 
-export function SupportView({ onSubmitTicket }) {
-  const [ticket, setTicket] = useState({ subject: 'General Support', description: '' });
+const SUPPORT_EMAIL = 'originode7@gmail.com';
+
+const SUBJECTS = [
+  'Payment Issue',
+  'Service Issue',
+  'Account Issue',
+  'Machine Diagnosis Issue',
+  'Expert Consultation',
+  'Billing Inquiry',
+  'Other',
+];
+
+export function SupportView({ user }) {
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    subject: SUBJECTS[0],
+    message: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Auto-fill name and email from user prop or localStorage
+  useEffect(() => {
+    const storedUser = user || (() => {
+      try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
+    })();
+    if (storedUser) {
+      const name = storedUser.firstName
+        ? `${storedUser.firstName} ${storedUser.lastName || ''}`.trim()
+        : storedUser.name || `${storedUser.first_name || ''} ${storedUser.last_name || ''}`.trim() || '';
+      setForm(prev => ({
+        ...prev,
+        name: name || prev.name,
+        email: storedUser.email || prev.email,
+      }));
+    }
+  }, [user]);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 5000);
+  };
+
+  const handleSubmit = async () => {
+    if (!form.message.trim()) {
+      showToast('Please enter a message before submitting.', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post('/support/tickets', {
+        name: form.name,
+        email: form.email,
+        subject: form.subject,
+        message: form.message,
+        description: form.message,
+      });
+      setSubmitted(true);
+      showToast('Your request has been sent. Our team will contact you soon.');
+      setForm(prev => ({ ...prev, message: '' }));
+      setTimeout(() => setSubmitted(false), 4000);
+    } catch (err) {
+      showToast(
+        `Something went wrong. Please contact support at ${SUPPORT_EMAIL}`,
+        'error'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-12 pb-24 max-w-6xl mx-auto animate-fade-in no-scrollbar">
-      {/* Header Segment */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 border-b border-slate-100">
-        <div className="space-y-4">
-           <div className="flex items-center gap-2">
-              <Badge className="bg-blue-50 text-blue-700 border border-blue-100 rounded-lg px-3 py-1 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                 <LifeBuoy size={12} strokeWidth={3} />
-                 Resource Center
-              </Badge>
-              <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Assistance</span>
-           </div>
-           <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Support Terminal</h2>
-           <p className="text-slate-500 font-medium max-w-2xl leading-relaxed">
-              Direct access to our industrial engineering team. Submit technical dispatches or query our verified expert network for immediate resolution.
+    <div className="space-y-8 pb-12 max-w-4xl mx-auto animate-fade-in pt-4">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            key="toast"
+            initial={{ opacity: 0, y: -20, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.96 }}
+            transition={{ duration: 0.25 }}
+            style={{
+              position: 'fixed',
+              top: 24,
+              right: 24,
+              zIndex: 9999,
+              minWidth: 320,
+              maxWidth: 420,
+            }}
+          >
+            <div className={`flex items-start gap-3 px-5 py-4 rounded-2xl shadow-2xl border backdrop-blur-sm font-semibold text-sm ${
+              toast.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            }`}>
+              <CheckCircle size={18} strokeWidth={2.5} className={`mt-0.5 shrink-0 ${toast.type === 'error' ? 'text-red-500' : 'text-emerald-500'}`} />
+              <span className="leading-snug">{toast.msg}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Premium Header */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-4">
+        <div className="space-y-2">
+           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Help & Support</h2>
+           <p className="text-sm font-medium text-slate-500 max-w-2xl">
+             Submit a support request and our team will get back to you via email. You can also reach us directly at{' '}
+             <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-600 hover:underline font-medium">{SUPPORT_EMAIL}</a>.
            </p>
         </div>
         
-        <div className="h-12 px-6 flex items-center bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 font-black text-[10px] uppercase tracking-[0.15em] gap-3 shadow-sm">
-           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-           Network Pulse: Nominal
+        <div className="flex items-center gap-4">
+          <div className="h-10 px-4 flex items-center bg-blue-50 text-blue-700 rounded-lg border border-blue-100 font-semibold text-sm gap-2 shadow-sm">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            Support Active
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-         {/* Dispatch Form Component */}
-         <div className="lg:col-span-7 bg-white border border-slate-200/60 rounded-[2rem] p-10 shadow-sm space-y-10 relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-6">
-               <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                  <Terminal size={20} className="text-blue-600" strokeWidth={2.5} />
-                  Service Dispatch
-               </h3>
-               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Case ID: Auto-Generated</span>
-            </div>
-            
-            <div className="space-y-8">
-               <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dispatch Context</label>
-                  <div className="relative">
-                     <select 
-                       value={ticket.subject}
-                       onChange={(e) => setTicket({ ...ticket, subject: e.target.value })}
-                       className="w-full h-14 rounded-2xl border border-slate-200 bg-slate-50/50 px-6 font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all outline-none appearance-none"
-                     >
-                       {["General Support", "Machine Diagnosis Issue", "Expert Consultation", "Billing Inquiry", "Other"].map(s => (
-                          <option key={s} value={s}>{s}</option>
-                       ))}
-                     </select>
-                     <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-               </div>
-               
-               <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Anomaly Narrative</label>
-                  <textarea 
-                    placeholder="Provide a comprehensive description of the operational issue..."
-                    value={ticket.description}
-                    onChange={(e) => setTicket({ ...ticket, description: e.target.value })}
-                    className="w-full h-56 rounded-[1.5rem] border border-slate-200 bg-slate-50/50 p-8 font-medium text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 outline-none transition-all resize-none placeholder:text-slate-400"
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Support Form */}
+        <div className="lg:col-span-8">
+          <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-8 lg:p-10 shadow-sm space-y-8 h-full">
+            <div className="space-y-6">
+              <div className="border-b border-[#E5E7EB] pb-4">
+                <h3 className="text-lg font-semibold text-slate-900 leading-tight flex items-center gap-2">
+                  <Terminal size={18} className="text-blue-600" />
+                  Submit a Request
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Your Name</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Auto-filled"
+                    className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none"
                   />
-               </div>
-               
-               <button onClick={onSubmitTicket} className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-slate-900 text-white shadow-xl shadow-slate-900/10 hover:bg-black transition-all flex items-center justify-center gap-3 group">
-                  Transmit Dispatch
-                  <Send size={14} strokeWidth={3} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-               </button>
-            </div>
-         </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Your Email</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="Auto-filled"
+                    className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none"
+                  />
+                </div>
 
-         {/* Secondary Support Channels */}
-         <div className="lg:col-span-5 space-y-8">
-            <div className="bg-white border border-slate-200/60 rounded-[2rem] p-10 shadow-sm space-y-10 relative overflow-hidden group">
-               <h3 className="text-xl font-black text-slate-900 tracking-tight">Direct Uplinks</h3>
-               <div className="space-y-8">
-                  <ContactItem icon={Phone} label="Crisis Hotline" value="+91 1800-ORIGI-HELP" />
-                  <ContactItem icon={Mail} label="Comms Feed" value="support@originode.com" />
-                  <ContactItem icon={MessagesSquare} label="Live Intercom" value="Authorized Channels Only" />
-               </div>
-            </div>
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Subject</label>
+                  <div className="relative">
+                    <select
+                      value={form.subject}
+                      onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                      className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none appearance-none cursor-pointer"
+                    >
+                      {SUBJECTS.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={16} />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-8">
-               <div className="p-8 rounded-[1.5rem] bg-white border border-slate-200/60 hover:shadow-premium group transition-all duration-500 cursor-pointer overflow-hidden relative">
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 -mr-8 -mt-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-white group-hover:scale-110 shadow-sm transition-all mb-6">
-                     <Zap size={20} strokeWidth={2.5} />
+                <div className="md:col-span-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-slate-700">Message</label>
+                    <span className="text-xs text-slate-500 font-medium">We'll reply to your email</span>
                   </div>
-                  <h5 className="font-black text-slate-900 text-[10px] uppercase tracking-widest mb-1">Vault</h5>
-                  <p className="text-[9px] font-black text-slate-400 group-hover:text-blue-600 underline underline-offset-4 uppercase tracking-[0.2em] transition-colors">Read Specs</p>
-               </div>
-               <div className="p-8 rounded-[1.5rem] bg-white border border-slate-200/60 hover:shadow-premium group transition-all duration-500 cursor-pointer overflow-hidden relative">
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 -mr-8 -mt-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-emerald-600 group-hover:bg-white group-hover:scale-110 shadow-sm transition-all mb-6">
-                     <CheckCircle size={20} strokeWidth={2.5} />
-                  </div>
-                  <h5 className="font-black text-slate-900 text-[10px] uppercase tracking-widest mb-1">Pulse</h5>
-                  <p className="text-[9px] font-black text-slate-400 group-hover:text-emerald-600 underline underline-offset-4 uppercase tracking-[0.2em] transition-colors">Grid Status</p>
-               </div>
+                  <textarea
+                    placeholder="Describe your issue in detail..."
+                    value={form.message}
+                    onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    className="w-full h-32 rounded-lg border border-[#E5E7EB] bg-white p-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-[#E5E7EB]">
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading || submitted}
+                  className="h-11 px-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-semibold text-sm shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <><Loader2 size={16} className="animate-spin" /> Sending...</>
+                  ) : submitted ? (
+                    <><CheckCircle size={16} strokeWidth={2.5} /> Sent Successfully</>
+                  ) : (
+                    <>Submit Request <Send size={16} strokeWidth={2.5} /></>
+                  )}
+                </button>
+              </div>
             </div>
-         </div>
+          </div>
+        </div>
+
+        {/* Right Panel */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-6 shadow-sm space-y-6 relative overflow-hidden group">
+            <h3 className="text-lg font-semibold text-slate-900 leading-tight">Contact Us Directly</h3>
+            <div className="space-y-4">
+              <ContactItem icon={Mail} label="Support Email" value={SUPPORT_EMAIL} href={`mailto:${SUPPORT_EMAIL}`} />
+              <ContactItem icon={Phone} label="Support Hotline" value="+91 1800-ORIGI-HELP" />
+              <ContactItem icon={MessagesSquare} label="Response Time" value="Within 24 hours" />
+            </div>
+          </div>
+
+          <div className="bg-blue-50/50 border border-blue-100 rounded-[16px] p-6 flex flex-col gap-4 relative overflow-hidden group">
+            <div className="relative z-10 flex items-start gap-3">
+              <HelpCircle className="text-blue-600 mt-0.5" size={20} strokeWidth={2.5} />
+              <div>
+                <h4 className="text-sm font-bold text-blue-900 mb-1">
+                  Urgent Issues
+                </h4>
+                <p className="text-xs text-blue-800/80 font-medium leading-relaxed">
+                  For critical system failures or immediate assistance, email our priority support team directly.
+                </p>
+              </div>
+            </div>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="w-full text-center h-10 flex items-center justify-center rounded-lg font-semibold text-sm bg-white border border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 shadow-sm transition-all relative z-10">
+              {SUPPORT_EMAIL}
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function ContactItem({ icon: Icon, label, value }) {
+function ContactItem({ icon: Icon, label, value, href }) {
   return (
-    <div className="flex items-center gap-6 group cursor-pointer">
-       <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 group-hover:scale-110 transition-all shadow-sm">
-          <Icon size={20} strokeWidth={2.5} />
-       </div>
-       <div className="flex-1">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 group-hover:text-slate-500 transition-colors">{label}</p>
-          <p className="text-[14px] font-black text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">{value}</p>
-       </div>
-       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-200 group-hover:text-blue-600 group-hover:bg-blue-50 transition-all translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100">
-          <ChevronRight size={18} strokeWidth={3} />
-       </div>
+    <div 
+      className={`flex items-start gap-4 p-3 rounded-xl transition-all ${href ? 'cursor-pointer hover:bg-slate-50 border border-transparent hover:border-slate-100' : ''}`} 
+      onClick={href ? () => window.open(href) : undefined}
+    >
+      <div className="w-10 h-10 rounded-lg bg-slate-50 border border-[#E5E7EB] flex items-center justify-center text-slate-500 shrink-0">
+        <Icon size={18} strokeWidth={2} />
+      </div>
+      <div className="flex flex-col flex-1 pb-1">
+        <span className="text-xs font-semibold text-slate-500 mb-0.5">{label}</span>
+        <span className="text-sm font-medium text-slate-900">{value}</span>
+      </div>
+      {href && (
+        <div className="flex items-center text-slate-400 self-center">
+          <ChevronRight size={16} />
+        </div>
+      )}
     </div>
   );
 }
-
-// SettingsView removed per user request

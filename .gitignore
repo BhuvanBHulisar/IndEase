@@ -1,12 +1,36 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment variables
 .env
+server/.env
+admin-portal/.env
+
+# Logs
+*.log
+logs/
+
+# Text / temp output files
+*.txt
+
+# SQL dumps
+*.sql
+originode_backup.sql
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Vite / local dev
 *.local
-.vscode
-.github
-lint_output.txt
-devlop a app.txt
-fix_css.py
-SystemArchitecture.png
-build.log
+
+# GitHub / CI (keep in repo, not ignored by default — remove if needed)
+# .github/

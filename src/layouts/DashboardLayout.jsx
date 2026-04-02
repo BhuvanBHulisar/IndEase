@@ -25,6 +25,17 @@ const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTa
           <div className="p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-fade-in">
             {children}
           </div>
+          {/* Dashboard Footer */}
+          <div className="px-8 lg:px-12 pb-8 max-w-[1600px] mx-auto w-full">
+            <div className="pt-6 border-t border-slate-200/60 text-center">
+              <p className="text-xs text-slate-400 font-medium">
+                Need help? Contact us at{' '}
+                <a href="mailto:originode7@gmail.com" className="text-blue-500 hover:underline font-bold">
+                  originode7@gmail.com
+                </a>
+              </p>
+            </div>
+          </div>
         </main>
       </div>
     </div>

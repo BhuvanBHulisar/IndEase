@@ -35,7 +35,8 @@ const getMainMenuItems = (role) => {
 };
 
 const generalItems = [
-  { id: 'profile', label: 'My Account', icon: User }
+  { id: 'profile', label: 'My Account', icon: User },
+  { id: 'support', label: 'Help & Support', icon: HelpCircle },
 ];
 
 const Sidebar = ({ activeTab, setActiveTab, onLogout, user, role }) => {
@@ -112,17 +113,17 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user, role }) => {
                   key={item.id}
                   onClick={() => setActiveTab && setActiveTab(item.id)}
                   className={cn(
-                    "w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group",
+                    "w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group relative overflow-hidden",
                     isActive 
-                      ? "bg-slate-900 text-white" 
+                      ? `${primaryBg} ${primaryText}` 
                       : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                   )}
                 >
-                  <div className="flex items-center gap-3.5">
-                    <Icon size={18} strokeWidth={2} className={cn("transition-colors", isActive ? "text-white" : "text-slate-400 group-hover:text-slate-900")} />
-                    <span className="font-medium text-sm tracking-tight">{item.label}</span>
+                  <div className="flex items-center gap-3.5 relative z-10">
+                    <Icon size={18} strokeWidth={2} className={cn("transition-colors", isActive ? primaryText : "text-slate-400 group-hover:text-slate-900")} />
+                    <span className={`font-semibold text-sm tracking-tight ${isActive ? '' : 'text-slate-600'}`}>{item.label}</span>
                   </div>
-                  {isActive && <ChevronRight size={14} className="opacity-50" />}
+                  {isActive && <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-${primaryColor} rounded-l-full`} />}
                 </button>
               );
             })}

@@ -13,7 +13,8 @@ import {
   FileDown,
   Database,
   Calendar,
-  Cpu
+  Cpu,
+  Star
 } from 'lucide-react';
 import { 
   Card, 
