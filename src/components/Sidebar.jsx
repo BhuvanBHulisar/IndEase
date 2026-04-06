@@ -3,13 +3,10 @@ import {
   LayoutDashboard,
   MessageSquare,
   History,
-  Search,
   HardDrive,
   User,
   HelpCircle,
-  Settings,
   LogOut,
-  ChevronRight,
   Shield,
   Activity
 } from 'lucide-react';
@@ -23,7 +20,6 @@ const getMainMenuItems = (role) => {
       { id: 'performance', label: 'My Performance', icon: Activity },
       { id: 'messages', label: 'Messages', icon: MessageSquare },
       { id: 'history', label: 'Service Logs', icon: History },
-      { id: 'legacy', label: 'Data Archive', icon: Search },
     ];
   }
   return [

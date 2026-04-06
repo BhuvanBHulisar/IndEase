@@ -159,14 +159,12 @@ export const getStats = async (req, res) => {
     try {
         let stats;
         if (role === 'producer') {
-            // Stats for Expert
             const revenueRes = await db.query(
                 `SELECT 
-                    COALESCE(SUM(amount), 0) as total_revenue,
-                    COALESCE(AVG(amount), 0) as avg_ticket
-                 FROM transactions t
-                 JOIN service_requests sr ON t.request_id = sr.id
-                 WHERE sr.producer_id = $1 AND t.status = 'paid'`,
+                    COALESCE(SUM(COALESCE(expert_amount, amount)), 0) as total_revenue,
+                    COALESCE(AVG(COALESCE(expert_amount, amount)), 0) as avg_ticket
+                 FROM transactions
+                 WHERE expert_id = $1 AND status IN ('paid', 'completed', 'escrow')`,
                 [userId]
             );
 
@@ -184,12 +182,10 @@ export const getStats = async (req, res) => {
                 totalSpent: 0
             };
         } else {
-            // Stats for Consumer
             const spentRes = await db.query(
                 `SELECT COALESCE(SUM(amount), 0) as total_spent
-                 FROM transactions t
-                 JOIN service_requests sr ON t.request_id = sr.id
-                 WHERE sr.consumer_id = $1 AND t.status = 'paid'`,
+                 FROM transactions
+                 WHERE consumer_id = $1 AND status IN ('paid', 'completed', 'escrow')`,
                 [userId]
             );
 
@@ -219,28 +215,30 @@ export const getHistory = async (req, res) => {
         if (role === 'producer') {
             query = `
                 SELECT 
-                    t.id, t.created_at, u.first_name as other_party, 
-                    sr.id as service_id, t.status, t.amount,
-                    t.expert_amount, t.platform_fee, t.gst, t.type
+                    t.id, t.created_at, t.status, t.amount,
+                    t.expert_amount, t.platform_fee, t.gst, t.type,
+                    COALESCE(u.first_name, 'Consumer') as other_party,
+                    sr.id as service_id
                 FROM transactions t
-                JOIN service_requests sr ON t.request_id = sr.id
-                JOIN users u ON sr.consumer_id = u.id
-                WHERE sr.producer_id = $1
+                LEFT JOIN service_requests sr ON t.request_id = sr.id OR t.job_id = sr.id
+                LEFT JOIN users u ON sr.consumer_id = u.id
+                WHERE t.expert_id = $1
                 ORDER BY t.created_at DESC
                 LIMIT 20
             `;
         } else {
             query = `
                 SELECT 
-                    t.id, t.created_at, u.first_name as other_party, 
-                    sr.id as service_id, t.status, t.amount,
+                    t.id, t.created_at, t.status, t.amount,
                     t.expert_amount, t.platform_fee, t.gst,
+                    COALESCE(u.first_name, 'Expert') as other_party,
+                    sr.id as service_id,
                     pp.level as expert_level, pp.rating as expert_rating
                 FROM transactions t
-                JOIN service_requests sr ON t.request_id = sr.id
-                JOIN users u ON sr.producer_id = u.id
+                LEFT JOIN service_requests sr ON t.request_id = sr.id OR t.job_id = sr.id
+                LEFT JOIN users u ON sr.producer_id = u.id
                 LEFT JOIN producer_profiles pp ON pp.user_id = u.id
-                WHERE sr.consumer_id = $1
+                WHERE t.consumer_id = $1
                 ORDER BY t.created_at DESC
                 LIMIT 20
             `;

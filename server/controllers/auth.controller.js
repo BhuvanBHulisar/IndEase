@@ -9,7 +9,10 @@ import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema,
 
 export const googleAuthReact = async (req, res) => {
     try {
+        console.log("AUTH HIT - googleAuthReact");
+        console.log(req.body);
         const { idToken } = req.body;
+        console.log("idToken:", idToken);
         if (!idToken) return res.status(400).json({ error: 'Missing idToken' });
         let payload;
         try {
@@ -40,10 +43,10 @@ export const googleAuthReact = async (req, res) => {
         }
 
         const token = generateAccessToken(user);
-        return res.status(200).json({ 
-            token, 
-            message: 'Login successful', 
-            user: { id: user.id, email: user.email, name: user.first_name, picture: user.photo_url, role: user.role } 
+        return res.status(200).json({
+            token,
+            message: 'Login successful',
+            user: { id: user.id, email: user.email, name: user.first_name, picture: user.photo_url, role: user.role }
         });
     } catch (err) {
         console.error('Google Auth React failed:', err);
@@ -55,7 +58,7 @@ export const googleIdTokenLogin = async (req, res) => {
     try {
         const { token: googleToken } = req.body;
         if (!googleToken) return res.status(400).json({ error: 'ID token required' });
-        
+
         const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
         const ticket = await client.verifyIdToken({
             idToken: googleToken,
@@ -113,6 +116,8 @@ const cookieOptions = {
  */
 export const register = async (req, res) => {
     try {
+        console.log("AUTH HIT - register");
+        console.log(req.body);
         const { email, password, role, firstName, lastName, phone, dob, organization } = req.body;
         const normalizedEmail = email.toLowerCase();
         const userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
@@ -121,7 +126,7 @@ export const register = async (req, res) => {
         }
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUserRes = await db.query(
-            'INSERT INTO users (email, password, role, first_name, last_name, phone_number, date_of_birth, organization, provider) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+            'INSERT INTO users (email, password, role, first_name, last_name, phone, dob, organization, provider) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
             [normalizedEmail, hashedPassword, role, firstName || null, lastName || null, phone || null, dob || null, organization || null, 'local']
         );
         const user = newUserRes.rows[0];
@@ -138,7 +143,7 @@ export const register = async (req, res) => {
         res.status(201).json({ token, user });
     } catch (err) {
         if (err.code === '23505') { // Code for unique violation
-             return res.status(400).json({ message: 'Account already exists. Please login.' });
+            return res.status(400).json({ message: 'Account already exists. Please login.' });
         }
         res.status(500).json({ message: 'Registration failed', error: err.message });
     }
@@ -190,6 +195,8 @@ export const socialLogin = async (req, res) => {
 
 export const login = async (req, res) => {
     try {
+        console.log("AUTH HIT - login");
+        console.log(req.body);
         console.log('[Auth] Login attempt for:', req.body.email);
         const { email, password } = req.body;
         if (!email || !password) {
@@ -197,7 +204,7 @@ export const login = async (req, res) => {
         }
 
         const normalizedEmail = email.trim().toLowerCase();
-        
+
         // Query users table (admin users have role='admin')
         const userRes = await db.query(
             "SELECT * FROM users WHERE LOWER(email) = $1",
@@ -225,14 +232,14 @@ export const login = async (req, res) => {
         const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
         const token = generateAccessToken({ id: user.id, email: user.email, role: user.role, name });
         console.log('[Auth] Login successful for', normalizedEmail, '(role:', user.role + ')');
-        
+
         const userData = {
             id: user.id,
             name,
             email: user.email,
             role: user.role
         };
-        
+
         res.json({
             token,
             user: userData,
@@ -399,10 +406,12 @@ export const googleAuthSuccess = async (req, res, next) => {
         res.cookie('refreshToken', refreshToken, { ...cookieOptions, httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
         console.log('[Controller] Cookies set');
 
-        // Redirect to dashboard
-        return res.redirect('http://localhost:5173/dashboard');
+        // Redirect to frontend auth-success page with token in URL so React can persist it
+        const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+        return res.redirect(`${clientUrl}/auth-success?token=${accessToken}`);
     } catch (err) {
         console.error('[Controller] Industrial authentication via Google failed:', err);
-        return res.redirect('http://localhost:5173/login?error=google_auth_failed');
+        const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+        return res.redirect(`${clientUrl}/login?error=google_auth_failed`);
     }
 };

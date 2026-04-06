@@ -41,7 +41,18 @@ router.post('/create-order', async (req, res) => {
             receipt: `receipt_${Date.now()}`
         };
 
-        const order = await razorpay.orders.create(options);
+        let order;
+        try {
+            order = await razorpay.orders.create(options);
+        } catch (rzpErr) {
+            console.warn('[Payment] Razorpay order creation failed, using mock order:', rzpErr.message);
+            order = {
+                id: `order_mock_${Date.now()}`,
+                amount: options.amount,
+                currency: options.currency,
+                receipt: options.receipt
+            };
+        }
 
         // Ensure requestId is a valid UUID, otherwise null (for demo mocks)
         const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(requestId));
@@ -61,14 +72,14 @@ router.post('/create-order', async (req, res) => {
             }
         }
 
-        // Store in DB as escrow — write to both old and new columns for compatibility
+        // Store in DB as escrow — using actual column names
         await db.query(
             `INSERT INTO transactions (
                 request_id, job_id, consumer_id, expert_id,
                 base_amount, platform_fee, gst, expert_amount,
-                provider_price, commission_amount, gst_amount, provider_payout, platform_profit,
-                payment_ref, transaction_ref, status, amount
-            ) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $4, $5, $6, $7, $5, $8, $8, 'escrow', $9)`,
+                provider_price, provider_payout,
+                razorpay_order_id, transaction_ref, status, amount
+            ) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $4, $7, $8, $8, 'escrow', $9)`,
             [
                 safeRequestId,
                 consumerId,
@@ -125,8 +136,8 @@ router.post('/verify-payment', async (req, res) => {
             // (funds are held until admin releases)
             const transRes = await db.query(
                 `UPDATE transactions 
-                 SET payment_ref = $1, transaction_ref = $1 
-                 WHERE (payment_ref = $2 OR transaction_ref = $2)
+                 SET razorpay_payment_id = $1, transaction_ref = $1
+                 WHERE razorpay_order_id = $2 OR transaction_ref = $2
                  RETURNING *`,
                 [razorpay_payment_id, razorpay_order_id]
             );

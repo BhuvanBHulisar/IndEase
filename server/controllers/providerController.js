@@ -19,8 +19,26 @@ export async function getProviderPerformance(req, res) {
     try {
         const performance = await getFullExpertPerformance(req.params.id);
 
+        // New expert with no data — return safe defaults instead of 404
         if (!performance) {
-            return res.status(404).json({ message: 'Provider performance not found' });
+            return res.json({
+                points: 0,
+                level: 'Starter',
+                salary: 0,
+                levelSalary: 0,
+                jobsCompleted: 0,
+                rating: 5.0,
+                acceptanceRate: '100%',
+                avgCompletionTime: '0 hrs',
+                totalJobsDeclined: 0,
+                totalJobEarnings: 0,
+                monthJobEarnings: 0,
+                totalSalaryPaid: 0,
+                lifetimeEarnings: 0,
+                recentPointEvents: [],
+                nextSalaryDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+                isEmpty: true
+            });
         }
 
         return res.json(performance);

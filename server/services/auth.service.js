@@ -12,7 +12,7 @@ export const registerUser = async (userData) => {
     const normalizedEmail = email.toLowerCase();
 
     // 1. Check existing (Case Insensitive)
-    const exists = await db.query('SELECT id FROM users WHERE LOWER(email) = $1 OR phone_number = $2', [normalizedEmail, phone]);
+    const exists = await db.query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
     if (exists.rows.length > 0) {
         throw new AppError('Email already registered', 400);
     }
@@ -24,7 +24,7 @@ export const registerUser = async (userData) => {
     // 3. Insert into Industrial Ledger
     const newUser = await db.query(
         `INSERT INTO users 
-        (email, password_hash, first_name, last_name, phone_number, birth_date, company_name, role) 
+        (email, password, first_name, last_name, phone, dob, organization, role) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
         RETURNING id, email, role`,
         [normalizedEmail, hashedPassword, firstName, lastName, phone, birthDate, companyName || extraInfo, role]
@@ -100,7 +100,7 @@ export const resetUserPassword = async (token, newPassword) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
+    await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, userId]);
     await db.query('DELETE FROM verification_tokens WHERE id = $1', [result.rows[0].id]);
 };
 export const validateResetToken = async (token) => {

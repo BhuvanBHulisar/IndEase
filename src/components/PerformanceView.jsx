@@ -28,23 +28,76 @@ const LEVEL_META = {
 export default function PerformanceView({ userId }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchPerformance = async () => {
+      if (!userId) { setLoading(false); return; }
       try {
         const res = await api.get(`/providers/${userId}/performance`);
         setData(res.data);
+        setError(null);
       } catch (err) {
         console.error('Performance fetch error:', err);
+        if (err.response?.status === 401) {
+          setError('Session expired. Please login again.');
+        } else if (err.response?.status === 404) {
+          // Treat as empty — new expert
+          setData({
+            points: 0, level: 'Starter', salary: 0, levelSalary: 0,
+            jobsCompleted: 0, rating: 5.0, acceptanceRate: '100%',
+            avgCompletionTime: '0 hrs', totalJobsDeclined: 0,
+            totalJobEarnings: 0, monthJobEarnings: 0, totalSalaryPaid: 0,
+            lifetimeEarnings: 0, recentPointEvents: [],
+            nextSalaryDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+            isEmpty: true
+          });
+          setError(null);
+        } else {
+          setError(null);
+          setData({
+            points: 0, level: 'Starter', salary: 0, levelSalary: 0,
+            jobsCompleted: 0, rating: 5.0, acceptanceRate: '100%',
+            avgCompletionTime: '0 hrs', totalJobsDeclined: 0,
+            totalJobEarnings: 0, monthJobEarnings: 0, totalSalaryPaid: 0,
+            lifetimeEarnings: 0, recentPointEvents: [],
+            nextSalaryDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+            isEmpty: true
+          });
+        }
       } finally {
         setLoading(false);
       }
     };
-    if (userId) fetchPerformance();
+    fetchPerformance();
   }, [userId]);
 
-  if (loading) return <div className="h-96 flex items-center justify-center font-bold text-slate-400">Loading metrics...</div>;
-  if (!data) return <div className="h-96 flex items-center justify-center font-bold text-red-400">Error loading performance data.</div>;
+  if (loading) return (
+    <div className="h-96 flex items-center justify-center font-bold text-slate-400">
+      Loading metrics...
+    </div>
+  );
+
+  if (error) return (
+    <div className="h-96 flex flex-col items-center justify-center gap-3 text-center px-6">
+      <Activity size={40} className="text-slate-300" />
+      <p className="font-bold text-red-500">{error}</p>
+    </div>
+  );
+
+  if (!data || data.isEmpty) return (
+    <div className="h-96 flex flex-col items-center justify-center gap-4 text-center px-6">
+      <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center">
+        <TrendingUp size={32} className="text-indigo-400" />
+      </div>
+      <div>
+        <p className="text-lg font-bold text-slate-900 mb-1">No performance data yet</p>
+        <p className="text-sm text-slate-500 max-w-sm">
+          Accept your first service request to start earning points and building your performance record.
+        </p>
+      </div>
+    </div>
+  );
 
   const meta = LEVEL_META[data.level] || LEVEL_META.Starter;
   const progressPercent = meta.nextPoints ? Math.min(100, (data.points / meta.nextPoints) * 100) : 100;
@@ -203,7 +256,7 @@ export default function PerformanceView({ userId }) {
                     <div className="flex items-center gap-2 opacity-80 mt-1">
                        <Calendar size={12} />
                        <span className="text-xs font-semibold">
-                          Expected on {new Date(data.nextSalaryDate).toLocaleDateString('en-GB', { day: '01', month: 'long', year: 'numeric' })}
+                          Expected on {data.nextSalaryDate ? new Date(data.nextSalaryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Next month'}
                        </span>
                     </div>
                  </div>

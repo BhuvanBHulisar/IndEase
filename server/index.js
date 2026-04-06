@@ -18,7 +18,8 @@ import { errorHandler } from "./middleware/error.middleware.js";
 import machineRoutes from "./routes/machineRoutes.js";
 import { saveMessage } from "./controllers/chatController.js";
 import adminRouter, { ensureAdminSchema } from "./routes/admin.js";
-import notificationsRoutes from "./routes/notifications.routes.js";
+import adminNotificationsRoutes from "./routes/notifications.routes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import providerRoutes from "./routes/providerRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
@@ -30,15 +31,23 @@ import { startExpertPerformanceCron } from "./services/expertPerformanceService.
 const app = express();
 const server = createServer(app);
 
-const allowedOrigins = (
-  process.env.CLIENT_URL || "http://localhost:5173"
-).split(",");
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:5176",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  ...(process.env.CLIENT_URL || "").split(",").map((s) => s.trim()).filter(Boolean),
+];
 
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true,
   },
+  transports: ["websocket", "polling"],
 });
 
 app.set("socketio", io);
@@ -47,21 +56,39 @@ global.io = io; // For controllers to access without req object
 // 1. GLOBAL MIDDLEWARE
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
   }),
 );
+
+// Force COOP: unsafe-none so Google OAuth popup can postMessage back
+// Without this, browsers block window.postMessage from accounts.google.com
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+  next();
+});
+
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"],
     exposedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 200,
   }),
 );
 app.use(morgan("dev"));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
   session({
@@ -87,8 +114,8 @@ app.use("/api/machines", machineRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/finance", financeRoutes);
 app.use("/api/chat", chatRoutes);
-app.use("/api/notifications", notificationsRoutes);
-app.use("/api/admin/notifications", notificationsRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin/notifications", adminNotificationsRoutes);
 app.use("/api/analytics", adminRouter);
 
 app.use("/api/admin", adminRouter);

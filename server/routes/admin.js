@@ -462,7 +462,7 @@ router.post("/providers", async (req, res) => {
     const lastName = nameParts.slice(1).join(" ") || null;
 
     const userRes = await db.query(
-      `INSERT INTO users (email, password_hash, role, first_name, last_name, phone, location)
+      `INSERT INTO users (email, password, role, first_name, last_name, phone, location)
              VALUES ($1, $2, 'producer', $3, $4, $5, $6) RETURNING id, email, first_name, last_name, role, created_at`,
       [
         email.toLowerCase(),

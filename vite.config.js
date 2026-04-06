@@ -7,5 +7,11 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    headers: {
+      // Allow Google OAuth popup to postMessage back to the opener
+      // without being blocked by Cross-Origin-Opener-Policy
+      "Cross-Origin-Opener-Policy": "unsafe-none",
+      "Cross-Origin-Embedder-Policy": "unsafe-none",
+    },
   }
-})
+})

@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'originode7@gmail.com';
 
-const transporter = nodemailer.createTransport({
+const getTransporter = () => nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT) || 587,
     secure: Number(process.env.SMTP_PORT) === 465,
@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
 
 export const sendExpertWelcomeEmail = async ({ name, email, password }) => {
     const appUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
-    await transporter.sendMail({
+    await getTransporter().sendMail({
         from: `"origiNode Support" <${process.env.SMTP_USER}>`,
         to: email,
         subject: 'Welcome to origiNode — Your Expert Account is Ready',
@@ -79,7 +79,7 @@ export const sendExpertWelcomeEmail = async ({ name, email, password }) => {
 };
 
 export const sendExpertRemovalEmail = async ({ name, email, reason }) => {
-    await transporter.sendMail({
+    await getTransporter().sendMail({
         from: `"origiNode Support" <${process.env.SMTP_USER}>`,
         to: email,
         subject: 'Your origiNode Expert Account Has Been Removed',
@@ -125,7 +125,7 @@ export const sendExpertRemovalEmail = async ({ name, email, reason }) => {
 };
 
 export const sendSupportEmail = async ({ name, email, subject, message }) => {
-    await transporter.sendMail({
+    await getTransporter().sendMail({
         from: `"origiNode Support" <${process.env.SMTP_USER}>`,
         to: SUPPORT_EMAIL,
         replyTo: email,

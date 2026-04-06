@@ -9,7 +9,7 @@ export const getProfile = async (req, res) => {
 
         // 1. Get basic user info
         const userResult = await db.query(
-            'SELECT id, email, first_name, last_name, phone_number as phone, date_of_birth as dob, photo_url, organization, location, tax_id, is_verified, role FROM users WHERE id = $1',
+            'SELECT id, email, first_name, last_name, phone, dob, photo_url, organization, location, tax_id, is_verified, role FROM users WHERE id = $1',
             [userId]
         );
 
@@ -107,8 +107,8 @@ export const updateProfile = async (req, res) => {
             `UPDATE users 
              SET first_name = COALESCE($1, first_name), 
                  last_name = COALESCE($2, last_name),
-                 phone_number = COALESCE($3, phone_number),
-                 date_of_birth = COALESCE($4, date_of_birth),
+                 phone = COALESCE($3, phone),
+                 dob = COALESCE($4, dob),
                  photo_url = COALESCE($5, photo_url),
                  organization = COALESCE($6, organization),
                  location = COALESCE($7, location),
