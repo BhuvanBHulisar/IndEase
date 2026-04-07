@@ -3,6 +3,7 @@ import db from '../config/db.js';
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function calculateLevel(points = 0) {
     const normalizedPoints = Math.max(0, Number(points) || 0);
@@ -131,7 +132,7 @@ export function wasCompletedUnderTwentyFourHours(referenceStartedAt, completedAt
 }
 
 export async function getExpertStats(expertId) {
-    if (!expertId) {
+    if (!expertId || expertId === 'IND-00000' || expertId === 'DEMO-001' || expertId === 'expert') {
         return null;
     }
 
@@ -151,6 +152,11 @@ export async function getExpertStats(expertId) {
             qualification: 'Certified Expert',
             memberSince: new Date().toISOString()
         };
+    }
+
+    if (!UUID_REGEX.test(expertId)) {
+        console.warn(`[ExpertPerformance] Invalid UUID provided: ${expertId}`);
+        return null;
     }
 
     await ensureExpertProfile(expertId);

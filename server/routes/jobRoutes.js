@@ -3,6 +3,7 @@ import * as jobController from '../controllers/jobController.js';
 import * as reviewController from '../controllers/reviewController.js';
 import { protect as auth } from '../middleware/auth.middleware.js';
 import { roleCheck } from '../middleware/roleCheck.js';
+import db from '../config/db.js';
 
 const router = express.Router();
 
@@ -47,6 +48,33 @@ router.post('/:id/invoice', auth, roleCheck(['producer']), jobController.createI
 router.post('/:id/rating', auth, roleCheck(['consumer']), (req, res) => {
     req.body.requestId = req.params.id;
     return reviewController.createReview(req, res);
+});
+
+// @route   PATCH api/jobs/:id/cancel
+// @desc    Consumer cancels their pending request
+router.patch('/:id/cancel', auth, roleCheck(['consumer']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        const result = await db.query(
+            `UPDATE service_requests 
+             SET status = 'cancelled' 
+             WHERE id = $1 AND consumer_id = $2 AND status = 'pending'
+             RETURNING *`,
+            [id, userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(400).json({ 
+                error: 'Cannot cancel — request not found or already accepted' 
+            });
+        }
+        if (global.io) {
+            global.io.to(`user_${userId}`).emit('request_cancelled', { requestId: id });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to cancel request' });
+    }
 });
 
 // @route   GET api/jobs/my

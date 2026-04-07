@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../components/ui/base';
+import { SkeletonCard, SkeletonStats } from './ui/Skeleton';
 
 const LEVEL_META = {
   Starter: {
@@ -272,6 +273,7 @@ JobCard.displayName = 'JobCard';
 export default function ProducerDashboard({
   stats,
   radarJobs,
+  loading,
   onAcceptJob,
   onDeclineJob,
   onViewDetails
@@ -307,27 +309,33 @@ export default function ProducerDashboard({
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard
-          label="Total Earnings"
-          value={formatCurrency(stats?.earnings)}
-          icon={Wallet}
-          color="#3A86B7"
-        />
-        <StatsCard
-          label="Jobs Completed"
-          value={stats?.completedJobs || 0}
-          icon={CheckCircle2}
-          color="#16A34A"
-          suffix="Jobs"
-        />
-        <StatsCard
-          label="My Rating"
-          value={rating.toFixed(1)}
-          icon={Star}
-          color="#FBBF24"
-          suffix="/ 5.0"
-        />
-        <LevelCard level={level} points={points} salary={salary} meta={meta} progress={progress} />
+        {loading ? (
+           <div className="col-span-full"><SkeletonStats /></div>
+        ) : (
+          <>
+            <StatsCard
+              label="Total Earnings"
+              value={formatCurrency(stats?.earnings)}
+              icon={Wallet}
+              color="#3A86B7"
+            />
+            <StatsCard
+              label="Jobs Completed"
+              value={stats?.completedJobs || 0}
+              icon={CheckCircle2}
+              color="#16A34A"
+              suffix="Jobs"
+            />
+            <StatsCard
+              label="My Rating"
+              value={rating.toFixed(1)}
+              icon={Star}
+              color="#FBBF24"
+              suffix="/ 5.0"
+            />
+            <LevelCard level={level} points={points} salary={salary} meta={meta} progress={progress} />
+          </>
+        )}
       </div>
 
       <section className="space-y-4">
@@ -414,30 +422,37 @@ export default function ProducerDashboard({
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <AnimatePresence mode="popLayout">
-            {filteredJobs.length > 0 ? (
-              filteredJobs.map((job, index) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  index={index}
-                  onAccept={() => onAcceptJob(job)}
-                  onDecline={() => onDeclineJob(job)}
-                  onViewDetails={() => onViewDetails && onViewDetails(job)}
-                />
-              ))
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center rounded-[16px] border border-[#E5E7EB] bg-white p-12 py-32 text-center transition-all duration-500">
-                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50">
-                  <Terminal className="text-slate-400" size={28} />
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            <AnimatePresence mode="popLayout">
+              {filteredJobs.length > 0 ? (
+                filteredJobs.map((job, index) => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    index={index}
+                    onAccept={() => onAcceptJob(job)}
+                    onDecline={() => onDeclineJob(job)}
+                    onViewDetails={() => onViewDetails && onViewDetails(job)}
+                  />
+                ))
+              ) : (
+                <div className="col-span-full flex flex-col items-center justify-center rounded-[16px] border border-[#E5E7EB] bg-white p-12 py-32 text-center transition-all duration-500">
+                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50">
+                    <Terminal className="text-slate-400" size={28} />
+                  </div>
+                  <h4 className="mb-2 text-lg font-semibold text-slate-900">No new requests.</h4>
+                  <p className="mx-auto max-w-sm text-sm text-slate-500">
+                    You will be notified when a consumer in your area needs help.
+                  </p>
                 </div>
-                <h4 className="mb-2 text-lg font-semibold text-slate-900">No new requests.</h4>
-                <p className="mx-auto max-w-sm text-sm text-slate-500">
-                  You will be notified when a consumer in your area needs help.
-                </p>
-              </div>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>
+          )}
         </div>
       </div>
     </div>

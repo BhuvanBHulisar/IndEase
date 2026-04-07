@@ -32,7 +32,7 @@ export default function PerformanceView({ userId }) {
 
   useEffect(() => {
     const fetchPerformance = async () => {
-      if (!userId) { setLoading(false); return; }
+      if (!userId || userId === 'IND-00000') { setLoading(false); return; }
       try {
         const res = await api.get(`/providers/${userId}/performance`);
         setData(res.data);

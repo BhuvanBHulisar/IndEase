@@ -15,6 +15,7 @@ router.get('/', auth, profileController.getProfile);
 // @route   PATCH api/profile
 // @desc    Update user profile data
 router.patch('/', auth, profileController.updateProfile);
+router.put('/update', auth, profileController.updateProfileData);
 router.patch('/verify', auth, profileController.verifyProfile);
 
 // @route   POST api/profile/skills

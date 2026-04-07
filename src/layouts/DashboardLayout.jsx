@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
-const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTab, onLogout, role, onMarkAsRead, onMarkAllRead, socketReconnecting }) => {
+const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTab, onLogout, role, onMarkAsRead, onMarkAllRead, socketReconnecting, onSearch, searchResults, onSearchResultClick, isDemo }) => {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       <Sidebar 
@@ -14,7 +14,7 @@ const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTa
       />
       
       <div className="flex-1 flex flex-col min-w-0">
-        <Topbar user={user} notifications={notifications} role={role} onMarkAsRead={onMarkAsRead} onMarkAllRead={onMarkAllRead} />
+        <Topbar user={user} notifications={notifications} role={role} onMarkAsRead={onMarkAsRead} onMarkAllRead={onMarkAllRead} onSearch={onSearch} searchResults={searchResults} onResultClick={onSearchResultClick} isDemo={isDemo} />
         
         <main className="flex-1 overflow-y-auto bg-slate-50 relative custom-scrollbar">
           {socketReconnecting ? (

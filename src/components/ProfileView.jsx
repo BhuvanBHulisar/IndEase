@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import api from '../services/api';
 import { 
    User, 
    Camera, 
@@ -28,28 +29,88 @@ import { motion } from 'framer-motion';
 export default function ProfileView({ 
   user, 
   userPhoto, 
-  handlePhotoUpload, 
-  startCamera, 
-  onSaveProfile,
-  onDeleteAccount
+  onPhotoUpload, 
+  onStartCamera, 
+  onSave,
+  onDeleteIdentity
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    organization: user.extraInfo || '',
-    phone: user.phone || '',
-    taxId: user.taxId || '',
-    bankAccountNumber: user.bankAccountNumber || '',
-    ifscCode: user.ifscCode || '',
-    accountHolderName: user.accountHolderName || ''
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    organization: user?.extraInfo || '',
+    phone: user?.phone || '',
+    taxId: user?.taxId || '',
+    bankAccountNumber: user?.bankAccountNumber || '',
+    ifscCode: user?.ifscCode || '',
+    accountHolderName: user?.accountHolderName || '',
+    email: user?.email || ''
   });
+
+  useEffect(() => {
+      const loadProfile = async () => {
+          try {
+              const storedUser = localStorage.getItem('user');
+              if (storedUser) {
+                  const u = JSON.parse(storedUser);
+                  setFormData(prev => ({
+                      ...prev,
+                      firstName: u.first_name || u.firstName || prev.firstName,
+                      lastName: u.last_name || u.lastName || prev.lastName,
+                      email: u.email || prev.email,
+                      organization: u.company || u.organization || prev.organization,
+                      phone: u.phone || u.phone_number || prev.phone
+                  }));
+              }
+              const res = await api.get('/auth/me');
+              const u = res.data.user || res.data;
+              
+              setFormData(prev => ({
+                  ...prev,
+                  firstName: u.first_name || u.firstName || prev.firstName,
+                  lastName: u.last_name || u.lastName || prev.lastName,
+                  email: u.email || prev.email,
+                  organization: u.company || u.organization || prev.organization,
+                  phone: u.phone || u.phone_number || prev.phone
+              }));
+              localStorage.setItem('user', JSON.stringify(u));
+              
+          } catch (err) {
+              console.error('Failed to load profile:', err);
+          }
+      };
+      loadProfile();
+  }, []);
 
   const fileInputRef = useRef(null);
 
-  const handleSave = () => {
-    onSaveProfile(formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+      try {
+          const res = await api.put('/profile/update', {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              company: formData.organization,
+              phone: formData.phone
+          });
+          
+          if (res.data.success) {
+              const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+              const updatedUser = { 
+                  ...storedUser, 
+                  first_name: formData.firstName,
+                  last_name: formData.lastName,
+                  company: formData.organization,
+                  phone: formData.phone
+              };
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              
+              if(onSave) onSave(formData);
+              setIsEditing(false);
+              alert('Profile updated successfully!');
+          }
+      } catch (err) {
+          alert('Failed to update profile');
+      }
   };
 
   return (
@@ -103,18 +164,18 @@ export default function ProfileView({
                      </div>
                   </div>
                   <button 
-                    onClick={startCamera}
+                    onClick={onStartCamera}
                     className="absolute right-[calc(50%-44px)] bottom-0 w-10 h-10 bg-white border border-[#E5E7EB] rounded-full shadow-sm flex items-center justify-center text-slate-500 hover:text-blue-600 hover:scale-105 transition-all z-10"
                   >
                      <Camera size={18} strokeWidth={2.5} />
                   </button>
                </div>
                
-               <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} hidden accept="image/*" />
+               <input type="file" ref={fileInputRef} onChange={onPhotoUpload} hidden accept="image/*" />
                
                <div className="relative z-10 space-y-1">
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">{formData.firstName || user.firstName} {formData.lastName || user.lastName}</h3>
-                  <p className="text-sm font-medium text-slate-500">{user.role === 'producer' ? 'Service Expert' : 'Fleet Operator'}</p>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">{formData.firstName} {formData.lastName}</h3>
+                  <p className="text-sm font-medium text-slate-500">{user?.role === 'producer' ? 'Service Expert' : 'Fleet Operator'}</p>
                </div>
 
                <div className="w-full mt-8 pt-8 border-t border-[#E5E7EB] relative z-10 space-y-4">
@@ -124,7 +185,7 @@ export default function ProfileView({
                      </div>
                      <div className="flex flex-col text-left overflow-hidden">
                         <span className="text-xs font-semibold text-slate-400">Email</span>
-                        <span className="text-sm font-medium text-slate-700 truncate">{user.email || 'user@example.com'}</span>
+                        <span className="text-sm font-medium text-slate-700 truncate">{formData.email || 'user@example.com'}</span>
                      </div>
                   </div>
                </div>
@@ -138,7 +199,7 @@ export default function ProfileView({
                  </h4>
                  <p className="text-sm text-red-700/80 leading-relaxed">This will permanently delete your account. This cannot be undone.</p>
                </div>
-               <button onClick={onDeleteAccount} className="w-full h-10 rounded-lg font-semibold text-sm bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 shadow-sm transition-all relative z-10">
+               <button onClick={onDeleteIdentity} className="w-full h-10 rounded-lg font-semibold text-sm bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 shadow-sm transition-all relative z-10">
                   Delete Account
                </button>
             </div>

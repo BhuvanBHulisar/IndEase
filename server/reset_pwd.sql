@@ -1,1 +1,0 @@
-ALTER USER postgres WITH PASSWORD 'Demo@1234';

@@ -1,19 +1,20 @@
-// In-memory ring buffer – last 10 server errors
-const _store = [];
+const errors = [];
+const MAX_ERRORS = 50;
 
 export function logError(message, source = 'unknown') {
-    _store.unshift({
+    errors.unshift({
+        id: Date.now(),
         timestamp: new Date().toISOString(),
-        message: String(message),
-        source,
+        message,
+        source
     });
-    if (_store.length > 10) _store.length = 10;
+    if (errors.length > MAX_ERRORS) errors.pop();
 }
 
 export function getErrors() {
-    return [..._store];
+    return errors.slice(0, 10);
 }
 
 export function clearErrors() {
-    _store.length = 0;
+    errors.length = 0;
 }

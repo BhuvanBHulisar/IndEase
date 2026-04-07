@@ -73,6 +73,7 @@ function statusBadgeClasses(variant) {
 
 const FleetView = ({ 
   machines, 
+  machinesLoading,
   notifications, 
   activeRequests,
   setActiveJobMachine,
@@ -82,6 +83,7 @@ const FleetView = ({
   onViewMachine,
   setShowAddMachineModal, 
   setShowReportIssueModal,
+  onCancelRequest,
   expertPresence = {}
 }) => {
   const verifiedExpertsDisplay = useMemo(() => {
@@ -183,6 +185,21 @@ const FleetView = ({
                       >
                         {meta.label}
                       </div>
+
+                      {req.rawStatus === 'pending' || req.rawStatus === 'broadcast' ? (
+                        <button 
+                          onClick={(e) => {
+                             e.stopPropagation();
+                             if(window.confirm('Are you sure you want to cancel this request?')) {
+                                if(onCancelRequest) onCancelRequest(req.id);
+                             }
+                          }}
+                          className="px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border bg-red-50 text-red-600 border-red-200 hover:bg-red-100 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      ) : null}
+
                       <ArrowUpRight
                         size={20}
                         className="text-slate-300 group-hover:text-[#2563EB] transition-colors shrink-0"
@@ -328,7 +345,7 @@ const FleetView = ({
           <Activity size={20} className="text-[#2563EB]" />
           Active Fleet Analytics
         </h3>
-        <StatsCards machines={machines} />
+        <StatsCards machines={machines} loading={machinesLoading} />
       </div>
 
       {/* ROW 5: MY MACHINES */}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
+import { Skeleton, 
     Box, Typography, Paper, Grid, useTheme,
     Button, CircularProgress, Avatar, Chip,
     Table, TableBody, TableCell, TableHead, TableRow
-} from '@mui/material';
+ } from '@mui/material';
 import {
     Group, Engineering, Work, MonetizationOn,
     GetApp, Timer, TrendingUp
@@ -55,6 +55,7 @@ const SectionBox = ({ loading, error, onRetry, children, height = 280 }) => {
             <Button size="small" variant="outlined" onClick={onRetry} color="error">Retry</Button>
         </Box>
     );
+    if (loading) return <Box sx={{ p: 4 }}><Skeleton variant="rectangular" height={height} sx={{ borderRadius: 4 }} /></Box>;
     return children;
 };
 

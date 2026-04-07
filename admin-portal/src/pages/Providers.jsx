@@ -1,11 +1,11 @@
 import api from '../services/api';
 import React, { useState, useEffect } from 'react';
-import {
+import { Skeleton, 
     Box, Typography, Paper, Chip, IconButton, Avatar, Tooltip,
     TextField, InputAdornment, useTheme, Button, Grid, Rating,
     Divider, Menu, MenuItem, CircularProgress, Snackbar, Alert,
     Dialog, DialogTitle, DialogContent, DialogActions
-} from '@mui/material';
+ } from '@mui/material';
 import {
     Search, SearchOff, Verified, MoreVert, FilterList,
     PersonAdd, ContentCopy, History, Payments, TrendingUp, Star,
@@ -234,7 +234,8 @@ const Providers = () => {
     };
 
     const handleCopyCredentials = () => {
-        const text = `Email: ${credsModal.email}\nPassword: ${credsModal.password}`;
+        const text = `Email: ${credsModal.email}
+Password: ${credsModal.password}`;
         navigator.clipboard.writeText(text).then(() => {
             setToast({ open: true, message: 'Credentials copied to clipboard', severity: 'success' });
         });

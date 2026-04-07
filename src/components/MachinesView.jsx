@@ -1,8 +1,9 @@
 import React from 'react';
 import { Plus, HardDrive, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { SkeletonMachineCard } from './ui/Skeleton';
 
-const MachinesView = ({ machines, setShowAddMachineModal, onViewMachine, setActiveJobMachine, setShowReportIssueModal }) => {
+const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine, setActiveJobMachine, setShowReportIssueModal }) => {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -34,7 +35,13 @@ const MachinesView = ({ machines, setShowAddMachineModal, onViewMachine, setActi
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {machines && machines.length > 0 ? machines.map(m => (
+        {loading ? (
+          <>
+            <SkeletonMachineCard />
+            <SkeletonMachineCard />
+            <SkeletonMachineCard />
+          </>
+        ) : machines && machines.length > 0 ? machines.map(m => (
           <div 
             key={m.id || m._id} 
             className="bg-white p-6 rounded-[16px] border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all cursor-pointer group"

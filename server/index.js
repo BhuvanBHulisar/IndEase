@@ -27,6 +27,7 @@ import supportRoutes from "./routes/supportRoutes.js";
 import { ensureExpertPerformanceSchema } from "./services/expertPerformanceSchema.js";
 import { ensurePaymentSchema } from "./services/paymentSchema.js";
 import { startExpertPerformanceCron } from "./services/expertPerformanceService.js";
+import healthRouter from './routes/healthRoutes.js';
 
 const app = express();
 const server = createServer(app);
@@ -118,6 +119,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin/notifications", adminNotificationsRoutes);
 app.use("/api/analytics", adminRouter);
 
+app.use('/api/admin/health', healthRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/providers", providerRoutes);

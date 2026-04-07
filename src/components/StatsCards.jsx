@@ -2,6 +2,7 @@ import React from 'react';
 import { LayoutGrid, CheckCircle2, Wrench, AlertCircle, TrendingUp, Cpu, Activity, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from './ui/base';
+import { SkeletonStats } from './ui/Skeleton';
 
 const defaultStats = [
   {
@@ -30,7 +31,7 @@ const defaultStats = [
   },
 ];
 
-const StatsCards = ({ machines }) => {
+const StatsCards = ({ machines, loading }) => {
   const machinesList = machines || [];
   const total = machinesList.length || 124;
   const active = machinesList.filter(m => m.condition_score > 50).length || 98;
@@ -38,6 +39,10 @@ const StatsCards = ({ machines }) => {
   const offline = machinesList.filter(m => m.condition_score <= 20).length || 12;
 
   const values = [total, active, underRepair, offline];
+
+  if (loading) {
+    return <SkeletonStats />;
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">

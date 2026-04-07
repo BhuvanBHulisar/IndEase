@@ -78,6 +78,15 @@ import { SupportView } from "./components/SupportSettingsView";
 import ProducerDashboard from "./components/ProducerDashboard";
 import MachineDetailView from "./components/MachineDetailView";
 import { generateInvoicePDF } from "./utils/invoiceGenerator";
+import {
+  DEMO_PRODUCER_STATS,
+  DEMO_RADAR_JOBS,
+  DEMO_CHATS,
+  DEMO_MACHINES,
+  DEMO_ACTIVE_REQUESTS,
+  DEMO_TRANSACTION_HISTORY,
+  DEMO_EARNINGS_STATS,
+} from "./data/demoData";
 import { SERVICE_COMPLETION_MESSAGE } from "./utils/serviceRequestStatus";
 
 import api from "./services/api";
@@ -326,6 +335,37 @@ const parseMessageBody = (text) => {
 };
 
 function App() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [wasOffline, setWasOffline] = useState(false);
+  
+  const [machinesLoading, setMachinesLoading] = useState(true);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [chatsLoading, setChatsLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  useEffect(() => {
+      const handleOnline = () => {
+          setIsOnline(true);
+          if (wasOffline) {
+              setWasOffline(false);
+              // Auto reload data when back online
+              window.location.reload();
+          }
+      };
+      const handleOffline = () => {
+          setIsOnline(false);
+          setWasOffline(true);
+      };
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+          window.removeEventListener('online', handleOnline);
+          window.removeEventListener('offline', handleOffline);
+      };
+  }, [wasOffline]);
+
   const getStoredUser = useCallback(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
@@ -497,6 +537,7 @@ function App() {
     return () => socket.off("finance_chart_update", handleChartUpdate);
   }, [socket]);
   const [role, setRole] = useState("consumer"); // State to track Machine Owner vs Repair Expert
+  const [isDemo, setIsDemo] = useState(() => localStorage.getItem("isDemo") === "true");
   const [isLogin, setIsLogin] = useState(true);
   // Handler to simulate booking expert (call this where booking happens)
   const handleBookExpert = () => {
@@ -566,6 +607,23 @@ function App() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState(() => {
     const user = JSON.parse(localStorage.getItem("user") || "null");
+    const isDemo = localStorage.getItem("isDemo") === "true";
+    
+    if (isDemo && user) {
+      return {
+        name: `${user.first_name || "Demo"} ${user.last_name || "User"}`.trim(),
+        role: user.role === "producer" ? "Industrial Automation Specialist" : "Business Owner",
+        location: user.location || "Bengaluru, Karnataka",
+        phone: user.phone || "9876543210",
+        email: user.email || "demo@originode.com",
+        id: "DEMO-001",
+        skills: ["Hydraulics", "PLC Programming"],
+        bankAccountNumber: "",
+        ifscCode: "",
+        accountHolderName: `${user.first_name || "Demo"} ${user.last_name || "User"}`.trim()
+      };
+    }
+
     return {
       name: user
         ? `${user.first_name || ""} ${user.last_name || ""}`.trim() ||
@@ -890,7 +948,7 @@ function App() {
 
   // [NEW] FETCH FINANCIAL STATS (consumer fleet tab uses fetchConsumerFleetSnapshot)
   useEffect(() => {
-    if (view !== "dashboard") return;
+    if (view !== "dashboard" || isDemo) return;
     if (
       activeTab === "earnings" ||
       activeTab === "history" ||
@@ -918,7 +976,7 @@ function App() {
 
       fetchFinanceData();
     }
-  }, [activeTab, view, role]);
+  }, [activeTab, view, role, isDemo]);
 
   // [NEW] FETCH SUPPORT TICKETS
   useEffect(() => {
@@ -975,6 +1033,7 @@ function App() {
   useEffect(() => {
     if (
       view === "dashboard" &&
+      !isDemo &&
       (activeTab === "profile" || activeTab === "settings")
     ) {
       const fetchProfile = async () => {
@@ -1023,7 +1082,7 @@ function App() {
       };
       fetchProfile();
     }
-  }, [activeTab, view]);
+  }, [activeTab, view, isDemo]);
 
   const [hasSkippedPayout, setHasSkippedPayout] = useState(false);
 
@@ -1033,7 +1092,8 @@ function App() {
       view === "dashboard" &&
       role === "producer" &&
       profileData.email &&
-      !hasSkippedPayout
+      !hasSkippedPayout &&
+      !isDemo
     ) {
       // Check if bank details are missing
       const isMissingBank =
@@ -1370,6 +1430,13 @@ function App() {
         });
       });
 
+      newSocket.on('disconnect', () => {
+          setSocketConnected(false);
+      });
+      newSocket.on('connect', () => {
+          setSocketConnected(true);
+      });
+
       setSocket(newSocket);
       return () => newSocket.disconnect();
     } else {
@@ -1522,7 +1589,48 @@ function App() {
     machine_type: "",
   });
 
-  // Handlers and states moved to consolidated sections
+  // [NEW] COMPLETE PROFILE CHECK
+  const isProfileComplete = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return !!(
+        user.first_name && 
+        user.last_name && 
+        user.phone &&
+        user.first_name.trim() !== '' &&
+        user.last_name.trim() !== '' &&
+        user.phone.trim() !== ''
+    );
+  };
+
+  const [showProfileIncompleteModal, setShowProfileIncompleteModal] = useState(false);
+  const [showCompleteProfileBanner, setShowCompleteProfileBanner] = useState(false);
+
+  useEffect(() => {
+     if(view === 'dashboard' && authenticated) {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if(!user.phone || !user.first_name || String(user.first_name).trim() === '') {
+           setShowCompleteProfileBanner(true);
+        } else {
+           setShowCompleteProfileBanner(false);
+        }
+     }
+  }, [view, authenticated, profileData]);
+
+  const handleOpenAddMachine = () => {
+    if (!isProfileComplete()) {
+        setShowProfileIncompleteModal(true);
+        return;
+    }
+    setShowAddMachineModal(true);
+  };
+
+  const handleOpenDiagnosisModal = () => {
+    if (!isProfileComplete()) {
+        setShowProfileIncompleteModal(true);
+        return;
+    }
+    setShowDiagnosisModal(true);
+  };
 
   const handleSendInvoice = async () => {
     if (!invoiceData.amount || !invoiceData.desc)
@@ -2268,14 +2376,29 @@ function App() {
     localStorage.setItem("token", "demo-token-xyz");
     localStorage.setItem("user", JSON.stringify(demoUser));
     localStorage.setItem("isAuth", "true");
+    localStorage.setItem("isDemo", "true");
+    setIsDemo(true);
     setAuthenticated(true);
     setEmail("demo@originode.com");
     setFirstName("Demo");
     setLastName("User");
     setRole(role);
+    // Inject demo data — no API calls
+    if (role === "producer") {
+      setProducerDashStats(DEMO_PRODUCER_STATS);
+      setRadarJobs(DEMO_RADAR_JOBS);
+      setProducerChats(DEMO_CHATS);
+      setTransactionHistory(DEMO_TRANSACTION_HISTORY);
+    } else {
+      setMachines(DEMO_MACHINES);
+      setActiveRequests(DEMO_ACTIVE_REQUESTS);
+      setChats(DEMO_CHATS);
+      setTransactionHistory(DEMO_TRANSACTION_HISTORY);
+      setEarningsStats(DEMO_EARNINGS_STATS);
+    }
     setActiveTab(role === "consumer" ? "fleet" : "requests");
     setView("dashboard");
-    setToast({ message: "Welcome to Demo Mode", type: "info" });
+    setToast({ message: "Welcome to Demo Mode — actions are disabled", type: "info" });
   };
 
   const handleLogin = async () => {
@@ -2477,7 +2600,18 @@ function App() {
     }
   };
 
+  const handleCancelRequest = async (id) => {
+    try {
+      await api.patch(`/jobs/${id}/cancel`);
+      setActiveRequests(prev => prev.filter(req => String(req.id) !== String(id)));
+      setToast({ message: "Request cancelled", type: "success" });
+    } catch (err) {
+      setToast({ message: err.response?.data?.error || "Failed to cancel request", type: "error" });
+    }
+  };
+
   const fetchMachines = async () => {
+    setMachinesLoading(true);
     try {
       const response = await api.get("/machines");
       if (Array.isArray(response.data)) {
@@ -2490,7 +2624,7 @@ function App() {
         "[Fleet] Offline mode active (DB disconnected). Using local backup.",
       );
       setMachines(MOCK_MACHINES);
-    }
+    } finally { setMachinesLoading(false); }
   };
 
   const handleAddMachine = async () => {
@@ -2715,6 +2849,7 @@ function App() {
   });
 
   const fetchConsumerActiveRequests = async () => {
+    setRequestsLoading(true);
     try {
       const res = await api.get("/jobs/my");
       const rows = Array.isArray(res.data) ? res.data : [];
@@ -2722,10 +2857,11 @@ function App() {
       setActiveRequests(active.map(mapJobRowToConsumerRequest));
     } catch (err) {
       console.warn("Consumer active requests fetch failed", err);
-    }
+    } finally { setRequestsLoading(false); }
   };
 
   const fetchConsumerChatsList = async (options = {}) => {
+    setChatsLoading(true);
     try {
       const res = await api.get("/jobs/my");
       const rows = Array.isArray(res.data) ? res.data : [];
@@ -2768,9 +2904,9 @@ function App() {
     try {
       const statsRes = await api.get("/finance/stats");
       setEarningsStats(statsRes.data);
-      const histRes = await api.get("/finance/history");
+      setHistoryLoading(true); const histRes = await api.get("/finance/history");
       const histRows = Array.isArray(histRes.data) ? histRes.data : [];
-      setTransactionHistory(histRows.map(mapFinanceRowForFleet));
+      setTransactionHistory(histRows.map(mapFinanceRowForFleet)); setHistoryLoading(false);
       try {
         const chartRes = await api.get("/finance/chart-data");
         if (chartRes?.data) setChartData(chartRes.data);
@@ -2778,7 +2914,7 @@ function App() {
         /* chart optional */
       }
     } catch (e) {
-      console.warn("Consumer finance snapshot failed", e);
+      console.warn("Consumer finance snapshot failed", e); setHistoryLoading(false);
     }
     await fetchConsumerChatsList();
   };
@@ -2798,9 +2934,10 @@ function App() {
   scheduleConsumerFleetRefreshRef.current = scheduleConsumerFleetRefresh;
 
   useEffect(() => {
+    if (isDemo) return;
     if (view !== "dashboard" || role !== "consumer") return;
     fetchConsumerActiveRequests();
-  }, [view, role]);
+  }, [view, role, isDemo]);
 
   useEffect(() => {
     if (!socket || role !== "consumer" || view !== "dashboard") return;
@@ -3011,6 +3148,7 @@ function App() {
   };
 
   const handleAcceptJob = async (jobOrId) => {
+    if (isDemo) { setToast({ message: "This is a demo. Actions are disabled.", type: "info" }); return; }
     const jobId = typeof jobOrId === "object" ? jobOrId.id : jobOrId;
     try {
       const res = await api.patch(`/jobs/${jobId}/accept`);
@@ -3033,6 +3171,39 @@ function App() {
     }
   };
 
+  const [searchResults, setSearchResults] = useState([]);
+
+  const handleTopBarSearch = (query) => {
+    if(!query || !query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const lower = query.toLowerCase();
+    const results = [];
+    
+    (machines || []).forEach(m => {
+       if((m.name && m.name.toLowerCase().includes(lower)) || (m.machine_type && m.machine_type.toLowerCase().includes(lower))) {
+          results.push({ id: `mach-${m.id || m._id}`, type: 'machine', icon: 'machine', title: m.name, subtitle: m.machine_type || 'Machine', rawRef: m });
+       }
+    });
+    
+    (activeRequests || []).forEach(r => {
+       if((r.machine && r.machine.toLowerCase().includes(lower)) || (r.issue && r.issue.toLowerCase().includes(lower))) {
+          results.push({ id: `req-${r.id}`, type: 'request', icon: 'request', title: r.issue, subtitle: r.machine, rawRef: r });
+       }
+    });
+    
+    setSearchResults(results);
+  };
+
+  const handleSearchResultClick = (res) => {
+    if(res.type === 'machine') {
+      setActiveTab('machines');
+    } else if(res.type === 'request') {
+      setActiveTab('fleet');
+    }
+  };
+
   const handleDeclineJob = async (jobOrId) => {
     const jobId = typeof jobOrId === "object" ? jobOrId.id : jobOrId;
     try {
@@ -3048,6 +3219,7 @@ function App() {
   };
 
   const handleExpertStartWork = async () => {
+    if (isDemo) { setToast({ message: "This is a demo. Actions are disabled.", type: "info" }); return; }
     if (!activeChatId) return;
     try {
       await api.patch(`/jobs/${activeChatId}/start-work`);
@@ -3060,6 +3232,7 @@ function App() {
   };
 
   const handleExpertMarkComplete = async () => {
+    if (isDemo) { setToast({ message: "This is a demo. Actions are disabled.", type: "info" }); return; }
     if (!activeChatId) return;
     try {
       const res = await api.patch(`/jobs/${activeChatId}/complete-work`);
@@ -3101,12 +3274,14 @@ function App() {
   };
 
   useEffect(() => {
+    if (isDemo) return; // Demo mode — data already injected, no API calls
     if (view === "dashboard" && role === "consumer" && activeTab === "fleet") {
       fetchConsumerFleetSnapshot();
     }
-  }, [view, role, activeTab]);
+  }, [view, role, activeTab, isDemo]);
 
   useEffect(() => {
+    if (isDemo) return; // Demo mode — data already injected, no API calls
     if (view === "dashboard" && role === "producer") {
       fetchRadarJobs();
       fetchProducerChats();
@@ -3117,17 +3292,19 @@ function App() {
       }, 10000);
       return () => clearInterval(interval);
     }
-  }, [view, role, fetchProducerDashboardStats]);
+  }, [view, role, fetchProducerDashboardStats, isDemo]);
 
   // When producer switches to messages tab, refresh their chat list
   useEffect(() => {
+    if (isDemo) return;
     if (activeTab === "pro-messages" && role === "producer") {
       fetchProducerChats();
     }
-  }, [activeTab]);
+  }, [activeTab, isDemo]);
 
   // [NEW] FETCH FINANCIAL STATS
   useEffect(() => {
+    if (isDemo) return;
     if (activeTab === "earnings" || activeTab === "history") {
       const fetchFinanceData = async () => {
         try {
@@ -3143,12 +3320,14 @@ function App() {
 
       fetchFinanceData();
     }
-  }, [activeTab]);
+  }, [activeTab, isDemo]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("isAuth");
+    localStorage.removeItem("isDemo");
+    setIsDemo(false);
     setAuthenticated(false);
     setEmail("");
     setPassword("");
@@ -3211,6 +3390,7 @@ function App() {
   };
 
   const handlePayment = (amountStr, desc, requestId = null) => {
+    if (isDemo) { setToast({ message: "This is a demo. Actions are disabled.", type: "info" }); return; }
     const providerPrice =
       parseInt(String(amountStr).replace(/[^0-9]/g, "")) || 5000;
     const commissionPercentage = parseFloat(
@@ -3555,6 +3735,45 @@ function App() {
   // --- SHARED UI COMPONENTS (MODALS) ---
   const sharedModals = (
     <>
+      {showProfileIncompleteModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white rounded-[24px] shadow-2xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6">
+                <UserCircle size={32} />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Complete Your Profile First</h3>
+              <p className="text-slate-500 mb-8 max-w-[280px]">
+                Please complete your profile before adding machines. We need your name and phone number to connect you with the right experts.
+              </p>
+              <div className="flex gap-4 w-full">
+                <button 
+                  onClick={() => setShowProfileIncompleteModal(false)}
+                  className="flex-1 py-3 px-4 rounded-xl text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowProfileIncompleteModal(false);
+                    const el = document.getElementById("profile-tab");
+                    if (el) el.click();
+                    setActiveTab('profile');
+                  }}
+                  className="flex-1 py-3 px-4 rounded-xl text-white font-bold bg-[#2563EB] hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all"
+                >
+                  Complete Profile
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
       {showExpertProfileModal && selectedExpert && (
         <div
           className="modal-overlay"
@@ -5500,6 +5719,7 @@ function App() {
           case "history":
             return (
               <HistoryView
+                loading={historyLoading}
                 serviceHistory={transactionHistory}
                 onDownloadReport={handleDownloadReport}
                 onViewReport={(item) => {
@@ -5510,20 +5730,21 @@ function App() {
                   const el = document.getElementById("fleet-tab");
                   if (el) el.click();
                   setActiveTab("fleet");
-                  setShowDiagnosisModal(true);
+                  handleOpenDiagnosisModal();
                 }}
               />
             );
           case "machines":
             return (
               <MachinesView
+                loading={machinesLoading}
                 machines={machines}
-                setShowAddMachineModal={setShowAddMachineModal}
+                setShowAddMachineModal={handleOpenAddMachine}
                 onViewMachine={(m) => {
                   /* Optional: could handle detailed view if established */
                 }}
                 setActiveJobMachine={() => {}}
-                setShowReportIssueModal={setShowDiagnosisModal}
+                setShowReportIssueModal={handleOpenDiagnosisModal}
               />
             );
           case "profile":
@@ -5559,11 +5780,12 @@ function App() {
                 avgContinuity={avgContinuity}
                 activeRequests={activeRequests}
                 expertPresence={expertPresence}
-                setShowAddMachineModal={setShowAddMachineModal}
-                setShowReportIssueModal={setShowDiagnosisModal}
+                setShowAddMachineModal={handleOpenAddMachine}
+                setShowReportIssueModal={handleOpenDiagnosisModal}
                 transactionHistory={transactionHistory}
                 chats={chats}
                 setActiveTab={setActiveTab}
+                onCancelRequest={handleCancelRequest}
                 onDecommission={handleDeleteMachine}
               />
             );
@@ -5574,6 +5796,7 @@ function App() {
           case "fleet":
             return (
               <ProducerDashboard
+                loading={requestsLoading}
                 stats={producerDashStats}
                 radarJobs={radarJobs}
                 user={{
@@ -5636,6 +5859,7 @@ function App() {
                   </div>
                 </div>
                 <HistoryView
+                  loading={historyLoading}
                   serviceHistory={transactionHistory}
                   onDownloadReport={handleDownloadReport}
                   onViewReport={(item) => {
@@ -5692,6 +5916,7 @@ function App() {
           default:
             return (
               <ProducerDashboard
+                loading={requestsLoading}
                 stats={producerDashStats}
                 radarJobs={radarJobs}
                 user={{
@@ -5710,6 +5935,54 @@ function App() {
     };
 
     return (
+      <>
+        {!isOnline && (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 9999,
+                background: '#1f2937',
+                color: 'white',
+                padding: '10px 20px',
+                textAlign: 'center',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+            }}>
+                <span style={{
+                    width: 8, height: 8,
+                    borderRadius: '50%',
+                    background: '#EF4444',
+                    display: 'inline-block'
+                }} />
+                You are offline. Some features may not work until connection is restored.
+            </div>
+        )}
+        {isOnline && !socketConnected && authenticated && (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 9999,
+                background: '#1f2937',
+                color: 'white',
+                padding: '10px 20px',
+                textAlign: 'center',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+            }}>
+                Reconnecting to real-time server...
+                <span className="animate-spin">↻</span>
+            </div>
+        )}
       <DashboardLayout
         role={role}
         activeTab={activeTab}
@@ -5721,7 +5994,25 @@ function App() {
         onMarkAsRead={handleMarkNotifRead}
         onMarkAllRead={handleMarkAllNotifsRead}
         socketReconnecting={socketReconnecting}
+        onSearch={handleTopBarSearch}
+        searchResults={searchResults}
+        onSearchResultClick={handleSearchResultClick}
+        isDemo={isDemo}
       >
+        {showCompleteProfileBanner && role === 'consumer' && !isDemo && (
+           <div className="bg-amber-50 border border-amber-200 px-6 py-4 mb-6 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm relative z-40">
+              <div className="flex items-center gap-3 text-amber-800">
+                 <AlertCircle size={20} className="shrink-0" />
+                 <span className="text-sm font-semibold">Your profile is incomplete. Complete it to start using OrigiNode fully.</span>
+              </div>
+              <button 
+                  onClick={() => setActiveTab('profile')} 
+                  className="text-sm font-bold text-amber-900 flex items-center gap-1 hover:text-amber-700 whitespace-nowrap bg-amber-200/50 px-4 py-2 rounded-lg transition-colors"
+              >
+                 Complete Profile <ArrowRight size={16} />
+              </button>
+           </div>
+        )}
         {sharedModals}
         <AnimatePresence>
           {toast && (
@@ -5734,6 +6025,7 @@ function App() {
         </AnimatePresence>
         <div className="animate-fade-in">
           {role === "producer" &&
+            !isDemo &&
             (!profileData.bankAccountNumber || !profileData.ifscCode) && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
@@ -5866,7 +6158,7 @@ function App() {
                 {/* Back Button */}
                 <button
                   onClick={() => setShowPayoutSkipConfirm(true)}
-                  className="absolute top-8 left-8 p-2 rounded-xl bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all z-20"
+                  className="absolute top-8 left-8 p-3 rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all z-20"
                 >
                   <ChevronLeft size={20} />
                 </button>
@@ -5880,7 +6172,7 @@ function App() {
                   </div>
 
                   <div className="space-y-3 mb-10">
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none font-['Outfit',_sans-serif]">
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">
                       Set up payouts (optional)
                     </h2>
                     <p className="text-slate-500 font-semibold text-base">
@@ -6006,22 +6298,24 @@ function App() {
                       Skip for now
                     </button>
 
-                    <div className="flex border-t border-slate-50 pt-8 items-center justify-center gap-6 text-slate-400">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
-                          <Shield size={12} className="text-emerald-500" />{" "}
-                          AES-256 Encrypted
+                    {!isDemo && (
+                      <div className="flex border-t border-slate-50 pt-8 items-center justify-center gap-6 text-slate-400">
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                            <Shield size={12} className="text-emerald-500" />{" "}
+                            AES-256 Encrypted
+                          </div>
+                          <span className="text-[8px] font-bold text-slate-300">
+                            Your data is encrypted and secure
+                          </span>
                         </div>
-                        <span className="text-[8px] font-bold text-slate-300">
-                          Your data is encrypted and secure
-                        </span>
+                        <div className="w-[1px] h-6 bg-slate-100" />
+                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                          <Lock size={12} className="text-emerald-500" /> Secure
+                          SSL
+                        </div>
                       </div>
-                      <div className="w-[1px] h-6 bg-slate-100" />
-                      <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
-                        <Lock size={12} className="text-emerald-500" /> Secure
-                        SSL
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -6081,6 +6375,7 @@ function App() {
           )}
         </AnimatePresence>
       </DashboardLayout>
+      </>
     );
   }
 

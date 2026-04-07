@@ -1,7 +1,7 @@
 import api from '../services/api';
 import React, { useState, useEffect, useCallback } from 'react';
 import { socket } from '../utils/socket';
-import {
+import { Skeleton,
     Box,
     Typography,
     Paper,
@@ -32,7 +32,7 @@ import {
     DialogActions,
     Tabs,
     Tab
-} from '@mui/material';
+ } from '@mui/material';
 import {
     Search,
     FilterAlt,

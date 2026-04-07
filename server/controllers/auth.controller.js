@@ -347,7 +347,30 @@ export const verifyToken = async (req, res, next) => {
 
 export const getMe = async (req, res, next) => {
     try {
-        const result = await db.query('SELECT id, email, role, first_name, last_name, email_verified, organization, photo_url FROM users WHERE id = $1', [req.user.id]);
+        const userId = req.user.id;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        if (!uuidRegex.test(userId)) {
+            // Handle demo/mock users
+            if (userId === 'demo-123') {
+                return res.json({
+                    status: 'success',
+                    user: {
+                        id: 'demo-123',
+                        email: 'admin@originode.com',
+                        role: 'admin',
+                        first_name: 'Demo',
+                        last_name: 'User',
+                        email_verified: true,
+                        organization: 'OrigiNode Industrial',
+                        photo_url: null
+                    }
+                });
+            }
+            return res.status(401).json({ message: 'Invalid identity format' });
+        }
+
+        const result = await db.query('SELECT id, email, role, first_name, last_name, email_verified, organization, photo_url FROM users WHERE id = $1', [userId]);
         if (result.rows.length === 0) return res.status(401).json({ message: 'Identity lost' });
         res.json({ status: 'success', user: result.rows[0] });
     } catch (err) {

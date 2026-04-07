@@ -1,6 +1,6 @@
 import api from '../services/api';
 import React, { useState, useEffect } from 'react';
-import {
+import { Skeleton, 
     Box,
     Typography,
     Paper,
@@ -15,7 +15,7 @@ import {
     CircularProgress,
     Snackbar,
     Alert
-} from '@mui/material';
+ } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import {
     Search,

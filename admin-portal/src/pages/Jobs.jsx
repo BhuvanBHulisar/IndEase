@@ -1,6 +1,6 @@
 import api from '../services/api';
 import React, { useState, useEffect } from 'react';
-import {
+import { Skeleton, 
     Box,
     Typography,
     Paper,
@@ -26,7 +26,7 @@ import {
     Stepper,
     Step,
     StepLabel
-} from '@mui/material';
+ } from '@mui/material';
 import {
     DataGrid,
     GridActionsCellItem

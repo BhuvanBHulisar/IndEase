@@ -23,8 +23,9 @@ import {
   Input, 
   cn 
 } from '../components/ui/base';
+import { SkeletonTable } from './ui/Skeleton';
 
-export default function HistoryView({ serviceHistory = [], onDownloadReport, onViewReport, onRequestService }) {
+export default function HistoryView({ serviceHistory = [], loading, onDownloadReport, onViewReport, onRequestService }) {
   return (
     <div className="space-y-10 pb-20 max-w-[1600px] mx-auto animate-fade-in">
       {/* View Header */}
@@ -71,6 +72,11 @@ export default function HistoryView({ serviceHistory = [], onDownloadReport, onV
            </div>
         </div>
         
+        {loading ? (
+          <div className="p-8">
+            <SkeletonTable />
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -186,6 +192,7 @@ export default function HistoryView({ serviceHistory = [], onDownloadReport, onV
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

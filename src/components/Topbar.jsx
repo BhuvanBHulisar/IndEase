@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, ChevronDown, UserCircle, Command, Sparkles, AlertCircle } from 'lucide-react';
+import { Search, Bell, ChevronDown, UserCircle, Command, Sparkles, AlertCircle, HardDrive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './ui/base';
 
-const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead }) => {
+const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, onSearch, searchResults = [], onResultClick, isDemo }) => {
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
@@ -24,6 +24,13 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead })
   };
   const [showNotif, setShowNotif] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if(onSearch) onSearch(val);
+  };
   const notifRef = useRef(null);
   const unreadCount = notifications.filter(n => !n.read).length;
   const firstName = user?.firstName || 'User';
@@ -50,18 +57,63 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead })
         </div>
         <input
           type="text"
+          value={searchQuery}
+          onChange={handleSearchChange}
           onFocus={() => setIsSearchFocused(true)}
-          onBlur={() => setIsSearchFocused(false)}
+          onBlur={(e) => {
+             // Delay blur to allow clicking a result
+             setTimeout(() => setIsSearchFocused(false), 200);
+          }}
           placeholder="Search..."
           className={cn(
             "w-full h-10 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl pl-10 pr-4 text-slate-900 font-semibold text-sm transition-all focus:bg-white focus:outline-none focus:ring-4 placeholder:text-slate-400",
             isSearchFocused ? `border-${isExpert ? 'indigo-600' : '[#2563EB]'} ring-${primaryRing}` : ""
           )}
         />
+        
+        <AnimatePresence>
+          {searchQuery && isSearchFocused && (
+            <motion.div 
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: 10 }}
+               className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-[#E5E7EB] shadow-lg overflow-y-auto z-50 max-h-80"
+            >
+               {searchResults.length > 0 ? searchResults.map((res, i) => (
+                  <div 
+                    key={res.id || i} 
+                    onMouseDown={() => {
+                        setSearchQuery('');
+                        if(onSearch) onSearch('');
+                        if (onResultClick) onResultClick(res);
+                    }} 
+                    className="p-3 hover:bg-slate-50 cursor-pointer flex items-center gap-3 border-b border-[#E5E7EB] last:border-0 transition-colors"
+                  >
+                     <div className={`p-2 rounded-lg bg-blue-50 text-blue-600 shrink-0 flex items-center justify-center`}>
+                       {res.icon === 'machine' ? <HardDrive size={16} /> : <AlertCircle size={16} />}
+                     </div>
+                     <div className="flex flex-col">
+                        <div className="text-sm font-bold text-slate-800 leading-tight">{res.title}</div>
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest">{res.subtitle}</div>
+                     </div>
+                  </div>
+               )) : (
+                  <div className="p-6 text-center text-slate-500 font-medium text-sm">No results found</div>
+               )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Action Cluster */}
       <div className="flex items-center gap-6">
+        {/* Demo Mode Badge */}
+        {isDemo && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Demo Mode</span>
+          </div>
+        )}
         {/* Support Sparkle */}
         <button className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all group">
            <Sparkles size={14} />
