@@ -348,7 +348,7 @@ Password: ${credsModal.password}`;
                                     <Typography variant="caption" color="text.secondary">{provider.category || 'General Service'}</Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                                    <Rating value={provider.rating || 0} readOnly precision={0.5} size="small" sx={{ color: '#f59e0b' }} />
+                                    <Rating value={Number(provider.rating) || 0} readOnly precision={0.5} size="small" sx={{ color: '#f59e0b' }} />
                                     <Typography variant="caption" sx={{ fontWeight: 700 }}>{provider.rating || 'N/A'}</Typography>
                                     <Typography variant="caption" color="text.secondary">({provider.jobsCount || 0} Jobs)</Typography>
                                 </Box>

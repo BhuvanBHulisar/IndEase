@@ -270,18 +270,20 @@ router.get("/providers", async (req, res) => {
 router.delete("/providers/:id", async (req, res) => {
   const { id } = req.params;
   const { reason } = req.body || { reason: "No reason provided" }; // Body may be empty in DELETE
-
+  
+  const client = await db.connect();
   try {
-    await db.query("BEGIN");
+    await client.query("BEGIN");
 
     // 1. Get Expert Info for logging/email before deletion
-    const { rows: expertRows } = await db.query(
+    const { rows: expertRows } = await client.query(
       `SELECT u.email, u.first_name, u.last_name FROM users u WHERE u.id = $1`,
       [id],
     );
 
     if (expertRows.length === 0) {
-      await db.query("ROLLBACK");
+      await client.query("ROLLBACK");
+      client.release();
       return res.status(404).json({ error: "Expert not found" });
     }
 
@@ -292,32 +294,32 @@ router.delete("/providers/:id", async (req, res) => {
 
     // 2. Prep Service Requests/Jobs
     // For active/pending jobs: Re-broadcast to other experts (set producer_id to NULL)
-    await db.query(
+    await client.query(
       `UPDATE service_requests SET status='broadcast', producer_id=NULL
              WHERE producer_id=$1 AND status IN ('pending', 'accepted', 'in_progress')`,
       [id],
     );
 
     // For historical jobs: Set producer_id to NULL to avoid FK violation while keeping history
-    await db.query(
+    await client.query(
       `UPDATE service_requests SET producer_id=NULL WHERE producer_id=$1`,
       [id],
     );
 
     // 3. Prep other referencing tables to avoid FK failure (NULLify what's not cascaded)
     // Chat Messages: Sender is now anonymous expert
-    await db.query(
+    await client.query(
       `UPDATE chat_messages SET sender_id=NULL WHERE sender_id=$1`,
       [id],
     );
 
     // Reviews: Producer name is already in the database as 'removed' expert or nullify
-    await db.query(`UPDATE reviews SET producer_id=NULL WHERE producer_id=$1`, [
+    await client.query(`UPDATE reviews SET producer_id=NULL WHERE producer_id=$1`, [
       id,
     ]);
 
     // Transactions: Salary/Job payout records must be kept but decoupled from the user
-    await db.query(
+    await client.query(
       `UPDATE transactions SET expert_id=NULL WHERE expert_id=$1`,
       [id],
     );
@@ -329,10 +331,10 @@ router.delete("/providers/:id", async (req, res) => {
     // - expert_schedules
     // - notifications
     // - support_tickets
-    await db.query(`DELETE FROM users WHERE id = $1`, [id]);
+    await client.query(`DELETE FROM users WHERE id = $1`, [id]);
 
     // 5. Record removal in admin activity log
-    await db.query(`CREATE TABLE IF NOT EXISTS admin_activity_log (
+    await client.query(`CREATE TABLE IF NOT EXISTS admin_activity_log (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             admin_id UUID REFERENCES users(id),
             action VARCHAR(255) NOT NULL,
@@ -341,7 +343,7 @@ router.delete("/providers/:id", async (req, res) => {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )`);
 
-    await db.query(
+    await client.query(
       `INSERT INTO admin_activity_log (admin_id, action, target_id, details)
              VALUES ($1, $2, $3, $4)`,
       [
@@ -352,7 +354,8 @@ router.delete("/providers/:id", async (req, res) => {
       ],
     );
 
-    await db.query("COMMIT");
+    await client.query("COMMIT");
+    client.release();
 
     // 6. Send email (non-blocking)
     sendExpertRemovalEmail({
@@ -366,7 +369,10 @@ router.delete("/providers/:id", async (req, res) => {
       message: `Expert ${expertName} has been permanently removed.`,
     });
   } catch (err) {
-    await db.query("ROLLBACK");
+    if (client) {
+      await client.query("ROLLBACK");
+      client.release();
+    }
     console.error("Admin remove expert hard delete error:", err);
     res
       .status(500)

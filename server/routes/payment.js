@@ -21,37 +21,32 @@ const razorpay = new Razorpay({
 router.post('/create', auth, paymentController.createPayment);
 
 // ─── Create Razorpay order + escrow transaction ─────────────────────────
-router.post('/create-order', async (req, res) => {
+router.post('/create-order', auth, async (req, res) => {
     try {
         const { providerPrice, requestId } = req.body;
         if (!providerPrice) {
             return res.status(400).json({ error: 'providerPrice is required' });
         }
 
-        // Escrow calculation
-        const baseAmount = Number(providerPrice);
+        const isDemo = !!req.user?.is_demo;
+        const baseAmount  = Number(providerPrice);
         const platformFee = +(baseAmount * 0.10).toFixed(2);
-        const gst = +(platformFee * 0.18).toFixed(2);
+        const gst         = +(platformFee * 0.18).toFixed(2);
         const expertAmount = +(baseAmount - platformFee - gst).toFixed(2);
-        const totalPaid = +(baseAmount + platformFee + gst).toFixed(2);
+        const totalPaid   = +(baseAmount + platformFee + gst).toFixed(2);
 
-        const options = {
-            amount: Math.round(totalPaid * 100), // Convert to paise
-            currency: "INR",
-            receipt: `receipt_${Date.now()}`
-        };
-
+        // Demo mode — simulate order without hitting Razorpay
         let order;
-        try {
-            order = await razorpay.orders.create(options);
-        } catch (rzpErr) {
-            console.warn('[Payment] Razorpay order creation failed, using mock order:', rzpErr.message);
-            order = {
-                id: `order_mock_${Date.now()}`,
-                amount: options.amount,
-                currency: options.currency,
-                receipt: options.receipt
-            };
+        if (isDemo) {
+            order = { id: `order_demo_${Date.now()}`, amount: Math.round(totalPaid * 100), currency: 'INR' };
+        } else {
+            const options = { amount: Math.round(totalPaid * 100), currency: 'INR', receipt: `receipt_${Date.now()}` };
+            try {
+                order = await razorpay.orders.create(options);
+            } catch (rzpErr) {
+                console.warn('[Payment] Razorpay order creation failed, using mock order:', rzpErr.message);
+                order = { id: `order_mock_${Date.now()}`, amount: options.amount, currency: options.currency };
+            }
         }
 
         // Ensure requestId is a valid UUID, otherwise null (for demo mocks)
@@ -78,8 +73,8 @@ router.post('/create-order', async (req, res) => {
                 request_id, job_id, consumer_id, expert_id,
                 base_amount, platform_fee, gst, expert_amount,
                 provider_price, provider_payout,
-                razorpay_order_id, transaction_ref, status, amount
-            ) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $4, $7, $8, $8, 'escrow', $9)`,
+                razorpay_order_id, transaction_ref, status, amount, is_demo
+            ) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $4, $7, $8, $8, 'escrow', $9, $10)`,
             [
                 safeRequestId,
                 consumerId,
@@ -89,7 +84,8 @@ router.post('/create-order', async (req, res) => {
                 gst,
                 expertAmount,
                 order.id,
-                totalPaid
+                totalPaid,
+                isDemo,
             ]
         );
 

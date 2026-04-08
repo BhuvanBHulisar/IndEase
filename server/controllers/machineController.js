@@ -3,18 +3,11 @@ import db from '../config/db.js';
 // @desc    Get all machines for current consumer
 // @route   GET /api/machines
 export const getMachines = async (req, res) => {
-    // [DEMO BYPASS]
-    if (req.user.id === 'demo-123') {
-        return res.json([
-            { id: 101, name: 'Hydraulic Press X-200', oem: 'Titan Hydraulics', machine_type: 'Hydraulic Press', model_year: 1992, condition_score: 88, created_at: new Date() },
-            { id: 102, name: 'CNC Miller 5-Axis', oem: 'Precision Corp', machine_type: 'CNC Concentric', model_year: 2015, condition_score: 95, created_at: new Date() }
-        ]);
-    }
-
     try {
+        const isDemo = !!req.user.is_demo;
         const result = await db.query(
-            'SELECT * FROM machines WHERE owner_id = $1 ORDER BY created_at DESC',
-            [req.user.id]
+            'SELECT * FROM machines WHERE owner_id = $1 AND is_demo = $2 ORDER BY created_at DESC',
+            [req.user.id, isDemo]
         );
         res.json(result.rows);
     } catch (err) {
@@ -26,34 +19,13 @@ export const getMachines = async (req, res) => {
 // @desc    Register a new machine node
 // @route   POST /api/machines
 export const addMachine = async (req, res) => {
-    // Correctly extracting fields matching frontend state
     const { name, oem, model_year, machine_type } = req.body;
-    let ownerId = req.user.id;
-
-    // [DEMO BYPASS]
-    // If using the fake demo user, we cannot insert into DB because foreign key "owner_id" won't match any real user.
-    // So for demo, we will just return a mocked response as if it succeeded.
-    if (ownerId === 'demo-123') {
-        const mockRow = {
-            id: 'mock-machine-' + Date.now(),
-            owner_id: 'demo-123',
-            name,
-            oem,
-            model_year,
-            machine_type,
-            condition_score: 100,
-            created_at: new Date()
-        };
-        if (global.io) {
-            global.io.to('user_demo-123').emit('machine_added', mockRow);
-        }
-        return res.status(201).json(mockRow);
-    }
-
+    const ownerId = req.user.id;
+    const isDemo  = !!req.user.is_demo;
     try {
         const result = await db.query(
-            'INSERT INTO machines (owner_id, name, oem, model_year, machine_type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [ownerId, name, oem, model_year, machine_type]
+            'INSERT INTO machines (owner_id, name, oem, model_year, machine_type, is_demo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [ownerId, name, oem, model_year, machine_type, isDemo]
         );
         const row = result.rows[0];
         if (global.io && ownerId) {

@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../components/ui/base';
 import { SkeletonCard, SkeletonStats } from './ui/Skeleton';
+import LevelInfoModal from './LevelInfoModal';
 
 const LEVEL_META = {
   Starter: {
@@ -136,9 +137,12 @@ function StatsCard({ label, value, icon: Icon, color, suffix }) {
   );
 }
 
-function LevelCard({ level, points, salary, meta, progress }) {
+function LevelCard({ level, points, salary, meta, progress, onClick }) {
   return (
-    <div className={cn('rounded-[16px] border p-6 shadow-sm transition-all duration-300 hover:shadow-md', meta.cardClass)}>
+    <div
+      onClick={onClick}
+      className={cn('rounded-[16px] border p-6 shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer', meta.cardClass)}
+    >
       <div className="mb-4 flex items-start justify-between gap-4">
         <div
           className="flex h-10 w-10 items-center justify-center rounded-lg"
@@ -279,6 +283,7 @@ export default function ProducerDashboard({
   onViewDetails
 }) {
   const [filter, setFilter] = useState('All');
+  const [showLevelModal, setShowLevelModal] = useState(false);
 
   const filteredJobs = (radarJobs || []).filter((job) => {
     const status = (job.status || 'new').toLowerCase();
@@ -333,10 +338,17 @@ export default function ProducerDashboard({
               color="#FBBF24"
               suffix="/ 5.0"
             />
-            <LevelCard level={level} points={points} salary={salary} meta={meta} progress={progress} />
+            <LevelCard level={level} points={points} salary={salary} meta={meta} progress={progress} onClick={() => setShowLevelModal(true)} />
           </>
         )}
       </div>
+
+      <LevelInfoModal
+        open={showLevelModal}
+        onClose={() => setShowLevelModal(false)}
+        currentLevel={level}
+        points={points}
+      />
 
       <section className="space-y-4">
         <div className="flex items-center gap-3">

@@ -22,6 +22,16 @@ const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTa
               Reconnecting...
             </div>
           ) : null}
+          {isDemo && (
+            <div className="sticky top-0 z-40 px-6 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-4 text-sm">
+              <span className="text-amber-800 font-medium">
+                🚧 You are using a simulated environment. Data will not affect real users.
+              </span>
+              <a href="/consumer/signup" className="shrink-0 text-xs font-bold text-amber-900 underline hover:text-amber-700">
+                Create Account →
+              </a>
+            </div>
+          )}
           <div className="p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-fade-in">
             {children}
           </div>

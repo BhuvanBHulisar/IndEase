@@ -27,6 +27,8 @@ import supportRoutes from "./routes/supportRoutes.js";
 import { ensureExpertPerformanceSchema } from "./services/expertPerformanceSchema.js";
 import { ensurePaymentSchema } from "./services/paymentSchema.js";
 import { startExpertPerformanceCron } from "./services/expertPerformanceService.js";
+import { ensureDemoSchema, ensureDemoAccounts, seedDemoData } from "./services/demoService.js";
+import demoRoutes from "./routes/demoRoutes.js";
 import healthRouter from './routes/healthRoutes.js';
 
 const app = express();
@@ -125,6 +127,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/providers", providerRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/demo", demoRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
@@ -192,6 +195,9 @@ async function startServer() {
       await ensureAdminSchema();
       await ensureExpertPerformanceSchema();
       await ensurePaymentSchema();
+      await ensureDemoSchema();
+      await ensureDemoAccounts();
+      await seedDemoData();
       startExpertPerformanceCron();
 
       console.log("[DB] Connected and schemas verified ✓");

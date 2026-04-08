@@ -22,57 +22,142 @@ export const sendExpertWelcomeEmail = async ({ name, email, password }) => {
         html: `
 <!DOCTYPE html>
 <html>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:linear-gradient(135deg,#3b82f6,#6366f1);padding:36px 40px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:800;letter-spacing:-0.5px;">origiNode</h1>
-            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Industrial Service Platform</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:40px;">
-            <h2 style="margin:0 0 8px;color:#1e293b;font-size:20px;">Welcome, ${name}!</h2>
-            <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">Your service expert account has been created. Here are your login credentials:</p>
-            
-            <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:16px; margin-bottom:24px;">
-              <h3 style="margin:0 0 8px;color:#9a3412;font-size:14px;font-weight:800;">IMPORTANT: MANDATORY ACTION REQUIRED</h3>
-              <p style="margin:0;color:#c2410c;font-size:13px;line-height:1.5;">
-                To receive job payments and your monthly salary, you MUST complete your profile:
-                <br/>• Login to your account
-                <br/>• You will be prompted to add your bank details
-                <br/>• All earnings will be transferred to this account
-              </p>
-            </div>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 20px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+      
+      <!-- HEADER -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#1e40af 0%,#2563EB 100%);padding:40px;text-align:center;">
+          <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">origiNode</h1>
+          <p style="margin:8px 0 0;color:#93c5fd;font-size:13px;letter-spacing:1px;text-transform:uppercase;">Industrial Service Platform</p>
+        </td>
+      </tr>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:8px;margin-bottom:28px;">
-              <tr><td style="padding:20px 24px;">
-                <p style="margin:0 0 10px;font-size:14px;color:#64748b;">
-                  <span style="font-weight:700;color:#1e293b;">Email:</span>&nbsp;&nbsp;${email}
-                </p>
-                <p style="margin:0;font-size:14px;color:#64748b;">
-                  <span style="font-weight:700;color:#1e293b;">Password:</span>&nbsp;&nbsp;<span style="font-family:monospace;background:#e2e8f0;padding:2px 8px;border-radius:4px;">${password}</span>
-                </p>
-              </td></tr>
+      <!-- WELCOME BADGE -->
+      <tr>
+        <td style="padding:40px 40px 0;text-align:center;">
+          <div style="display:inline-block;background:#DBEAFE;border-radius:50px;padding:8px 20px;">
+            <span style="color:#1d4ed8;font-size:13px;font-weight:600;">✓ Account Created Successfully</span>
+          </div>
+          <h2 style="margin:20px 0 8px;color:#111827;font-size:24px;font-weight:700;">Welcome, ${name}!</h2>
+          <p style="margin:0;color:#6B7280;font-size:15px;line-height:1.6;">Your service expert account on origiNode is ready. You can now accept service requests from machine owners across India.</p>
+        </td>
+      </tr>
+
+      <!-- CREDENTIALS BOX -->
+      <tr>
+        <td style="padding:32px 40px;">
+          <div style="background:#F8FAFF;border:1px solid #DBEAFE;border-radius:12px;padding:24px;">
+            <p style="margin:0 0 16px;color:#374151;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Your Login Credentials</p>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #E5E7EB;">
+                  <span style="color:#6B7280;font-size:13px;">Email Address</span><br>
+                  <span style="color:#111827;font-size:15px;font-weight:600;">${email}</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;">
+                  <span style="color:#6B7280;font-size:13px;">Temporary Password</span><br>
+                  <span style="color:#111827;font-size:15px;font-weight:600;font-family:monospace;background:#F3F4F6;padding:4px 10px;border-radius:6px;">${password}</span>
+                </td>
+              </tr>
             </table>
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
-              <tr><td align="center">
-                <a href="${appUrl}/provider/login" style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:15px;">Login to Your Account</a>
-              </td></tr>
+            <p style="margin:16px 0 0;color:#EF4444;font-size:12px;">⚠ Please change your password after your first login for security.</p>
+          </div>
+        </td>
+      </tr>
+
+      <!-- MANDATORY ACTION -->
+      <tr>
+        <td style="padding:0 40px 32px;">
+          <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:20px;">
+            <p style="margin:0 0 12px;color:#92400E;font-size:14px;font-weight:700;">⚡ Action Required Before You Start</p>
+            <p style="margin:0 0 12px;color:#78350F;font-size:13px;line-height:1.6;">To receive job payments and your monthly salary, complete your profile:</p>
+            <table cellpadding="0" cellspacing="0">
+              <tr><td style="padding:4px 0;color:#78350F;font-size:13px;">① Login to your account</td></tr>
+              <tr><td style="padding:4px 0;color:#78350F;font-size:13px;">② Add your bank account details</td></tr>
+              <tr><td style="padding:4px 0;color:#78350F;font-size:13px;">③ Complete your profile information</td></tr>
             </table>
-            <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.6;">If you need help, contact us at <a href="mailto:${SUPPORT_EMAIL}" style="color:#3b82f6;text-decoration:none;">${SUPPORT_EMAIL}</a></p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:20px 40px;border-top:1px solid #e2e8f0;text-align:center;">
-            <p style="margin:0;color:#94a3b8;font-size:12px;">&copy; 2026 origiNode Systems. All rights reserved.</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
+          </div>
+        </td>
+      </tr>
+
+      <!-- HOW IT WORKS -->
+      <tr>
+        <td style="padding:0 40px 32px;">
+          <p style="margin:0 0 16px;color:#374151;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">How origiNode Works</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="33%" style="text-align:center;padding:16px 8px;background:#F8FAFF;border-radius:10px;margin:4px;">
+                <div style="font-size:24px;margin-bottom:8px;">🔧</div>
+                <p style="margin:0;color:#111827;font-size:12px;font-weight:600;">Accept Requests</p>
+                <p style="margin:4px 0 0;color:#6B7280;font-size:11px;">Get notified when machine owners need your expertise</p>
+              </td>
+              <td width="4%"></td>
+              <td width="33%" style="text-align:center;padding:16px 8px;background:#F8FAFF;border-radius:10px;">
+                <div style="font-size:24px;margin-bottom:8px;">💬</div>
+                <p style="margin:0;color:#111827;font-size:12px;font-weight:600;">Chat & Diagnose</p>
+                <p style="margin:4px 0 0;color:#6B7280;font-size:11px;">Communicate directly with the machine owner</p>
+              </td>
+              <td width="4%"></td>
+              <td width="33%" style="text-align:center;padding:16px 8px;background:#F8FAFF;border-radius:10px;">
+                <div style="font-size:24px;margin-bottom:8px;">💰</div>
+                <p style="margin:0;color:#111827;font-size:12px;font-weight:600;">Get Paid</p>
+                <p style="margin:4px 0 0;color:#6B7280;font-size:11px;">Receive payments directly to your bank account</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- SALARY INFO -->
+      <tr>
+        <td style="padding:0 40px 32px;">
+          <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:20px;">
+            <p style="margin:0 0 8px;color:#14532D;font-size:14px;font-weight:700;">💼 Your Earnings Structure</p>
+            <p style="margin:0 0 12px;color:#166534;font-size:13px;line-height:1.6;">At origiNode, you earn in two ways:</p>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:6px 0;border-bottom:1px solid #D1FAE5;">
+                  <span style="color:#166534;font-size:13px;font-weight:600;">Per Job Payment</span>
+                  <span style="color:#166534;font-size:13px;float:right;">90% of service cost</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;">
+                  <span style="color:#166534;font-size:13px;font-weight:600;">Monthly Salary</span>
+                  <span style="color:#166534;font-size:13px;float:right;">Based on your level</span>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:12px 0 0;color:#166534;font-size:12px;">Your level increases as you complete more jobs and earn positive ratings.</p>
+          </div>
+        </td>
+      </tr>
+
+      <!-- CTA BUTTON -->
+      <tr>
+        <td style="padding:0 40px 40px;text-align:center;">
+          <a href="${appUrl}/provider/login" style="display:inline-block;background:#2563EB;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:10px;font-size:15px;font-weight:700;">Login to Your Account →</a>
+          <p style="margin:16px 0 0;color:#9CA3AF;font-size:12px;">Or copy this link: ${appUrl}/provider/login</p>
+        </td>
+      </tr>
+
+      <!-- FOOTER -->
+      <tr>
+        <td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:24px 40px;text-align:center;">
+          <p style="margin:0;color:#6B7280;font-size:12px;">Need help? Contact us at <a href="mailto:originode7@gmail.com" style="color:#2563EB;">originode7@gmail.com</a></p>
+          <p style="margin:8px 0 0;color:#9CA3AF;font-size:11px;">© 2026 origiNode Systems. All rights reserved.</p>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
 </body>
 </html>`
     });
@@ -87,38 +172,73 @@ export const sendExpertRemovalEmail = async ({ name, email, reason }) => {
         html: `
 <!DOCTYPE html>
 <html>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#ef4444;padding:36px 40px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;">Account Removed</h1>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:40px;">
-            <p style="margin:0 0 16px;color:#1e293b;font-size:16px;">Hello ${name},</p>
-            <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">
-              Your account has been removed from the origiNode platform.
-            </p>
-            <div style="background:#fef2f2;border-left:4px solid #ef4444;padding:16px;margin-bottom:24px;">
-              <p style="margin:0;color:#991b1b;font-size:14px;font-weight:700;">Reason for Removal:</p>
-              <p style="margin:4px 0 0;color:#b91c1c;font-size:15px;">${reason}</p>
-            </div>
-            <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6;">
-              If you believe this is a mistake, please contact <a href="mailto:${SUPPORT_EMAIL}" style="color:#3b82f6;text-decoration:none;">${SUPPORT_EMAIL}</a>.
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:20px 40px;border-top:1px solid #e2e8f0;text-align:center;">
-            <p style="margin:0;color:#94a3b8;font-size:12px;">&copy; 2026 origiNode Systems. All rights reserved.</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 20px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+      
+      <!-- HEADER -->
+      <tr>
+        <td style="background:#111827;padding:40px;text-align:center;">
+          <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">origiNode</h1>
+          <p style="margin:8px 0 0;color:#9CA3AF;font-size:13px;letter-spacing:1px;text-transform:uppercase;">Industrial Service Platform</p>
+        </td>
+      </tr>
+
+      <!-- CONTENT -->
+      <tr>
+        <td style="padding:40px;text-align:center;">
+          <div style="width:64px;height:64px;background:#FEE2E2;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:28px;line-height:64px;">⚠</div>
+          <h2 style="margin:0 0 8px;color:#111827;font-size:22px;font-weight:700;">Account Removed</h2>
+          <p style="margin:0;color:#6B7280;font-size:15px;">Hello ${name},</p>
+        </td>
+      </tr>
+
+      <!-- REASON BOX -->
+      <tr>
+        <td style="padding:0 40px 32px;">
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">Your service expert account has been removed from the origiNode platform.</p>
+          <div style="background:#FEF2F2;border-left:4px solid #EF4444;border-radius:0 8px 8px 0;padding:16px 20px;">
+            <p style="margin:0 0 6px;color:#991B1B;font-size:13px;font-weight:700;">Reason for Removal:</p>
+            <p style="margin:0;color:#B91C1C;font-size:14px;">${reason}</p>
+          </div>
+        </td>
+      </tr>
+
+      <!-- WHAT HAPPENS NEXT -->
+      <tr>
+        <td style="padding:0 40px 32px;">
+          <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:20px;">
+            <p style="margin:0 0 12px;color:#374151;font-size:14px;font-weight:700;">What happens to your data:</p>
+            <table cellpadding="0" cellspacing="0">
+              <tr><td style="padding:4px 0;color:#6B7280;font-size:13px;">• Your account access has been deactivated</td></tr>
+              <tr><td style="padding:4px 0;color:#6B7280;font-size:13px;">• Any pending payments will be processed within 7 days</td></tr>
+              <tr><td style="padding:4px 0;color:#6B7280;font-size:13px;">• Your service history is retained for 90 days</td></tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+
+      <!-- CONTACT -->
+      <tr>
+        <td style="padding:0 40px 40px;text-align:center;">
+          <p style="margin:0 0 16px;color:#374151;font-size:14px;">If you believe this is a mistake or have questions:</p>
+          <a href="mailto:originode7@gmail.com" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:10px;font-size:14px;font-weight:600;">Contact Support</a>
+          <p style="margin:16px 0 0;color:#6B7280;font-size:13px;">Email: <a href="mailto:originode7@gmail.com" style="color:#2563EB;">originode7@gmail.com</a></p>
+        </td>
+      </tr>
+
+      <!-- FOOTER -->
+      <tr>
+        <td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:24px 40px;text-align:center;">
+          <p style="margin:0;color:#9CA3AF;font-size:11px;">© 2026 origiNode Systems. All rights reserved.</p>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
 </body>
 </html>`
     });

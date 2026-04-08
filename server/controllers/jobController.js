@@ -23,8 +23,8 @@ export const broadcastJob = async (req, res) => {
 
             // 2. Insert into service requests ledger
             const result = await db.query(
-                'INSERT INTO service_requests (machine_id, consumer_id, issue_description, priority, video_url, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-                [machineId, req.user.id, issueDescription, priority || 'normal', videoUrl, 'broadcast']
+                'INSERT INTO service_requests (machine_id, consumer_id, issue_description, priority, video_url, status, is_demo) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+                [machineId, req.user.id, issueDescription, priority || 'normal', videoUrl, 'broadcast', !!req.user.is_demo]
             );
 
             const newJob = result.rows[0];
@@ -89,6 +89,7 @@ export const broadcastJob = async (req, res) => {
 // @desc    Retrieve all active broadcasts in sector (Expert)
 // @route   GET /api/jobs/radar
 export const getRadarJobs = async (req, res) => {
+    const isDemo = !!req.user.is_demo;
     try {
         const result = await db.query(`
             SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
@@ -96,27 +97,26 @@ export const getRadarJobs = async (req, res) => {
             JOIN machines m ON jr.machine_id = m.id
             JOIN users u ON jr.consumer_id = u.id
             WHERE jr.status = 'broadcast'
+            AND jr.is_demo = $1
             AND jr.id NOT IN (
-                SELECT request_id FROM declined_jobs WHERE user_id = $1
+                SELECT request_id FROM declined_jobs WHERE user_id = $2
             )
             ORDER BY jr.created_at DESC
-        `, [req.user.id]);
-
+        `, [isDemo, req.user.id]);
         res.json(result.rows);
     } catch (err) {
-        console.warn('[Jobs] Radar selective scanning fallback');
         try {
             const result = await db.query(`
                 SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
                 FROM service_requests jr
                 JOIN machines m ON jr.machine_id = m.id
                 JOIN users u ON jr.consumer_id = u.id
-                WHERE jr.status = 'broadcast'
+                WHERE jr.status = 'broadcast' AND jr.is_demo = $1
                 ORDER BY jr.created_at DESC
-            `);
+            `, [isDemo]);
             res.json(result.rows);
         } catch (innerErr) {
-            res.json([]); // Return empty list for radar failures
+            res.json([]);
         }
     }
 };
@@ -356,6 +356,7 @@ export const getMyJobs = async (req, res) => {
             ]);
         }
 
+        const isDemo = !!req.user.is_demo;
         let query;
         if (req.user.role === 'consumer') {
             query = `
@@ -364,7 +365,7 @@ export const getMyJobs = async (req, res) => {
                 FROM service_requests sr
                 JOIN machines m ON sr.machine_id = m.id
                 LEFT JOIN users u ON sr.producer_id = u.id
-                WHERE sr.consumer_id = $1
+                WHERE sr.consumer_id = $1 AND sr.is_demo = $2
                 ORDER BY sr.created_at DESC
              `;
         } else {
@@ -374,12 +375,12 @@ export const getMyJobs = async (req, res) => {
                 FROM service_requests sr
                 JOIN machines m ON sr.machine_id = m.id
                 JOIN users u ON sr.consumer_id = u.id
-                WHERE sr.producer_id = $1
+                WHERE sr.producer_id = $1 AND sr.is_demo = $2
                 ORDER BY sr.created_at DESC
              `;
         }
 
-        const result = await db.query(query, [userId]);
+        const result = await db.query(query, [userId, isDemo]);
         res.json(result.rows);
     } catch (err) {
         console.error('[Jobs] My list retrieval failure:', err);

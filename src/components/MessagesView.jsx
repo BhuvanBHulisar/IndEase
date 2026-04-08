@@ -48,7 +48,8 @@ export default function MessagesView({
   paidInvoices = [],
   jobStatus,
   onStartWork,
-  onMarkComplete
+  onMarkComplete,
+  loading = false
 }) {
   const navigate = useNavigate();
   const [msgInput, setMsgInput] = useState('');
@@ -125,7 +126,9 @@ export default function MessagesView({
                 <div className="w-12 h-12 bg-white border border-[#E5E7EB] rounded-full flex items-center justify-center mx-auto mb-4">
                    <MessageSquare className="text-slate-300" size={20} />
                 </div>
-                <p className="text-xs font-medium text-slate-500">No active service conversations</p>
+                <p className="text-xs font-medium text-slate-500">
+                  {loading ? "Loading conversations..." : "No active service conversations"}
+                </p>
              </div>
            )}
         </div>

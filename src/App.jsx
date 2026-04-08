@@ -86,6 +86,7 @@ import {
   DEMO_ACTIVE_REQUESTS,
   DEMO_TRANSACTION_HISTORY,
   DEMO_EARNINGS_STATS,
+  DEMO_USERS,
 } from "./data/demoData";
 import { SERVICE_COMPLETION_MESSAGE } from "./utils/serviceRequestStatus";
 
@@ -607,32 +608,31 @@ function App() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState(() => {
     const user = JSON.parse(localStorage.getItem("user") || "null");
-    const isDemo = localStorage.getItem("isDemo") === "true";
-    
-    if (isDemo && user) {
+    const isDemoInit = localStorage.getItem("isDemo") === "true";
+
+    if (isDemoInit) {
+      const demoRole = user?.role || "consumer";
+      const demo = demoRole === "producer" ? DEMO_USERS.producer : DEMO_USERS.consumer;
       return {
-        name: `${user.first_name || "Demo"} ${user.last_name || "User"}`.trim(),
-        role: user.role === "producer" ? "Industrial Automation Specialist" : "Business Owner",
-        location: user.location || "Bengaluru, Karnataka",
-        phone: user.phone || "9876543210",
-        email: user.email || "demo@originode.com",
-        id: "DEMO-001",
-        skills: ["Hydraulics", "PLC Programming"],
+        name: demo.name,
+        role: demoRole === "producer" ? "Industrial Automation Specialist" : "Fleet Operator",
+        location: demo.location,
+        phone: demo.phone,
+        email: demo.email,
+        id: demoRole === "producer" ? "DEMO-EXP-001" : "DEMO-FLT-001",
+        skills: demo.skills || [],
         bankAccountNumber: "",
         ifscCode: "",
-        accountHolderName: `${user.first_name || "Demo"} ${user.last_name || "User"}`.trim()
+        accountHolderName: demo.name,
       };
     }
 
     return {
       name: user
-        ? `${user.first_name || ""} ${user.last_name || ""}`.trim() ||
-          "Expert Technician"
+        ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Expert Technician"
         : "Expert Technician",
       role: user
-        ? user.role === "producer"
-          ? "Industrial Automation Specialist"
-          : "Business Owner"
+        ? user.role === "producer" ? "Industrial Automation Specialist" : "Business Owner"
         : "Industrial Specialist",
       location: user?.location || "Not Set",
       phone: user?.phone || "",
@@ -1033,9 +1033,30 @@ function App() {
   useEffect(() => {
     if (
       view === "dashboard" &&
-      !isDemo &&
       (activeTab === "profile" || activeTab === "settings")
     ) {
+      if (isDemo) {
+        // In demo mode — always show demo persona, never real DB data
+        const demo = role === "producer" ? DEMO_USERS.producer : DEMO_USERS.consumer;
+        setProfileData({
+          name: demo.name,
+          role: role === "producer" ? "Industrial Automation Specialist" : "Fleet Operator",
+          location: demo.location,
+          phone: demo.phone,
+          email: demo.email,
+          id: role === "producer" ? "DEMO-EXP-001" : "DEMO-FLT-001",
+          skills: demo.skills || [],
+          bankAccountNumber: "",
+          ifscCode: "",
+          accountHolderName: demo.name,
+        });
+        setFirstName(demo.firstName);
+        setLastName(demo.lastName);
+        setPhone(demo.phone);
+        setExtraInfo(demo.company);
+        setLocation(demo.location);
+        return;
+      }
       const fetchProfile = async () => {
         try {
           const res = await api.get("/profile");
@@ -1121,6 +1142,7 @@ function App() {
   ]);
 
   const handleSaveConsumerProfile = async () => {
+    if (isDemo) { setToast({ message: "Profile editing is not available in demo mode.", type: "info" }); return; }
     const hasChanged =
       firstName !== (originalData.first_name || "") ||
       lastName !== (originalData.last_name || "") ||
@@ -1344,9 +1366,15 @@ function App() {
 
       if (token === "demo-token-xyz") {
         setView("dashboard");
-        setRole(user.role || "consumer");
+        const demoRole = user.role || "consumer";
+        setRole(demoRole);
         setAuthenticated(true);
         setAuthChecking(false);
+        // Restore demo persona — never use real DB data
+        const demo = demoRole === "producer" ? DEMO_USERS.producer : DEMO_USERS.consumer;
+        setFirstName(demo.firstName);
+        setLastName(demo.lastName);
+        setEmail(demo.email);
       } else {
         api
           .get("/auth/me")
@@ -1354,11 +1382,19 @@ function App() {
             const freshUser = res.data.user || res.data;
             setView("dashboard");
             setAuthenticated(true);
-            setRole(
-              freshUser.role === "admin"
-                ? "consumer"
-                : freshUser.role || "consumer",
-            );
+            const resolvedRole = freshUser.role === "admin" ? "consumer" : freshUser.role || "consumer";
+            setRole(resolvedRole);
+            // If this is a demo account, use demo persona not real DB data
+            if (localStorage.getItem("isDemo") === "true") {
+              const demo = resolvedRole === "producer" ? DEMO_USERS.producer : DEMO_USERS.consumer;
+              setFirstName(demo.firstName);
+              setLastName(demo.lastName);
+              setEmail(demo.email);
+            } else {
+              setFirstName(freshUser.first_name || "");
+              setLastName(freshUser.last_name || "");
+              setEmail(freshUser.email || "");
+            }
             fetchNotifications();
           })
           .catch((err) => {
@@ -1606,7 +1642,11 @@ function App() {
   const [showCompleteProfileBanner, setShowCompleteProfileBanner] = useState(false);
 
   useEffect(() => {
-     if(view === 'dashboard' && authenticated) {
+     if (view === 'dashboard' && authenticated) {
+        if (isDemo) {
+          setShowCompleteProfileBanner(false);
+          return;
+        }
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         if(!user.phone || !user.first_name || String(user.first_name).trim() === '') {
            setShowCompleteProfileBanner(true);
@@ -1614,7 +1654,7 @@ function App() {
            setShowCompleteProfileBanner(false);
         }
      }
-  }, [view, authenticated, profileData]);
+  }, [view, authenticated, profileData, isDemo]);
 
   const handleOpenAddMachine = () => {
     if (!isProfileComplete()) {
@@ -2365,40 +2405,92 @@ function App() {
     generateInvoicePDF(reportToDownload);
   };
 
-  const handleDemoLogin = () => {
-    const demoUser = {
-      id: "demo-123",
-      first_name: "Demo",
-      last_name: "User",
-      email: "demo@originode.com",
-      role: role,
-    };
-    localStorage.setItem("token", "demo-token-xyz");
-    localStorage.setItem("user", JSON.stringify(demoUser));
-    localStorage.setItem("isAuth", "true");
-    localStorage.setItem("isDemo", "true");
-    setIsDemo(true);
-    setAuthenticated(true);
-    setEmail("demo@originode.com");
-    setFirstName("Demo");
-    setLastName("User");
-    setRole(role);
-    // Inject demo data — no API calls
-    if (role === "producer") {
-      setProducerDashStats(DEMO_PRODUCER_STATS);
-      setRadarJobs(DEMO_RADAR_JOBS);
-      setProducerChats(DEMO_CHATS);
-      setTransactionHistory(DEMO_TRANSACTION_HISTORY);
-    } else {
-      setMachines(DEMO_MACHINES);
-      setActiveRequests(DEMO_ACTIVE_REQUESTS);
-      setChats(DEMO_CHATS);
-      setTransactionHistory(DEMO_TRANSACTION_HISTORY);
-      setEarningsStats(DEMO_EARNINGS_STATS);
+  const handleDemoLogin = async () => {
+    try {
+      const res = await api.post('/demo/login', { role });
+      const { token, user } = res.data;
+      const demo = user.role === 'producer' ? DEMO_USERS.producer : DEMO_USERS.consumer;
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('isAuth', 'true');
+      localStorage.setItem('isDemo', 'true');
+      setIsDemo(true);
+      setAuthenticated(true);
+      setFirstName(demo.firstName);
+      setLastName(demo.lastName);
+      setEmail(demo.email);
+      setRole(user.role);
+      setProfileData({
+        name: demo.name,
+        role: user.role === 'producer' ? 'Industrial Automation Specialist' : 'Fleet Operator',
+        location: demo.location,
+        phone: demo.phone,
+        email: demo.email,
+        id: user.role === 'producer' ? 'DEMO-EXP-001' : 'DEMO-FLT-001',
+        skills: demo.skills || [],
+        bankAccountNumber: '',
+        ifscCode: '',
+        accountHolderName: demo.name,
+      });
+
+      // Reset all loading states — data comes from real API
+      setChatsLoading(false);
+      setMachinesLoading(false);
+      setRequestsLoading(false);
+      setHistoryLoading(false);
+
+      setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
+      setView('dashboard');
+      setToast({ message: 'Welcome to Demo Mode — explore the full platform safely', type: 'info' });
+    } catch (err) {
+      console.error('Demo login failed:', err);
+      // Fallback to static demo if backend unavailable
+      const demoRole = role;
+      const demo = demoRole === 'producer' ? DEMO_USERS.producer : DEMO_USERS.consumer;
+      const demoUser = { id: 'demo-123', first_name: demo.firstName, last_name: demo.lastName, email: demo.email, role: demoRole };
+      localStorage.setItem('token', 'demo-token-xyz');
+      localStorage.setItem('user', JSON.stringify(demoUser));
+      localStorage.setItem('isAuth', 'true');
+      localStorage.setItem('isDemo', 'true');
+      setIsDemo(true);
+      setAuthenticated(true);
+      setFirstName(demo.firstName);
+      setLastName(demo.lastName);
+      setEmail(demo.email);
+      setRole(demoRole);
+      setProfileData({
+        name: demo.name,
+        role: demoRole === 'producer' ? 'Industrial Automation Specialist' : 'Fleet Operator',
+        location: demo.location,
+        phone: demo.phone,
+        email: demo.email,
+        id: demoRole === 'producer' ? 'DEMO-EXP-001' : 'DEMO-FLT-001',
+        skills: demo.skills || [],
+        bankAccountNumber: '',
+        ifscCode: '',
+        accountHolderName: demo.name,
+      });
+      if (role === 'producer') {
+        setProducerDashStats(DEMO_PRODUCER_STATS);
+        setRadarJobs(DEMO_RADAR_JOBS);
+        setProducerChats(DEMO_CHATS);
+        setTransactionHistory(DEMO_TRANSACTION_HISTORY);
+      } else {
+        setMachines(DEMO_MACHINES);
+        setActiveRequests(DEMO_ACTIVE_REQUESTS);
+        setChats(DEMO_CHATS);
+        setTransactionHistory(DEMO_TRANSACTION_HISTORY);
+        setEarningsStats(DEMO_EARNINGS_STATS);
+      }
+      setChatsLoading(false);
+      setMachinesLoading(false);
+      setRequestsLoading(false);
+      setHistoryLoading(false);
+      setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
+      setView('dashboard');
+      setToast({ message: 'Welcome to Demo Mode (offline)', type: 'info' });
     }
-    setActiveTab(role === "consumer" ? "fleet" : "requests");
-    setView("dashboard");
-    setToast({ message: "Welcome to Demo Mode — actions are disabled", type: "info" });
   };
 
   const handleLogin = async () => {
@@ -2525,6 +2617,7 @@ function App() {
   };
 
   const handleSaveBankDetails = async () => {
+    if (isDemo) { setToast({ message: "Bank details are not available in demo mode.", type: "info" }); return; }
     const errors = {};
     const accountNumberDigits = bankDetailsForm.bankAccountNumber.replace(
       /\s/g,
@@ -2895,6 +2988,8 @@ function App() {
       }
     } catch (err) {
       console.warn("Consumer chat list fetch failed", err);
+    } finally {
+      setChatsLoading(false);
     }
   };
 
@@ -2934,10 +3029,9 @@ function App() {
   scheduleConsumerFleetRefreshRef.current = scheduleConsumerFleetRefresh;
 
   useEffect(() => {
-    if (isDemo) return;
     if (view !== "dashboard" || role !== "consumer") return;
     fetchConsumerActiveRequests();
-  }, [view, role, isDemo]);
+  }, [view, role]);
 
   useEffect(() => {
     if (!socket || role !== "consumer" || view !== "dashboard") return;
@@ -3124,6 +3218,7 @@ function App() {
   }, [getStoredUser]);
 
   const fetchProducerChats = async () => {
+    setChatsLoading(true);
     try {
       const res = await api.get("/jobs/my");
       const myJobs = Array.isArray(res.data) ? res.data : [];
@@ -3138,36 +3233,56 @@ function App() {
           time: new Date(job.created_at).toLocaleDateString(),
           unread: 0,
           status: job.status,
-          expertId: job.expert_id || `exp-${job.id}`, // Add expertId
+          expertId: job.expert_id || `exp-${job.id}`,
         }));
         setProducerChats(chatList);
+      } else {
+        setProducerChats([]);
       }
     } catch (err) {
       console.error("Failed to load producer chat list:", err);
+      setProducerChats([]);
+    } finally {
+      setChatsLoading(false);
     }
   };
 
   const handleAcceptJob = async (jobOrId) => {
-    if (isDemo) { setToast({ message: "This is a demo. Actions are disabled.", type: "info" }); return; }
     const jobId = typeof jobOrId === "object" ? jobOrId.id : jobOrId;
+
+    if (isDemo) {
+      // Simulate accept — update local state only, no API call
+      setTimeout(() => {
+        setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
+        const job = (radarJobs || []).find((j) => j.id === jobId);
+        const newChat = {
+          id: jobId,
+          name: `${job?.client_name || "Demo Client"} — ${job?.machine_name || "Machine"}`,
+          avatar: (job?.client_name || "DC").substring(0, 2).toUpperCase(),
+          lastMsg: job?.issue_description?.substring(0, 35) + "..." || "Service request accepted",
+          time: "Just now",
+          unread: 1,
+          status: "accepted",
+          expertId: "demo-expert",
+        };
+        setProducerChats((prev) => [newChat, ...prev]);
+        setActiveChatId(jobId);
+        setActiveTab("pro-messages");
+        setToast({ message: "Request accepted successfully", type: "success" });
+      }, 800);
+      return;
+    }
+
     try {
       const res = await api.patch(`/jobs/${jobId}/accept`);
       const acceptedJob = res.data;
-
-      // Remove the accepted job from the radar board locally
       setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
-
-      // Refresh the producer chat list to include the newly accepted job
       await fetchProducerChats();
       await fetchProducerDashboardStats();
-
-      // Pre-select the accepted job chat and switch to messages tab
       setActiveChatId(jobId);
       setActiveTab("pro-messages");
     } catch (err) {
-      alert(
-        "Failed to accept job: " + (err.response?.data?.message || err.message),
-      );
+      alert("Failed to accept job: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -3219,21 +3334,52 @@ function App() {
   };
 
   const handleExpertStartWork = async () => {
-    if (isDemo) { setToast({ message: "This is a demo. Actions are disabled.", type: "info" }); return; }
     if (!activeChatId) return;
+
+    if (isDemo) {
+      setTimeout(() => {
+        setProducerChats((prev) =>
+          prev.map((c) => c.id === activeChatId ? { ...c, status: "in_progress" } : c)
+        );
+        setToast({ message: "Work started successfully", type: "success" });
+      }, 600);
+      return;
+    }
+
     try {
       await api.patch(`/jobs/${activeChatId}/start-work`);
       await fetchProducerChats();
     } catch (err) {
-      alert(
-        "Failed to start work: " + (err.response?.data?.message || err.message),
-      );
+      alert("Failed to start work: " + (err.response?.data?.message || err.message));
     }
   };
 
   const handleExpertMarkComplete = async () => {
-    if (isDemo) { setToast({ message: "This is a demo. Actions are disabled.", type: "info" }); return; }
     if (!activeChatId) return;
+
+    if (isDemo) {
+      setTimeout(() => {
+        setProducerChats((prev) =>
+          prev.map((c) => c.id === activeChatId ? { ...c, status: "completed" } : c)
+        );
+        const completionMsg = {
+          id: Date.now(),
+          chatId: activeChatId,
+          sender: "expert",
+          text: SERVICE_COMPLETION_MESSAGE,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        setMessages((prev) => [...prev, completionMsg]);
+        setProducerDashStats((prev) => ({
+          ...prev,
+          completedJobs: (prev.completedJobs || 0) + 1,
+          points: (prev.points || 0) + 20,
+        }));
+        setToast({ message: "Job marked as completed", type: "success" });
+      }, 700);
+      return;
+    }
+
     try {
       const res = await api.patch(`/jobs/${activeChatId}/complete-work`);
       await fetchProducerDashboardStats();
@@ -3244,20 +3390,15 @@ function App() {
         chatId: activeChatId,
         sender: "expert",
         text: SERVICE_COMPLETION_MESSAGE,
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, newMsgObj]);
       if (socket && user) {
-        // Persist the system message in chat
         socket.emit("send_message", {
           requestId: activeChatId,
           senderId: user.id,
           text: SERVICE_COMPLETION_MESSAGE,
         });
-        // Notify consumer's dashboard to update status tracker
         socket.emit("job_completed", {
           requestId: activeChatId,
           status: "completed",
@@ -3266,22 +3407,17 @@ function App() {
       }
       await fetchProducerChats();
     } catch (err) {
-      alert(
-        "Failed to mark as completed: " +
-          (err.response?.data?.message || err.message),
-      );
+      alert("Failed to mark as completed: " + (err.response?.data?.message || err.message));
     }
   };
 
   useEffect(() => {
-    if (isDemo) return; // Demo mode — data already injected, no API calls
     if (view === "dashboard" && role === "consumer" && activeTab === "fleet") {
       fetchConsumerFleetSnapshot();
     }
   }, [view, role, activeTab, isDemo]);
 
   useEffect(() => {
-    if (isDemo) return; // Demo mode — data already injected, no API calls
     if (view === "dashboard" && role === "producer") {
       fetchRadarJobs();
       fetchProducerChats();
@@ -3296,45 +3432,62 @@ function App() {
 
   // When producer switches to messages tab, refresh their chat list
   useEffect(() => {
-    if (isDemo) return;
     if (activeTab === "pro-messages" && role === "producer") {
       fetchProducerChats();
     }
-  }, [activeTab, isDemo]);
+  }, [activeTab]);
 
   // [NEW] FETCH FINANCIAL STATS
   useEffect(() => {
-    if (isDemo) return;
     if (activeTab === "earnings" || activeTab === "history") {
       const fetchFinanceData = async () => {
         try {
           const statsRes = await api.get("/finance/stats");
           setEarningsStats(statsRes.data);
-
           const historyRes = await api.get("/finance/history");
           setTransactionHistory(historyRes.data);
         } catch (err) {
           console.error("Failed to load financial data", err);
         }
       };
-
       fetchFinanceData();
     }
-  }, [activeTab, isDemo]);
+  }, [activeTab]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("isAuth");
-    localStorage.removeItem("isDemo");
-    setIsDemo(false);
-    setAuthenticated(false);
-    setEmail("");
-    setPassword("");
-    setFirstName("");
-    setLastName("");
-    setActiveTab("fleet");
-    navigate("/", { replace: true });
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (token && token !== "demo-token-xyz") {
+        await api.post("/auth/logout").catch(() => {});
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      if (socket) {
+        socket.off();
+        socket.disconnect();
+      }
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("isAuth");
+      localStorage.removeItem("isDemo");
+      localStorage.removeItem("ratedJobIds");
+      setIsDemo(false);
+      setAuthenticated(false);
+      setEmail("");
+      setPassword("");
+      setFirstName("");
+      setLastName("");
+      setMachines([]);
+      setActiveRequests([]);
+      setChats([]);
+      setProducerChats([]);
+      setMessages([]);
+      setRadarJobs([]);
+      setActiveTab("fleet");
+      setView("landing");
+      navigate("/", { replace: true });
+    }
   };
 
   const handleViewExpertProfile = async (chat) => {
@@ -3390,15 +3543,27 @@ function App() {
   };
 
   const handlePayment = (amountStr, desc, requestId = null) => {
-    if (isDemo) { setToast({ message: "This is a demo. Actions are disabled.", type: "info" }); return; }
-    const providerPrice =
-      parseInt(String(amountStr).replace(/[^0-9]/g, "")) || 5000;
-    const commissionPercentage = parseFloat(
-      import.meta.env.VITE_PLATFORM_COMMISSION_PERCENTAGE || "10",
-    );
+    const providerPrice = parseInt(String(amountStr).replace(/[^0-9]/g, "")) || 5000;
+    const commissionPercentage = parseFloat(import.meta.env.VITE_PLATFORM_COMMISSION_PERCENTAGE || "10");
     const commission = (providerPrice * commissionPercentage) / 100;
     const gst = commission * 0.18;
     const totalPayable = providerPrice + commission + gst;
+
+    if (isDemo) {
+      // Simulate payment — show checkout modal with demo flag, skip Razorpay
+      setCheckoutDesc(desc || "Invoice Payment");
+      setCheckoutDetails({
+        providerPrice,
+        commissionPercentage,
+        commission: Math.round(commission * 100) / 100,
+        gst: Math.round(gst * 100) / 100,
+        totalPayable: Math.round(totalPayable * 100) / 100,
+        requestId: requestId || activeChatId,
+        isDemo: true,
+      });
+      setShowCheckoutModal(true);
+      return;
+    }
 
     setCheckoutDesc(desc || "Invoice Payment");
     setCheckoutDetails({
@@ -3414,6 +3579,40 @@ function App() {
 
   const initiateRazorpayCheckout = async () => {
     if (!checkoutDetails) return;
+
+    // Demo mode — simulate payment success without Razorpay
+    if (checkoutDetails.isDemo) {
+      setShowCheckoutModal(false);
+      setTimeout(() => {
+        const fakeRef = `DEMO-PAY-${Date.now()}`;
+        const successText = `✓ Payment of ₹${checkoutDetails.totalPayable} processed successfully. Ref: ${fakeRef}`;
+        setMessages((prev) => [...prev, {
+          id: Date.now(),
+          chatId: activeChatId,
+          sender: "system",
+          text: successText,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        }]);
+        setPaidInvoices((prev) => [...prev, `${checkoutDesc}_${checkoutDetails.providerPrice}`]);
+        setChats((prev) => prev.map((c) =>
+          String(c.id) === String(activeChatId) ? { ...c, status: "payment_pending" } : c
+        ));
+        const ratingJobId = String(checkoutDetails.requestId || activeChatId);
+        if (!ratedJobIds.has(ratingJobId)) {
+          setPostPaymentRatingContext({
+            requestId: checkoutDetails.requestId || activeChatId,
+            expertName: "Demo Expert",
+            amountPaid: checkoutDetails.totalPayable,
+            refId: fakeRef,
+          });
+          setReviewData({ rating: 0, comment: "" });
+          setShowPostPaymentRatingModal(true);
+        }
+        setToast({ message: "Payment successful (Demo)", type: "success" });
+      }, 900);
+      return;
+    }
+
     try {
       setShowCheckoutModal(false);
       const res = await api.post("/payment/create-order", {
@@ -5714,6 +5913,7 @@ function App() {
                 paidInvoices={paidInvoices}
                 onProcessPayment={handlePayment}
                 jobStatus={chats.find((c) => c.id === activeChatId)?.status}
+                loading={chatsLoading}
               />
             );
           case "history":
@@ -5827,6 +6027,7 @@ function App() {
                 }
                 onStartWork={handleExpertStartWork}
                 onMarkComplete={handleExpertMarkComplete}
+                loading={chatsLoading}
               />
             );
           case "history":

@@ -8,7 +8,7 @@ import crypto from 'crypto';
  */
 export const generateAccessToken = (user) => {
     return jwt.sign(
-        { id: user.id || user.user_id, email: user.email, role: user.role },
+        { id: user.id || user.user_id, email: user.email, role: user.role, is_demo: !!user.is_demo },
         process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET,
         { expiresIn: '24h' }
     );

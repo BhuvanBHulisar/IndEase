@@ -1,6 +1,35 @@
 // Static demo data — used exclusively in Demo Mode
 // Real user data is NEVER mixed with this
 
+// ── Demo user personas ────────────────────────────────────────────────────────
+export const DEMO_USERS = {
+  producer: {
+    name: 'Demo Expert',
+    firstName: 'Demo',
+    lastName: 'Expert',
+    email: 'demo_expert@originode.com',
+    phone: '9999999999',
+    company: 'OrigiNode Industrial',
+    location: 'Mumbai, Maharashtra',
+    role: 'producer',
+    skills: ['Hydraulics', 'CNC', 'Motors', 'PLC Programming'],
+    rating: 4.8,
+    level: 'Gold',
+    points: 420,
+    salary: 18000,
+  },
+  consumer: {
+    name: 'Demo Fleet',
+    firstName: 'Demo',
+    lastName: 'Fleet',
+    email: 'demo_fleet@originode.com',
+    phone: '8888888888',
+    company: 'Demo Logistics Pvt. Ltd.',
+    location: 'Pune, Maharashtra',
+    role: 'consumer',
+  },
+};
+
 export const DEMO_STATS = {
   earnings: 12400,
   completedJobs: 8,
