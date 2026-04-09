@@ -11,7 +11,8 @@ import {
   ArrowUpRight,
   ShieldCheck,
   ChevronRight,
-  Calendar
+  Calendar,
+  Zap
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from './ui/base';
@@ -86,15 +87,48 @@ export default function PerformanceView({ userId }) {
   );
 
   if (!data || data.isEmpty) return (
-    <div className="h-96 flex flex-col items-center justify-center gap-4 text-center px-6">
-      <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center">
-        <TrendingUp size={32} className="text-indigo-400" />
-      </div>
-      <div>
-        <p className="text-lg font-bold text-slate-900 mb-1">No performance data yet</p>
-        <p className="text-sm text-slate-500 max-w-sm">
-          Accept your first service request to start earning points and building your performance record.
+    <div className="space-y-6 pb-12 animate-fade-in max-w-5xl mx-auto mt-8">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          Start earning points
+        </h2>
+        <p className="text-slate-500 font-medium max-w-2xl text-sm">
+          Build your reputation on the platform to unlock higher tiers and larger bonuses.
         </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <div className="rounded-[20px] bg-white border border-slate-200 p-6 shadow-sm flex flex-col gap-4">
+            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+               <CheckCircle2 size={24} />
+            </div>
+            <div>
+               <h3 className="font-bold text-slate-900 text-base">Complete a job</h3>
+               <span className="inline-block mt-2 rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">+20 points</span>
+            </div>
+         </div>
+         <div className="rounded-[20px] bg-white border border-slate-200 p-6 shadow-sm flex flex-col gap-4">
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+               <Star size={24} />
+            </div>
+            <div>
+               <h3 className="font-bold text-slate-900 text-base">Get a 5-star rating</h3>
+               <span className="inline-block mt-2 rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">+15 points</span>
+            </div>
+         </div>
+         <div className="rounded-[20px] bg-white border border-slate-200 p-6 shadow-sm flex flex-col gap-4">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+               <Zap size={24} />
+            </div>
+            <div>
+               <h3 className="font-bold text-slate-900 text-base">Respond fast (under 1 hr)</h3>
+               <span className="inline-block mt-2 rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">+5 points</span>
+            </div>
+         </div>
+      </div>
+      <div className="mt-8 flex flex-col items-center justify-center text-center p-8 bg-slate-50 border border-slate-200 rounded-[20px]">
+        <p className="text-slate-600 font-medium mb-4">Accept your first service request to begin!</p>
+        <button onClick={() => window.location.href='/expert-dashboard'} className="h-10 px-6 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition-colors shadow-sm">View Incoming Requests</button>
       </div>
     </div>
   );

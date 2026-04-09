@@ -67,7 +67,7 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Escrow Verified</span>
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Verified</span>
               </div>
            </div>
         </div>

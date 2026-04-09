@@ -234,7 +234,7 @@ export function SupportView({ user }) {
             <h3 className="text-lg font-semibold text-slate-900 leading-tight">Contact Us Directly</h3>
             <div className="space-y-4">
               <ContactItem icon={Mail} label="Support Email" value={SUPPORT_EMAIL} href={`mailto:${SUPPORT_EMAIL}`} />
-              <ContactItem icon={Phone} label="Support Hotline" value="+91 1800-ORIGI-HELP" />
+              <ContactItem icon={Phone} label="Support Hours" value="Monday – Saturday, 9 AM – 6 PM IST" />
               <ContactItem icon={MessagesSquare} label="Response Time" value="Within 24 hours" />
             </div>
           </div>

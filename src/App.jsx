@@ -6227,7 +6227,7 @@ function App() {
         <div className="animate-fade-in">
           {role === "producer" &&
             !isDemo &&
-            (!profileData.bankAccountNumber || !profileData.ifscCode) && (
+            (activeTab === "fleet" || activeTab === "dashboard") && (!profileData.bankAccountNumber || !profileData.ifscCode) && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}

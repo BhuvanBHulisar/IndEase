@@ -8,8 +8,10 @@ import {
   Clock,
   CheckCircle2,
   Terminal,
+  Bell,
   Award,
-  Activity
+  Activity,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../components/ui/base';
@@ -284,6 +286,12 @@ export default function ProducerDashboard({
 }) {
   const [filter, setFilter] = useState('All');
   const [showLevelModal, setShowLevelModal] = useState(false);
+  const [isGuideDismissed, setIsGuideDismissed] = useState(() => localStorage.getItem('expert_guide_dismissed') === 'true');
+
+  const handleDismissGuide = () => {
+    setIsGuideDismissed(true);
+    localStorage.setItem('expert_guide_dismissed', 'true');
+  };
 
   const filteredJobs = (radarJobs || []).filter((job) => {
     const status = (job.status || 'new').toLowerCase();
@@ -349,6 +357,34 @@ export default function ProducerDashboard({
         currentLevel={level}
         points={points}
       />
+
+      {!isGuideDismissed && (stats?.completedJobs === 0 || !stats?.completedJobs) && (
+        <div className="relative overflow-hidden rounded-[16px] border border-blue-200 bg-blue-50 p-6 shadow-sm">
+          <button 
+            onClick={handleDismissGuide}
+            className="absolute right-4 top-4 text-blue-400 hover:text-blue-600 transition-colors"
+          >
+            <X size={20} />
+          </button>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-blue-900">Getting Started with origiNode</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-blue-100 flex flex-col gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-600">1</div>
+              <h4 className="font-semibold text-slate-900 text-sm">Complete your profile and add bank details</h4>
+            </div>
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-blue-100 flex flex-col gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-600">2</div>
+              <h4 className="font-semibold text-slate-900 text-sm">Wait for incoming service requests from consumers</h4>
+            </div>
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-blue-100 flex flex-col gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-600">3</div>
+              <h4 className="font-semibold text-slate-900 text-sm">Accept requests and start earning</h4>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="space-y-4">
         <div className="flex items-center gap-3">
@@ -455,11 +491,11 @@ export default function ProducerDashboard({
               ) : (
                 <div className="col-span-full flex flex-col items-center justify-center rounded-[16px] border border-[#E5E7EB] bg-white p-12 py-32 text-center transition-all duration-500">
                   <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50">
-                    <Terminal className="text-slate-400" size={28} />
+                    <Bell className="text-slate-400" size={28} />
                   </div>
-                  <h4 className="mb-2 text-lg font-semibold text-slate-900">No new requests.</h4>
+                  <h4 className="mb-2 text-lg font-semibold text-slate-900">No new requests yet</h4>
                   <p className="mx-auto max-w-sm text-sm text-slate-500">
-                    You will be notified when a consumer in your area needs help.
+                    New service requests from consumers in your area will appear here automatically.
                   </p>
                 </div>
               )}

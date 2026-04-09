@@ -386,7 +386,7 @@ export default function MessagesView({
              </div>
              <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mb-2">Select a Conversation</h3>
              <p className="text-slate-500 font-normal max-w-xs mx-auto leading-relaxed">
-                Connect with repair experts to coordinate maintenance and node restoration services.
+                Select a conversation from the left to start chatting with a consumer.
              </p>
           </div>
         )}
