@@ -199,7 +199,7 @@ const Login = () => {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              ORIGINODE
+              origiNode
             </Typography>
             <Typography
               variant="body1"
@@ -210,8 +210,7 @@ const Login = () => {
                 maxWidth: 300,
               }}
             >
-              Secure industrial operations portal. Manage requests, operators,
-              and intelligence in real-time.
+              Manage service experts, consumers, and platform operations from one place.
             </Typography>
           </Grid>
 

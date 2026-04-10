@@ -290,3 +290,97 @@ export const sendSupportEmail = async ({ name, email, subject, message }) => {
 </html>`
     });
 };
+
+export async function sendBankDetailsRequestEmail(name, email) {
+    const appUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const transporter = getTransporter();
+    await transporter.sendMail({
+        from: `"origiNode Support" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: 'Action Required — Add Your Bank Details to Receive Payments',
+        html: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 20px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+      <tr>
+        <td style="background:linear-gradient(135deg,#1e40af 0%,#2563EB 100%);padding:40px;text-align:center;">
+          <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">origiNode</h1>
+          <p style="margin:8px 0 0;color:#93c5fd;font-size:13px;letter-spacing:1px;text-transform:uppercase;">Industrial Service Platform</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:40px 40px 0;text-align:center;">
+          <div style="display:inline-block;background:#FEF3C7;border-radius:50px;padding:8px 20px;">
+            <span style="color:#92400E;font-size:13px;font-weight:600;">⚠ Action Required</span>
+          </div>
+          <h2 style="margin:20px 0 8px;color:#111827;font-size:22px;font-weight:700;">Hello, ${name}!</h2>
+          <p style="margin:0;color:#6B7280;font-size:15px;line-height:1.6;">Your bank details are missing. Without them, we are unable to transfer your job payments and monthly salary to you.</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:32px 40px;">
+          <div style="background:#FEF2F2;border-left:4px solid #EF4444;border-radius:0 8px 8px 0;padding:16px 20px;">
+            <p style="margin:0 0 6px;color:#991B1B;font-size:14px;font-weight:700;">Your salary is currently on hold</p>
+            <p style="margin:0;color:#B91C1C;font-size:13px;line-height:1.6;">All earnings from completed jobs and your monthly salary will be released to your bank account as soon as you add your details.</p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 40px 32px;">
+          <div style="background:#F8FAFF;border:1px solid #DBEAFE;border-radius:12px;padding:24px;">
+            <p style="margin:0 0 16px;color:#374151;font-size:14px;font-weight:700;">How to add your bank details:</p>
+            <table cellpadding="0" cellspacing="0" width="100%">
+              <tr><td style="padding:8px 0;border-bottom:1px solid #E5E7EB;">
+                <span style="color:#2563EB;font-weight:700;font-size:13px;">Step 1</span>
+                <span style="color:#374151;font-size:13px;margin-left:8px;">Login to your origiNode expert account</span>
+              </td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #E5E7EB;">
+                <span style="color:#2563EB;font-weight:700;font-size:13px;">Step 2</span>
+                <span style="color:#374151;font-size:13px;margin-left:8px;">Go to My Account → Bank Details section</span>
+              </td></tr>
+              <tr><td style="padding:8px 0;">
+                <span style="color:#2563EB;font-weight:700;font-size:13px;">Step 3</span>
+                <span style="color:#374151;font-size:13px;margin-left:8px;">Enter your Account Number, IFSC Code, and Account Holder Name</span>
+              </td></tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 40px 32px;">
+          <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:20px;">
+            <p style="margin:0 0 8px;color:#14532D;font-size:14px;font-weight:700;">💰 What you will receive</p>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:6px 0;border-bottom:1px solid #D1FAE5;color:#166534;font-size:13px;">Per job payment</td>
+                <td style="padding:6px 0;border-bottom:1px solid #D1FAE5;color:#166534;font-size:13px;text-align:right;">90% of each service amount</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#166534;font-size:13px;">Monthly salary</td>
+                <td style="padding:6px 0;color:#166534;font-size:13px;text-align:right;">Based on your performance level</td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 40px 40px;text-align:center;">
+          <a href="${appUrl}/provider/login" style="display:inline-block;background:#2563EB;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:10px;font-size:15px;font-weight:700;">Login &amp; Add Bank Details →</a>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:24px 40px;text-align:center;">
+          <p style="margin:0;color:#6B7280;font-size:12px;">Questions? Contact us at <a href="mailto:originode7@gmail.com" style="color:#2563EB;">originode7@gmail.com</a></p>
+          <p style="margin:8px 0 0;color:#9CA3AF;font-size:11px;">© 2026 origiNode Systems. All rights reserved.</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`
+    });
+}

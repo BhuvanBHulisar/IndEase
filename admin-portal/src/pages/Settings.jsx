@@ -76,7 +76,7 @@ const Settings = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 800 }}>Settings</Typography>
-                    <Typography variant="body2" color="text.secondary">Master parameters of the OrigiNode Marketplace</Typography>
+                    <Typography variant="body2" color="text.secondary">Configure platform fees, payment settings, and security.</Typography>
                 </Box>
                 <Button
                     variant="contained"
@@ -151,7 +151,7 @@ const Settings = () => {
                                     disabled
                                 />
                                 <TextField
-                                    label="Gateway Secret Hash"
+                                    label="Gateway Secret Key"
                                     value={platformSettings.razorpaySecret}
                                     fullWidth
                                     disabled
@@ -201,11 +201,11 @@ const Settings = () => {
                         </CardContent>
                     </Card>
 
-                    <Card elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.divider}`, bgcolor: theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.05)' : 'rgba(239,68,68,0.02)' }}>
+                    <Card elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
                         <CardHeader
                             title="Administrative Security"
-                            titleTypographyProps={{ variant: 'subtitle1', fontWeight: 800, color: 'error.main' }}
-                            avatar={<Avatar sx={{ bgcolor: 'error.light', color: 'error.main' }}><Security /></Avatar>}
+                            titleTypographyProps={{ variant: 'subtitle1', fontWeight: 800, color: '#111827' }}
+                            avatar={<Avatar sx={{ bgcolor: 'error.light', color: '#111827' }}><Security /></Avatar>}
                         />
                         <CardContent sx={{ pt: 0 }}>
                             <List>

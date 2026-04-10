@@ -32,10 +32,10 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-6 border-b border-[#E5E7EB]">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-             <Badge className="bg-blue-50 text-[#2563EB] border border-blue-100 rounded-lg px-3 py-1 text-[10px] font-semibold uppercase tracking-widest">
+             <Badge className="bg-blue-50 text-[#2563EB] border border-blue-100 rounded-lg px-3 py-1 text-[10px] font-semibold tracking-widest">
                 Service Records
              </Badge>
-             <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+             <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 tracking-widest">
                 <Database size={10} className="text-slate-400" />
                 Total Entries: {serviceHistory?.length || 0}
              </div>
@@ -67,7 +67,7 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Verified</span>
+                 <span className="text-[10px] font-black text-slate-500 tracking-widest">Verified</span>
               </div>
            </div>
         </div>
@@ -81,11 +81,11 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50">
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Date / Machine</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Expert Details</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Service Status</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Financial Summary</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-right pr-12">Actions</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 tracking-widest border-b border-slate-100">Date / Machine</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 tracking-widest border-b border-slate-100">Expert Details</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 tracking-widest border-b border-slate-100">Service Status</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 tracking-widest border-b border-slate-100">Financial Summary</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 tracking-widest border-b border-slate-100 text-right pr-12">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -183,9 +183,11 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
                       <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <History className="text-slate-200" size={32} />
                       </div>
-                      <h4 className="text-slate-900 font-bold tracking-tight mb-1">No maintenance records</h4>
+                      <h4 className="text-slate-900 font-bold tracking-tight mb-1">No maintenance records yet</h4>
                       <p className="text-slate-500 text-sm mb-6 max-w-xs mx-auto">All verified service logs will appear here after completion.</p>
-                      <Button onClick={onRequestService} className="bg-indigo-600 text-white rounded-xl px-6 h-10 text-xs font-bold uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Request New Service</Button>
+                      {onRequestService && (
+                        <Button onClick={onRequestService} className="bg-indigo-600 text-white rounded-xl px-6 h-10 text-xs font-bold tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Request New Service</Button>
+                      )}
                    </td>
                 </tr>
               )}

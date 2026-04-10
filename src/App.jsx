@@ -60,6 +60,7 @@ import {
   Star,
   ShieldCheck,
   ChevronLeft,
+  UserCircle,
 } from "lucide-react";
 
 // Modern SaaS Dashboard Components
@@ -2648,10 +2649,10 @@ function App() {
 
     setBankDetailsErrors({});
     try {
-      await api.patch("/profile", {
-        bank_account_number: accountNumberDigits,
-        ifsc_code: bankDetailsForm.ifscCode,
-        account_holder_name: bankDetailsForm.accountHolderName,
+      await api.put("/profile/bank-details", {
+        accountHolderName: bankDetailsForm.accountHolderName,
+        bankAccountNumber: accountNumberDigits,
+        ifscCode: bankDetailsForm.ifscCode,
       });
 
       setProfileData((prev) => ({
@@ -2659,6 +2660,15 @@ function App() {
         bankAccountNumber: accountNumberDigits,
         ifscCode: bankDetailsForm.ifscCode,
         accountHolderName: bankDetailsForm.accountHolderName,
+      }));
+
+      // Persist to localStorage so session restore reflects bank details
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      localStorage.setItem("user", JSON.stringify({
+        ...storedUser,
+        bank_account_number: accountNumberDigits,
+        ifsc_code: bankDetailsForm.ifscCode,
+        account_holder_name: bankDetailsForm.accountHolderName,
       }));
 
       setShowCompleteProfileModal(false);
@@ -4442,9 +4452,7 @@ function App() {
           <div className="premium-modal">
             <div className="modal-header-premium">
               <h3 className="modal-title">Add Machine</h3>
-              <p className="text-slate-400 font-medium text-[10px] mt-1 uppercase tracking-widest">
-                Industrial Node Registry
-              </p>
+
               <button
                 className="modal-close-btn"
                 onClick={() => setShowAddMachineModal(false)}
@@ -4493,7 +4501,7 @@ function App() {
                   </select>
                 </div>
                 <div className="input-field-modern">
-                  <label htmlFor="machine-year">Machine Year</label>
+                  <label htmlFor="machine-year">Year of Manufacture</label>
                   <input
                     id="machine-year"
                     name="machine-year"
@@ -4645,7 +4653,7 @@ function App() {
                     Request Service
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    {activeJobMachine?.name || "Global Node"}
+                    {activeJobMachine?.name}
                   </p>
                 </div>
               </div>
@@ -4696,7 +4704,7 @@ function App() {
                       </label>
                       <textarea
                         rows="3"
-                        placeholder="Describe the noise, visual fault, or signal variance..."
+                        placeholder="Describe the issue with your machine..."
                         className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-500 outline-none transition-all text-sm placeholder:text-slate-400"
                         value={diagnosisDesc}
                         onChange={(e) => setDiagnosisDesc(e.target.value)}
@@ -4719,7 +4727,7 @@ function App() {
                     className="w-full h-12 bg-[#2563EB] text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]"
                     onClick={handleBroadcastJob}
                   >
-                    Broadcast Service Request
+                    Submit Service Request
                   </button>
                 </div>
               )}
@@ -5516,7 +5524,7 @@ function App() {
                           htmlFor="email-address"
                           className="block text-sm font-medium text-slate-700 mb-1"
                         >
-                          Professional Email
+                          Email Address
                         </label>
                         <input
                           id="email-address"
@@ -6091,7 +6099,7 @@ function App() {
                     : lastName,
                   extraInfo: profileData.role,
                   phone: profileData.phone,
-                  taxId: profileData.id,
+                  taxId: profileData.tax_id || profileData.taxId || '',
                   userPhoto: userPhoto,
                   bankAccountNumber: profileData.bankAccountNumber,
                   ifscCode: profileData.ifscCode,
@@ -6200,7 +6208,7 @@ function App() {
         onSearchResultClick={handleSearchResultClick}
         isDemo={isDemo}
       >
-        {showCompleteProfileBanner && role === 'consumer' && !isDemo && (
+        {showCompleteProfileBanner && role === 'consumer' && !isDemo && activeTab === 'fleet' && (
            <div className="bg-amber-50 border border-amber-200 px-6 py-4 mb-6 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm relative z-40">
               <div className="flex items-center gap-3 text-amber-800">
                  <AlertCircle size={20} className="shrink-0" />
@@ -6227,7 +6235,7 @@ function App() {
         <div className="animate-fade-in">
           {role === "producer" &&
             !isDemo &&
-            (activeTab === "fleet" || activeTab === "dashboard") && (!profileData.bankAccountNumber || !profileData.ifscCode) && (
+            activeTab === "fleet" && (!profileData.bankAccountNumber || !profileData.ifscCode) && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
@@ -6384,9 +6392,8 @@ function App() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left mb-10">
                     <div className="md:col-span-2 space-y-2">
                       <div className="flex justify-between items-center ml-1">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
-                          <Lock size={10} className="text-slate-300" /> Account
-                          Holder Name
+                        <label className="text-[11px] font-black text-slate-400 tracking-[0.2em] flex items-center gap-1.5">
+                          <Lock size={10} className="text-slate-300" /> Account Holder Name
                         </label>
                         {bankDetailsErrors.accountHolderName && (
                           <span className="text-[10px] font-bold text-red-500">
@@ -6419,9 +6426,8 @@ function App() {
 
                     <div className="space-y-2">
                       <div className="flex justify-between items-center ml-1">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
-                          <Lock size={10} className="text-slate-300" /> Account
-                          Number
+                        <label className="text-[11px] font-black text-slate-400 tracking-[0.2em] flex items-center gap-1.5">
+                          <Lock size={10} className="text-slate-300" /> Account Number
                         </label>
                       </div>
                       <input
@@ -6446,9 +6452,8 @@ function App() {
 
                     <div className="space-y-2">
                       <div className="flex justify-between items-center ml-1">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
-                          <Lock size={10} className="text-slate-300" /> IFSC
-                          Code
+                        <label className="text-[11px] font-black text-slate-400 tracking-[0.2em] flex items-center gap-1.5">
+                          <Lock size={10} className="text-slate-300" /> IFSC Code
                         </label>
                       </div>
                       <input
@@ -6488,7 +6493,7 @@ function App() {
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <span className="relative z-10 flex items-center justify-center gap-2 text-base">
-                        Complete Verification & Enter <ArrowRight size={20} />
+                        Save Bank Details <ArrowRight size={20} />
                       </span>
                     </button>
 
@@ -6499,24 +6504,7 @@ function App() {
                       Skip for now
                     </button>
 
-                    {!isDemo && (
-                      <div className="flex border-t border-slate-50 pt-8 items-center justify-center gap-6 text-slate-400">
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
-                            <Shield size={12} className="text-emerald-500" />{" "}
-                            AES-256 Encrypted
-                          </div>
-                          <span className="text-[8px] font-bold text-slate-300">
-                            Your data is encrypted and secure
-                          </span>
-                        </div>
-                        <div className="w-[1px] h-6 bg-slate-100" />
-                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
-                          <Lock size={12} className="text-emerald-500" /> Secure
-                          SSL
-                        </div>
-                      </div>
-                    )}
+
                   </div>
                 </div>
               </motion.div>
@@ -6566,7 +6554,7 @@ function App() {
                         type: "info",
                       });
                     }}
-                    className="h-12 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-all"
+                    className="h-12 rounded-xl bg-[#2563EB] text-white font-bold text-sm hover:bg-blue-700 transition-all"
                   >
                     Continue
                   </button>

@@ -139,9 +139,9 @@ export default function PerformanceView({ userId }) {
   return (
     <div className="space-y-8 pb-12 animate-fade-in max-w-7xl mx-auto">
       <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900 uppercase tracking-widest flex items-center gap-2">
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
           <TrendingUp className="text-indigo-600" size={28} />
-          Full Performance Audit
+          My Performance
         </h2>
         <p className="text-slate-500 font-medium tracking-tight">Real-time breakdown of your reputation, service quality, and historical earnings.</p>
       </div>
@@ -182,15 +182,8 @@ export default function PerformanceView({ userId }) {
 
            <div className="mt-8 grid grid-cols-2 gap-4">
               <div className="bg-white/80 border border-white p-4 rounded-2xl">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Base Salary</span>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Salary</span>
                  <p className="text-xl font-bold text-slate-900">₹{data.salary?.toLocaleString()}</p>
-              </div>
-              <div className="bg-white/80 border border-white p-4 rounded-2xl">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Daily Inflow Power</span>
-                 <div className="flex items-center gap-1.5 text-emerald-600">
-                    <TrendingUp size={16} />
-                    <p className="text-xl font-bold">Strong</p>
-                 </div>
               </div>
            </div>
         </div>
@@ -215,7 +208,7 @@ export default function PerformanceView({ userId }) {
            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h4 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
                  <Activity size={18} className="text-indigo-600" />
-                 Points Audit Trail
+                 Points History
               </h4>
            </div>
            <div className="overflow-x-auto">
@@ -264,7 +257,7 @@ export default function PerformanceView({ userId }) {
               <Wallet size={120} />
            </div>
            
-           <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Financial Ledger</h4>
+           <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Earnings</h4>
            
            <div className="space-y-6 relative z-10">
               <div className="space-y-1">
@@ -275,7 +268,7 @@ export default function PerformanceView({ userId }) {
               <div className="grid grid-cols-1 gap-3">
                  <EarningLine label="Job Revenue (Total)" value={`₹${data.totalJobEarnings?.toLocaleString()}`} />
                  <EarningLine label="Job Revenue (This Month)" value={`₹${data.monthJobEarnings?.toLocaleString()}`} />
-                 <EarningLine label="Base Salary (Total Paid)" value={`₹${data.totalSalaryPaid?.toLocaleString()}`} />
+                 <EarningLine label="Salary Paid (Total)" value={`₹${data.totalSalaryPaid?.toLocaleString()}`} />
               </div>
 
               <div className="pt-4 border-t border-slate-100 mt-2">

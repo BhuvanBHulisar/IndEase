@@ -1,5 +1,6 @@
 import api from '../services/api';
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Skeleton, 
     Box,
     Typography,
@@ -53,6 +54,7 @@ const Jobs = () => {
     const [search, setSearch] = useState('');
     const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
     const theme = useTheme();
+    const navigate = useNavigate();
 
     const fetchJobs = async () => {
         setLoading(true);
@@ -206,8 +208,16 @@ const Jobs = () => {
             field: 'actions',
             headerName: 'Management',
             width: 140,
-            renderCell: () => (
-                <Button size="small" variant="outlined" startIcon={<Visibility />}>
+            renderCell: (params) => (
+                <Button 
+                    size="small" 
+                    variant="outlined" 
+                    startIcon={<Visibility />} 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/jobs/${params.row.id}`);
+                    }}
+                >
                     View
                 </Button>
             )
@@ -226,7 +236,7 @@ const Jobs = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 800 }}>All Jobs</Typography>
-                    <Typography variant="body2" color="text.secondary">Real-time surveillance of marketplace service requests and assignments</Typography>
+                    <Typography variant="body2" color="text.secondary">Monitor all service requests and assignments</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button startIcon={<FlashOn sx={{ color: 'warning.main' }} />}>Live Flow</Button>

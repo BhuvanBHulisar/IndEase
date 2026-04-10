@@ -384,8 +384,7 @@ export default function MessagesView({
              <div className="w-20 h-20 bg-[#F9FAFB] border border-[#E5E7EB] rounded-[24px] shadow-sm flex items-center justify-center mb-6">
                 <MessageSquare className="text-slate-300" size={32} />
              </div>
-             <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mb-2">Select a Conversation</h3>
-             <p className="text-slate-500 font-normal max-w-xs mx-auto leading-relaxed">
+             <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto leading-relaxed">
                 Select a conversation from the left to start chatting with a consumer.
              </p>
           </div>

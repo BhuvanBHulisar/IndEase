@@ -150,8 +150,8 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
                 className="absolute right-0 mt-2 w-80 bg-white border border-[#E5E7EB] rounded-xl shadow-lg overflow-hidden z-50"
               >
                  <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-slate-50/50">
-                    <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Notifications</h3>
-                    <button onClick={() => onMarkAllRead && onMarkAllRead()} className="text-[10px] text-[#2563EB] font-semibold uppercase hover:underline">Mark all read</button>
+                    <h3 className="text-[11px] font-semibold text-slate-500 tracking-widest">Notifications</h3>
+                    <button onClick={() => onMarkAllRead && onMarkAllRead()} className="text-[10px] text-[#2563EB] font-semibold hover:underline">Mark all read</button>
                  </div>
                  
                  <div className="max-h-80 overflow-y-auto no-scrollbar">

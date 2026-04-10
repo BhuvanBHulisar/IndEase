@@ -87,7 +87,7 @@ const Providers = () => {
                 avgCompletionTime: '0 hrs',
                 specialization: 'Expert',
                 memberSince: provider.created_at || new Date().toISOString(),
-                bankAccountStatus: 'NOT PROVIDED',
+                bankAccountStatus: 'Not Provided',
                 acceptanceRate: '0%',
                 lifetimeEarnings: 0
             });
@@ -242,6 +242,7 @@ Password: ${credsModal.password}`;
     };
     
     const [salaryModal, setSalaryModal] = useState({ open: false, loading: false });
+    const [requestingBank, setRequestingBank] = useState(false);
 
     const handleReleaseSalary = (provider) => {
         setSelectedProvider(provider);
@@ -264,6 +265,19 @@ Password: ${credsModal.password}`;
         }
     };
 
+    const handleRequestBankDetails = async () => {
+        try {
+            setRequestingBank(true);
+            await api.post(`/admin/providers/${selectedProvider.id}/request-bank-details`);
+            setToast({ open: true, message: `Email sent to ${selectedProvider.name} successfully!`, severity: 'success' });
+            setSalaryModal({ open: false, loading: false });
+        } catch (err) {
+            setToast({ open: true, message: 'Failed to send email. Please try again.', severity: 'error' });
+        } finally {
+            setRequestingBank(false);
+        }
+    };
+
     const filteredProviders = providers.filter(p =>
         (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
         (p.category || '').toLowerCase().includes(search.toLowerCase())
@@ -274,7 +288,7 @@ Password: ${credsModal.password}`;
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 800 }}>Service Providers</Typography>
-                    <Typography variant="body2" color="text.secondary">Verify credentials and manage status of professional contractors</Typography>
+                    <Typography variant="body2" color="text.secondary">Manage service experts and their account status</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1.5 }}>
                     <Button startIcon={<FilterList />}>Filter</Button>
@@ -579,7 +593,7 @@ Password: ${credsModal.password}`;
                         </Grid>
 
                         <Grid item xs={12}>
-                            <Divider sx={{ my: 1 }}><Chip label="BANK DETAILS" size="small" sx={{ fontSize: '0.6rem', fontWeight: 900 }} /></Divider>
+                            <Divider sx={{ my: 1 }}><Chip label="Bank Details" size="small" sx={{ fontSize: '0.6rem', fontWeight: 900 }} /></Divider>
                         </Grid>
 
                         <Grid item xs={12}>
@@ -685,22 +699,22 @@ Password: ${credsModal.password}`;
                             <Grid item xs={12}>
                                 <Paper elevation={0} sx={{ p: 3, borderRadius: 4, display: 'flex', justifyContent: 'space-around', bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}` }}>
                                     <Box sx={{ textAlign: 'center' }}>
-                                        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', mb: 1, display: 'block' }}>Current Level</Typography>
+                                        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ mb: 1, display: 'block' }}>Current Level</Typography>
                                         <Typography variant="h5" color="primary" fontWeight={900}>{providerDetails.level}</Typography>
                                     </Box>
                                     <Divider orientation="vertical" flexItem />
                                     <Box sx={{ textAlign: 'center' }}>
-                                        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', mb: 1, display: 'block' }}>Performance Points</Typography>
-                                        <Typography variant="h5" fontWeight={900}>{providerDetails.points} XP</Typography>
+                                        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ mb: 1, display: 'block' }}>Performance Points</Typography>
+                                        <Typography variant="h5" fontWeight={900}>{providerDetails.points} pts</Typography>
                                     </Box>
                                     <Divider orientation="vertical" flexItem />
                                     <Box sx={{ textAlign: 'center' }}>
-                                        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', mb: 1, display: 'block' }}>Success Rate</Typography>
+                                        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ mb: 1, display: 'block' }}>Success Rate</Typography>
                                         <Typography variant="h5" color="success.main" fontWeight={900}>{providerDetails.acceptanceRate}</Typography>
                                     </Box>
                                     <Divider orientation="vertical" flexItem />
                                     <Box sx={{ textAlign: 'center' }}>
-                                        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', mb: 1, display: 'block' }}>Expert Rating</Typography>
+                                        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ mb: 1, display: 'block' }}>Expert Rating</Typography>
                                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                                             <Star sx={{ color: '#f59e0b', fontSize: 28 }} />
                                             <Typography variant="h5" fontWeight={900}>{providerDetails.rating}</Typography>
@@ -712,7 +726,7 @@ Password: ${credsModal.password}`;
                             {/* Detailed Metrics */}
                             <Grid item xs={12} md={6}>
                                 <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <TrendingUp fontSize="small" color="primary" /> PERFORMANCE METRICS
+                                    <TrendingUp fontSize="small" color="primary" /> Performance Metrics
                                 </Typography>
                                 <Paper elevation={0} sx={{ p: 0, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
                                     <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${theme.palette.divider}` }}>
@@ -728,16 +742,16 @@ Password: ${credsModal.password}`;
 
                             <Grid item xs={12} md={6}>
                                 <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <AccountBalanceWallet fontSize="small" color="success" /> BANK ACCOUNT & FINANCIALS
+                                    <AccountBalanceWallet fontSize="small" color="success" /> Bank Account & Financials
                                 </Typography>
                                 <Paper elevation={0} sx={{ p: 0, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
                                     <Box sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={700}>BANK DETAILS</Typography>
+                                            <Typography variant="caption" color="text.secondary" fontWeight={700}>Bank Details</Typography>
                                             {providerDetails.bankAccountStatus === 'VERIFIED' ? (
                                                 <Chip label="VERIFIED" size="small" color="success" variant="filled" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 900 }} />
                                             ) : (
-                                                <Chip label="NOT PROVIDED" size="small" color="error" variant="filled" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 900 }} />
+                                                <Chip label="Not Provided" size="small" color="error" variant="filled" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 900 }} />
                                             )}
                                         </Box>
                                         {providerDetails.bankAccountStatus === 'VERIFIED' ? (
@@ -769,7 +783,7 @@ Password: ${credsModal.password}`;
                             {/* Points Audit Trail */}
                             <Grid item xs={12}>
                                 <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <History fontSize="small" /> RECENT PERFORMANCE EVENTS
+                                    <History fontSize="small" /> Recent Performance Events
                                 </Typography>
                                 <Paper elevation={0} sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
                                     {providerDetails.recentPointEvents?.length > 0 ? (
@@ -793,7 +807,7 @@ Password: ${credsModal.password}`;
                                         </Box>
                                     ) : (
                                         <Box sx={{ p: 4, textAlign: 'center' }}>
-                                            <Typography variant="body2" color="text.secondary">No recent performance events found.</Typography>
+                                            <Typography variant="body2" color="text.secondary">No Recent Performance Events found.</Typography>
                                         </Box>
                                     )}
                                 </Paper>
@@ -837,7 +851,7 @@ Password: ${credsModal.password}`;
                             <Divider sx={{ mb: 2 }} />
                             <Grid container spacing={1.5}>
                                 <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary" display="block">CURRENT LEVEL</Typography>
+                                    <Typography variant="caption" color="text.secondary" display="block">Current Level</Typography>
                                     <Typography variant="body2" fontWeight={700} color="primary">{selectedProvider?.level}</Typography>
                                 </Grid>
                                 <Grid item xs={6}>
@@ -852,7 +866,7 @@ Password: ${credsModal.password}`;
                                             <CheckCircle color="success" sx={{ fontSize: 14 }} />
                                         </Typography>
                                     ) : (
-                                        <Typography variant="body2" fontWeight={700} color="error">Not provided</Typography>
+                                        <Typography variant="body2" fontWeight={700} color="error">Not Provided</Typography>
                                     )}
                                 </Grid>
                             </Grid>
@@ -860,7 +874,7 @@ Password: ${credsModal.password}`;
 
                         {!selectedProvider?.bankAccountNumber ? (
                             <Alert severity="error" sx={{ borderRadius: 3 }}>
-                                <Typography variant="body2" fontWeight={700}>This expert has not added bank details yet. Salary cannot be released.</Typography>
+                                <Typography variant="body2" fontWeight={700}>This expert has not added Bank Details yet. Salary cannot be released.</Typography>
                             </Alert>
                         ) : selectedProvider?.status !== 'approved' ? (
                             <Alert severity="warning" sx={{ borderRadius: 3 }}>
@@ -880,17 +894,15 @@ Password: ${credsModal.password}`;
                 <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
                     <Button onClick={() => setSalaryModal(p => ({ ...p, open: false }))} disabled={salaryModal.loading}>Cancel</Button>
                     {!selectedProvider?.bankAccountNumber ? (
-                        <Button 
-                            variant="contained" 
-                            color="primary" 
+                        <Button
+                            variant="contained"
+                            color="primary"
                             sx={{ borderRadius: 2.5 }}
-                            onClick={() => {
-                                // Logic to "remind" would go here
-                                setSalaryModal(p => ({ ...p, open: false }));
-                                setToast({ open: true, message: 'Expert will be notified to update bank details.', severity: 'info' });
-                            }}
+                            onClick={handleRequestBankDetails}
+                            disabled={requestingBank}
+                            startIcon={requestingBank ? <CircularProgress size={16} color="inherit" /> : null}
                         >
-                            Ask Expert to Update Bank Details
+                            {requestingBank ? 'Sending...' : 'Ask Expert to Update Bank Details'}
                         </Button>
                     ) : (
                         <Button

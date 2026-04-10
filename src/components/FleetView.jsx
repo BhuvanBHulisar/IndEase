@@ -279,7 +279,7 @@ const FleetView = ({
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                   <MessageSquare size={32} />
                 </div>
-                <p className="text-slate-500 font-normal text-sm">No recent signals. Report an issue to start a diagnostic chat.</p>
+                <p className="text-slate-500 font-normal text-sm">No recent chats. Request a service to start chatting with an expert.</p>
               </div>
             )}
           </div>
@@ -339,14 +339,7 @@ const FleetView = ({
         </div>
       </div>
 
-      {/* ROW 4: MACHINE STATS */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-slate-900 tracking-tight px-2 flex items-center gap-2">
-          <Activity size={20} className="text-[#2563EB]" />
-          Active Fleet Analytics
-        </h3>
-        <StatsCards machines={machines} loading={machinesLoading} />
-      </div>
+
 
       {/* ROW 5: MY MACHINES */}
       <div className="space-y-6">
@@ -414,7 +407,7 @@ const FleetView = ({
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm text-slate-300 mb-4">
                 <HardDrive size={32} />
               </div>
-              <p className="text-slate-500 font-normal max-w-xs px-10">No machine nodes detected in your local mesh network. Register your first industrial asset.</p>
+              <p className="text-slate-500 font-normal max-w-xs px-10">You haven't added any machines yet. Add your first machine to get started.</p>
             </div>
           )}
         </div>

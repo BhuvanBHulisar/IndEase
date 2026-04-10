@@ -21,8 +21,10 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
+import UserDetail from "./pages/UserDetail";
 import Providers from "./pages/Providers";
 import Jobs from "./pages/Jobs";
+import JobDetail from "./pages/JobDetail";
 import Payments from "./pages/Payments";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
@@ -146,8 +148,10 @@ const PortalRoutes = () => {
       >
         <Route index element={<Dashboard />} />
         <Route path="users" element={<Users />} />
+        <Route path="users/:id" element={<UserDetail />} />
         <Route path="providers" element={<Providers />} />
         <Route path="jobs" element={<Jobs />} />
+        <Route path="jobs/:id" element={<JobDetail />} />
         <Route path="payments" element={<Payments />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />

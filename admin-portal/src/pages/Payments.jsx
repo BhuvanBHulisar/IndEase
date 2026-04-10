@@ -156,7 +156,7 @@ const Payments = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 800 }}>Payments</Typography>
-                    <Typography variant="body2" color="text.secondary">Escrow payment audit trail — commission, GST, and expert payouts</Typography>
+                    <Typography variant="body2" color="text.secondary">All payment transactions — platform fees, GST, and expert payouts</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1.5 }}>
                     <Button variant="outlined" startIcon={<FilterAlt />}>Advanced Filter</Button>
@@ -170,7 +170,7 @@ const Payments = () => {
                     <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, display: 'flex', alignItems: 'center', gap: 2, border: `1px solid ${theme.palette.divider}` }}>
                         <Avatar sx={{ bgcolor: 'success.light', color: 'success.dark' }}><ArrowUpward /></Avatar>
                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>LIVE INFLOW</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Total Received</Typography>
                             <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{Number(liveInflow).toLocaleString()}</Typography>
                         </Box>
                     </Paper>
@@ -179,7 +179,7 @@ const Payments = () => {
                     <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, display: 'flex', alignItems: 'center', gap: 2, border: `1px solid ${theme.palette.divider}` }}>
                         <Avatar sx={{ bgcolor: 'secondary.light', color: 'secondary.dark' }}><ReceiptLong /></Avatar>
                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>NET COMMISSION</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Platform Earnings</Typography>
                             <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{Number(netCommission).toLocaleString()}</Typography>
                         </Box>
                     </Paper>
@@ -188,7 +188,7 @@ const Payments = () => {
                     <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, display: 'flex', alignItems: 'center', gap: 2, border: `1px solid ${theme.palette.divider}` }}>
                         <Avatar sx={{ bgcolor: 'warning.light', color: 'warning.dark' }}><Schedule /></Avatar>
                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>PENDING ESCROW</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Pending Payouts</Typography>
                             <Typography variant="h5" sx={{ fontWeight: 800 }}>₹{Number(pendingEscrow).toLocaleString()}</Typography>
                         </Box>
                     </Paper>
@@ -258,7 +258,7 @@ const Payments = () => {
                                                     </TableCell>
                                                     <TableCell>
                                                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                                            {txn.consumer_name || txn.consumer || 'Deleted User'} → {txn.expert_name || txn.provider || 'Not Assigned'}
+                                                            {txn.consumer_name || txn.consumer_email || txn.consumer_id || 'Deleted User'} &rarr; {txn.expert_name || txn.expert_email || 'Unassigned'}
                                                         </Typography>
                                                     </TableCell>
                                                     <TableCell>

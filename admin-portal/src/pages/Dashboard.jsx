@@ -138,7 +138,7 @@ const Dashboard = () => {
             Dashboard
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Operational overview of the OrigiNode Marketplace
+            Platform overview of origiNode
           </Typography>
         </Box>
 
@@ -194,7 +194,7 @@ const Dashboard = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Pending Escrow"
+            title="Pending Payments"
             value={`₹${summary?.pending_escrow?.toLocaleString() || "0"}`}
             icon={<PendingActions sx={{ fontSize: 26 }} />}
             color={theme.palette.warning.main}
@@ -208,7 +208,7 @@ const Dashboard = () => {
       <Grid container spacing={3}>
         {/* Revenue Chart */}
 
-        <Grid item xs={12} lg={8}>
+        <Grid item xs={12} lg={12}>
           <Paper sx={{ p: 3, borderRadius: 4 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
               Revenue Analytics
@@ -240,7 +240,7 @@ const Dashboard = () => {
 
         {/* Job Distribution */}
 
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} lg={12}>
           <Paper sx={{ p: 3, borderRadius: 4 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               Job Distribution
@@ -275,19 +275,6 @@ const Dashboard = () => {
               )}
             </Box>
 
-            <Divider sx={{ my: 2 }} />
-
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2 }}>
-              Live Agents Monitoring
-            </Typography>
-
-            <AvatarGroup max={4}>
-              <Avatar>AD</Avatar>
-              <Avatar>ML</Avatar>
-              <Avatar>RT</Avatar>
-              <Avatar>SK</Avatar>
-              <Avatar>WP</Avatar>
-            </AvatarGroup>
           </Paper>
         </Grid>
       </Grid>

@@ -62,8 +62,8 @@ export const getProfile = async (req, res) => {
                 profile = newProfile.rows[0];
             } else {
                 profile = profileResult.rows[0];
-                // Map account_number to bank_account_number for frontend compatibility
-                profile.bank_account_number = profile.account_number;
+                // bank_account_number is the canonical column
+                profile.bank_account_number = profile.bank_account_number || profile.account_number || '';
             }
         }
 
@@ -142,6 +142,7 @@ export const updateProfile = async (req, res) => {
                      SET skills = COALESCE($1, skills), 
                          service_radius = COALESCE($2, service_radius), 
                          status = COALESCE($3, status),
+                         bank_account_number = COALESCE($4, bank_account_number),
                          account_number = COALESCE($4, account_number),
                          ifsc_code = COALESCE($5, ifsc_code),
                          account_holder_name = COALESCE($6, account_holder_name),
@@ -217,8 +218,10 @@ export const removeSkill = async (req, res) => {
 export const updateProfileData = async (req, res) => {
     try {
         const userId = req.user.id;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        
         // Demo/admin bypass
-        if (userId === 'demo-123' || req.user.email === 'admin@originode.com') {
+        if (!uuidRegex.test(userId) || req.user.email === 'admin@originode.com') {
             return res.json({ success: true, user: req.user });
         }
         
@@ -229,8 +232,7 @@ export const updateProfileData = async (req, res) => {
                 first_name = COALESCE($1, first_name),
                 last_name = COALESCE($2, last_name),
                 organization = COALESCE($3, organization),
-                phone = COALESCE($4, phone),
-                updated_at = CURRENT_TIMESTAMP
+                phone = COALESCE($4, phone)
              WHERE id = $5`,
             [first_name, last_name, company, phone, userId]
         );
@@ -243,5 +245,38 @@ export const updateProfileData = async (req, res) => {
     } catch (err) {
         console.error('Profile update error:', err);
         res.status(500).json({ error: 'Failed to update profile data' });
+    }
+};
+
+// @desc    Save bank details for expert payout
+// @route   PUT /api/profile/bank-details
+export const saveBankDetails = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { accountHolderName, bankAccountNumber, ifscCode } = req.body;
+
+        if (!accountHolderName?.trim()) return res.status(400).json({ message: 'Account holder name is required' });
+        if (!bankAccountNumber?.trim()) return res.status(400).json({ message: 'Account number is required' });
+        if (!ifscCode?.trim()) return res.status(400).json({ message: 'IFSC code is required' });
+
+        const digits = bankAccountNumber.replace(/\s/g, '');
+
+        // Upsert producer_profiles row
+        await db.query(
+            `INSERT INTO producer_profiles (user_id, bank_account_number, account_number, ifsc_code, account_holder_name)
+             VALUES ($1, $2, $2, $3, $4)
+             ON CONFLICT (user_id) DO UPDATE
+             SET bank_account_number = $2,
+                 account_number = $2,
+                 ifsc_code = $3,
+                 account_holder_name = $4,
+                 updated_at = CURRENT_TIMESTAMP`,
+            [userId, digits, ifscCode.toUpperCase(), accountHolderName.trim()]
+        );
+
+        res.json({ success: true, message: 'Bank details saved successfully' });
+    } catch (err) {
+        console.error('[Profile] Bank details save error:', err);
+        res.status(500).json({ message: 'Failed to save bank details' });
     }
 };

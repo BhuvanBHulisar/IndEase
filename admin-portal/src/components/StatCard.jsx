@@ -35,7 +35,7 @@ const StatCard = ({ title, value, icon, trend, trendValue, color = 'primary.main
             <CardContent sx={{ p: 2.5 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box>
-                        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: 1.2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: 0 }}>
                             {title}
                         </Typography>
                         <Typography variant="h4" sx={{ mt: 0.5, fontWeight: 800 }}>

@@ -6,6 +6,7 @@ import { adminOnly } from "../middleware/adminAuth.js";
 import {
   sendExpertWelcomeEmail,
   sendExpertRemovalEmail,
+  sendBankDetailsRequestEmail,
 } from "../utils/mailer.js";
 import {
   getExpertStats,
@@ -123,9 +124,13 @@ export async function ensureAdminSchema() {
     await db.query(
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`,
     );
-    console.log("[DB] is_deleted column verified.");
+    await db.query(`ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS account_number VARCHAR(30)`);
+    await db.query(`ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(30)`);
+    await db.query(`ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS ifsc_code VARCHAR(20)`);
+    await db.query(`ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS account_holder_name VARCHAR(255)`);
+    console.log("[DB] is_deleted + bank detail columns verified.");
   } catch (err) {
-    console.error("[DB] Failed to ensure is_deleted column:", err.message);
+    console.error("[DB] Failed to ensure schema columns:", err.message);
   }
 }
 
@@ -178,6 +183,24 @@ router.get("/users", async (req, res) => {
       console.error("Admin users error:", innerErr);
       res.status(500).json({ error: "Failed to fetch users" });
     }
+  }
+});
+
+router.get("/users/:id/admin-detail", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await db.query(
+      `SELECT id, email, role, first_name, last_name, created_at, phone, location,
+              COALESCE(is_suspended, false) AS is_suspended,
+              (SELECT COUNT(*) FROM service_requests WHERE consumer_id = $1) AS total_jobs
+       FROM users WHERE id = $1`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "User not found" });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Admin user detail error:", err);
+    res.status(500).json({ error: "Failed to fetch user details" });
   }
 });
 
@@ -236,6 +259,23 @@ router.patch("/users/:id/status", async (req, res) => {
 });
 
 // ────────────── Providers ──────────────
+router.post("/providers/:id/request-bank-details", async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) AS name, email
+       FROM users WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Expert not found" });
+    const { name, email } = result.rows[0];
+    await sendBankDetailsRequestEmail(name || "Expert", email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Bank details request email error:", err);
+    res.status(500).json({ error: "Failed to send email" });
+  }
+});
+
 router.get("/providers", async (req, res) => {
   try {
     const { rows } = await db.query(
@@ -531,7 +571,82 @@ router.post("/providers", async (req, res) => {
   }
 });
 
-// ────────────── Jobs ──────────────
+// ────────────── Job Detail (Admin) ──────────────
+router.get("/jobs/:id/admin-detail", async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT
+          sr.id, sr.status, sr.issue_description, sr.priority,
+          sr.created_at, sr.accepted_at, sr.completed_at, sr.quoted_cost,
+          COALESCE(c.first_name || ' ' || c.last_name, c.email) AS consumer_name,
+          c.email AS consumer_email,
+          COALESCE(p.first_name || ' ' || p.last_name, p.email) AS expert_name,
+          p.email AS expert_email,
+          m.name AS machine_name,
+          t.id AS transaction_id,
+          t.amount AS paid_amount,
+          t.status AS payment_status,
+          t.milestone1_released, t.milestone2_released,
+          t.milestone1_amount,  t.milestone2_amount,
+          t.milestone1_released_at, t.milestone2_released_at
+       FROM service_requests sr
+       LEFT JOIN users c  ON c.id = sr.consumer_id
+       LEFT JOIN users p  ON p.id = sr.producer_id
+       LEFT JOIN machines m ON m.id = sr.machine_id
+       LEFT JOIN transactions t ON t.request_id = sr.id
+       WHERE sr.id = $1
+       ORDER BY t.created_at DESC
+       LIMIT 1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "Job not found" });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Job detail error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/jobs/:id/release-milestone", async (req, res) => {
+  try {
+    const { milestone } = req.body;
+    const jobId = req.params.id;
+
+    const { rows } = await db.query(
+      "SELECT * FROM transactions WHERE request_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [jobId]
+    );
+    if (!rows.length) return res.status(404).json({ error: "No payment found for this job" });
+    const t = rows[0];
+
+    if (milestone === 1) {
+      if (t.milestone1_released) return res.status(400).json({ error: "Milestone 1 already released" });
+      await db.query(
+        `UPDATE transactions SET milestone1_released = TRUE, milestone1_released_at = NOW() WHERE id = $1`,
+        [t.id]
+      );
+    } else if (milestone === 2) {
+      if (!t.milestone1_released) return res.status(400).json({ error: "Release Milestone 1 first" });
+      if (t.milestone2_released) return res.status(400).json({ error: "Milestone 2 already released" });
+      await db.query(
+        `UPDATE transactions SET milestone2_released = TRUE, milestone2_released_at = NOW(), status = 'completed' WHERE id = $1`,
+        [t.id]
+      );
+    } else {
+      return res.status(400).json({ error: "Invalid milestone number" });
+    }
+
+    if (global.io) {
+      global.io.emit("payment_update", { event: "milestone_released", jobId, milestone });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Milestone release error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 router.get("/jobs", async (req, res) => {
   try {
     const { rows } = await db.query(

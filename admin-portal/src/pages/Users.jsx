@@ -27,6 +27,8 @@ import {
     PersonOff
 } from '@mui/icons-material';
 
+import { useNavigate } from 'react-router-dom';
+
 const Users = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -34,6 +36,7 @@ const Users = () => {
     const [search, setSearch] = useState('');
     const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
     const theme = useTheme();
+    const navigate = useNavigate();
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -149,7 +152,7 @@ const Users = () => {
             renderCell: (params) => (
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                     <Tooltip title="View Details">
-                        <IconButton size="small">
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/users/${params.row.id}`); }}>
                             <Visibility sx={{ fontSize: 18 }} />
                         </IconButton>
                     </Tooltip>
@@ -181,7 +184,7 @@ const Users = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 800 }}>User Management</Typography>
-                    <Typography variant="body2" color="text.secondary">Oversee and adjust access permissions for all participants</Typography>
+                    <Typography variant="body2" color="text.secondary">View and manage all registered consumers</Typography>
                 </Box>
             </Box>
 

@@ -20,7 +20,7 @@ const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine
                My Machines
             </h2>
             <p className="text-sm font-medium text-slate-500 max-w-2xl">
-               Manage registered industrial assets and equipment spanning your network.
+               View and manage all your registered machines.
             </p>
          </div>
          <div className="flex items-center gap-3">
@@ -86,7 +86,7 @@ const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm text-slate-300 mb-4">
               <HardDrive size={32} />
             </div>
-            <p className="text-slate-500 font-normal max-w-xs px-10">No machine nodes detected in your local mesh network. Register your first industrial asset.</p>
+            <p className="text-slate-500 font-normal max-w-xs px-10">You haven't added any machines yet. Add your first machine to get started.</p>
           </div>
         )}
       </div>

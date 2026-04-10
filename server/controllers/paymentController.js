@@ -108,9 +108,9 @@ export const getAllPayments = async (req, res) => {
 
     const payments = result.rows.map((row) => {
       const consumerName =
-        row.consumer_name?.trim() || row.consumer_email || "Unknown";
+        row.consumer_name?.trim() || row.consumer_email || "Deleted User";
       const expertName =
-        row.expert_name?.trim() || row.expert_email || "Not Assigned";
+        row.expert_name?.trim() || row.expert_email || "Unassigned";
 
       return {
         id: row.txn_id,
