@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
-const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTab, onLogout, role, onMarkAsRead, onMarkAllRead, socketReconnecting, onSearch, searchResults, onSearchResultClick, isDemo, activeJobsCount = 0 }) => {
+const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTab, onLogout, onClearData, role, onMarkAsRead, onMarkAllRead, socketReconnecting, onSearch, searchResults, onSearchResultClick, isDemo, activeJobsCount = 0 }) => {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        onLogout={onLogout} 
+        onLogout={onLogout}
+        onClearData={onClearData}
+        isDemo={isDemo}
         user={user}
         role={role}
         activeJobsCount={activeJobsCount}

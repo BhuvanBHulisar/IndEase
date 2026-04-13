@@ -37,7 +37,7 @@ const generalItems = [
   { id: 'support', label: 'Help & Support', icon: HelpCircle },
 ];
 
-const Sidebar = ({ activeTab, setActiveTab, onLogout, user, role, activeJobsCount = 0 }) => {
+const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user, role, activeJobsCount = 0 }) => {
   const firstName = user?.firstName || 'User';
   const displayRole = role === 'consumer' ? 'Fleet Operator' : 'Service Expert';
   const isExpert = role === 'producer';
@@ -147,13 +147,31 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user, role, activeJobsCoun
              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate mt-0.5">{displayRole}</span>
            </div>
         </div>
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all font-semibold text-[10px] uppercase tracking-widest"
-        >
-          <LogOut size={14} strokeWidth={2} />
-          <span>Exit Session</span>
-        </button>
+        {isDemo ? (
+          <div className="space-y-2">
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-all font-semibold text-[10px] uppercase tracking-widest border border-slate-200"
+            >
+              <LogOut size={14} strokeWidth={2} />
+              <span>Exit Session</span>
+            </button>
+            <button
+              onClick={onClearData}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 transition-all font-semibold text-[10px] uppercase tracking-widest"
+            >
+              <span>Clear Data &amp; Exit</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all font-semibold text-[10px] uppercase tracking-widest"
+          >
+            <LogOut size={14} strokeWidth={2} />
+            <span>Exit Session</span>
+          </button>
+        )}
       </div>
     </aside>
   );

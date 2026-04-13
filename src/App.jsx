@@ -434,26 +434,7 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [selectedMachineNode, setSelectedMachineNode] = useState(null);
-  const [activeRequests, setActiveRequests] = useState([
-    {
-      id: 1,
-      machine: "Hydraulic Press #99",
-      issue: "Pressure Valve Leakage",
-      rawStatus: "in_progress",
-      expert: "Alex Rivera",
-      time: "2h ago",
-      consumerName: "Bhuvan B H",
-    },
-    {
-      id: 2,
-      machine: "CNC Concentric A1",
-      issue: "Calibration Drift",
-      rawStatus: "broadcast",
-      expert: "Analysing Node...",
-      time: "15m ago",
-      consumerName: "Solaris Power",
-    },
-  ]);
+  const [activeRequests, setActiveRequests] = useState([]);
   const [declinedJobIds, setDeclinedJobIds] = useState([]);
 
   const { scrollY } = useScroll();
@@ -2488,7 +2469,7 @@ function App() {
         setTransactionHistory(cached?.transactionHistory || DEMO_TRANSACTION_HISTORY);
       } else {
         setMachines(cached?.machines || DEMO_MACHINES);
-        setActiveRequests(cached?.activeRequests || DEMO_ACTIVE_REQUESTS);
+        setActiveRequests(cached?.activeRequests || []);
         setChats(cached?.chats || DEMO_CHATS);
         setTransactionHistory(cached?.transactionHistory || DEMO_TRANSACTION_HISTORY);
         setEarningsStats(cached?.earningsStats || DEMO_EARNINGS_STATS);
@@ -2496,7 +2477,7 @@ function App() {
       // Seed cache if empty
       if (!cached) {
         saveDemoStore({
-          machines: DEMO_MACHINES, activeRequests: DEMO_ACTIVE_REQUESTS,
+          machines: DEMO_MACHINES, activeRequests: [],
           chats: DEMO_CHATS, producerChats: DEMO_CHATS,
           radarJobs: DEMO_RADAR_JOBS, transactionHistory: DEMO_TRANSACTION_HISTORY,
           earningsStats: DEMO_EARNINGS_STATS, producerStats: DEMO_PRODUCER_STATS,
@@ -2834,7 +2815,10 @@ function App() {
   // [NEW] SERVICE REQUEST BROADCAST HANDLER
   // Step 1 → Step 2 (AI scan) → Step 'ai_result'
   const handleBroadcastJob = () => {
-    if (!activeJobMachine) return;
+    // In demo mode, activeJobMachine may not be set — fall back to first machine
+    const machine = activeJobMachine || (machines && machines.length > 0 ? machines[0] : null);
+    if (!machine) return;
+    if (!activeJobMachine) setActiveJobMachine(machine);
     const diagnosis = getAIDiagnosis(diagnosisDesc);
     setAiDiagnosis(diagnosis);
     setDiagnosisStep(2);
@@ -2850,26 +2834,39 @@ function App() {
 
     const finalizeRequest = (serverJob) => {
       const newReq = {
-        id: serverJob?.id ?? Date.now(),
-        machine: activeJobMachine?.name,
-        issue: diagnosisDesc || 'Routine Service',
+        id: serverJob?.id ?? `demo-req-${Date.now()}`,
+        machine: activeJobMachine?.name || 'Machine',
+        machine_name: activeJobMachine?.name || 'Machine',
+        issue: diagnosisDesc || 'Service Request',
+        issue_description: diagnosisDesc || 'Service Request',
         rawStatus: serverJob?.status || 'broadcast',
-        expert: 'Assigning...',
+        status: serverJob?.status || 'broadcast',
+        expert: 'Scanning for experts...',
         time: 'Just now',
+        created_at: new Date().toISOString(),
+        ai_type: aiDiagnosis?.type || null,
+        ai_issue: aiDiagnosis?.issue || null,
+        ai_confidence: aiDiagnosis?.confidence || null,
       };
       setActiveRequests((prev) => [newReq, ...prev]);
+      // Persist in demo store so it survives navigation
+      if (isDemo) {
+        const stored = loadDemoStore() || {};
+        patchDemoStore({ activeRequests: [newReq, ...(stored.activeRequests || [])] });
+      }
       setDiagnosisDesc('');
       setFaultLocation('');
       setVideoFile(null);
       setBroadcastInProgress(false);
     };
 
-    // Detect demo mode
-    const userStr = localStorage.getItem('user');
-    const user = userStr ? JSON.parse(userStr) : null;
-    const isDemoUser = user && (
-      user.id === 'demo-123' ||
-      (activeJobMachine?.id && String(activeJobMachine.id).startsWith('local'))
+
+    // Detect demo mode — use app-level flag first, then check machine ID
+    const isDemoUser = isDemo || (
+      activeJobMachine?.id && (
+        String(activeJobMachine.id).startsWith('local') ||
+        String(activeJobMachine.id).startsWith('demo')
+      )
     );
 
     if (isDemoUser) {
@@ -3583,40 +3580,39 @@ function App() {
     }
   }, [activeTab]);
 
+  // Shared cleanup that runs on both exit paths
+  const performLogout = () => {
+    if (socket) { socket.off(); socket.disconnect(); }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('isAuth');
+    localStorage.removeItem('isDemo');
+    localStorage.removeItem('ratedJobIds');
+    setIsDemo(false);
+    setAuthenticated(false);
+    setEmail(''); setPassword(''); setFirstName(''); setLastName('');
+    setMachines([]); setActiveRequests([]); setChats([]);
+    setProducerChats([]); setMessages([]); setRadarJobs([]);
+    setActiveTab('fleet');
+    setView('landing');
+    navigate('/', { replace: true });
+  };
+
+  // Exit session — keeps demo store intact for next login
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (token && token !== "demo-token-xyz") {
-        await api.post("/auth/logout").catch(() => {});
+      const token = localStorage.getItem('token');
+      if (token && token !== 'demo-token-xyz') {
+        await api.post('/auth/logout').catch(() => {});
       }
-    } catch (e) {
-      // ignore
-    } finally {
-      if (socket) {
-        socket.off();
-        socket.disconnect();
-      }
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("isAuth");
-      localStorage.removeItem("isDemo");
-      localStorage.removeItem("ratedJobIds");
-      setIsDemo(false);
-      setAuthenticated(false);
-      setEmail("");
-      setPassword("");
-      setFirstName("");
-      setLastName("");
-      setMachines([]);
-      setActiveRequests([]);
-      setChats([]);
-      setProducerChats([]);
-      setMessages([]);
-      setRadarJobs([]);
-      setActiveTab("fleet");
-      setView("landing");
-      navigate("/", { replace: true });
-    }
+    } catch (e) {}
+    performLogout();
+  };
+
+  // Clear data — wipes demo store then logs out
+  const handleClearDataAndLogout = () => {
+    clearDemoStore();
+    performLogout();
   };
 
   const handleViewExpertProfile = async (chat) => {
@@ -6365,6 +6361,7 @@ function App() {
         user={{ firstName, lastName, photo: userPhoto, email }}
         notifications={notifications}
         onLogout={handleLogout}
+        onClearData={handleClearDataAndLogout}
         onClearNotifs={handleClearNotifs}
         onMarkAsRead={handleMarkNotifRead}
         onMarkAllRead={handleMarkAllNotifsRead}
