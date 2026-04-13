@@ -78,7 +78,7 @@ export default function ProfileView({
   onSave,
   onDeleteIdentity
 }) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(true);
   const [formData, setFormData] = useState({
     firstName:          user?.firstName || '',
     lastName:           user?.lastName  || '',
@@ -187,18 +187,9 @@ export default function ProfileView({
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {!isEditing ? (
-            <Button onClick={() => setIsEditing(true)} className="h-10 px-6 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all font-semibold text-sm shadow-sm">
-              Edit Profile
-            </Button>
-          ) : (
-            <div className="flex gap-3">
-              <Button onClick={() => setIsEditing(false)} variant="outline" className="h-10 px-4 rounded-lg border-[#E5E7EB] text-slate-600 font-semibold text-sm hover:bg-slate-50">Cancel</Button>
-              <Button onClick={handleSave} className="h-10 px-6 rounded-lg bg-slate-900 text-white hover:bg-black font-semibold text-sm shadow-sm">
-                Save Changes
-              </Button>
-            </div>
-          )}
+          <Button onClick={handleSave} className="h-10 px-6 rounded-lg bg-slate-900 text-white hover:bg-black font-semibold text-sm shadow-sm">
+            Save Changes
+          </Button>
         </div>
       </div>
 
