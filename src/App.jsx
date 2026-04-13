@@ -1932,7 +1932,6 @@ function App() {
     // Skip for mock IDs, unauthenticated, or demo mode (use local state only)
     if (!activeChatId || !token) return;
     if (!uuidRegex.test(String(activeChatId))) return;
-    if (isDemo) return; // demo mode — no chat history API calls
 
     api
       .get(`/chat/${activeChatId}`)
@@ -2415,82 +2414,24 @@ function App() {
         location: demo.location,
         phone: demo.phone,
         email: demo.email,
-        id: user.role === 'producer' ? 'DEMO-EXP-001' : 'DEMO-FLT-001',
+        id: user.id,
         skills: demo.skills || [],
         bankAccountNumber: '',
         ifscCode: '',
         accountHolderName: demo.name,
       });
 
-      // Reset all loading states — data comes from real API
-      setChatsLoading(false);
-      setMachinesLoading(false);
-      setRequestsLoading(false);
-      setHistoryLoading(false);
-
-      setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
+      setActiveTab(user.role === 'consumer' ? 'fleet' : 'requests');
       setView('dashboard');
       setToast({ message: 'Welcome to Demo Mode — explore the full platform safely', type: 'info' });
+      // useEffects watching [view, authenticated, role] will trigger real data fetches automatically
     } catch (err) {
-      console.error('Demo login failed:', err);
-      // Fallback to static demo if backend unavailable
-      const demoRole = role;
-      const demo = demoRole === 'producer' ? DEMO_USERS.producer : DEMO_USERS.consumer;
-      const demoUser = { id: 'demo-123', first_name: demo.firstName, last_name: demo.lastName, email: demo.email, role: demoRole };
-      localStorage.setItem('token', 'demo-token-xyz');
-      localStorage.setItem('user', JSON.stringify(demoUser));
-      localStorage.setItem('isAuth', 'true');
-      localStorage.setItem('isDemo', 'true');
-      setIsDemo(true);
-      setAuthenticated(true);
-      setFirstName(demo.firstName);
-      setLastName(demo.lastName);
-      setEmail(demo.email);
-      setRole(demoRole);
-      setProfileData({
-        name: demo.name,
-        role: demoRole === 'producer' ? 'Industrial Automation Specialist' : 'Fleet Operator',
-        location: demo.location,
-        phone: demo.phone,
-        email: demo.email,
-        id: demoRole === 'producer' ? 'DEMO-EXP-001' : 'DEMO-FLT-001',
-        skills: demo.skills || [],
-        bankAccountNumber: '',
-        ifscCode: '',
-        accountHolderName: demo.name,
-      });
-
-      // Load from 24-hour cache or use fresh defaults
-      const cached = loadDemoStore();
-      if (demoRole === 'producer') {
-        setProducerDashStats(cached?.producerStats || DEMO_PRODUCER_STATS);
-        setRadarJobs(cached?.radarJobs || DEMO_RADAR_JOBS);
-        setProducerChats(cached?.producerChats || DEMO_CHATS);
-        setTransactionHistory(cached?.transactionHistory || DEMO_TRANSACTION_HISTORY);
-      } else {
-        setMachines(cached?.machines || DEMO_MACHINES);
-        setActiveRequests(cached?.activeRequests || []);
-        setChats(cached?.chats || DEMO_CHATS);
-        setTransactionHistory(cached?.transactionHistory || DEMO_TRANSACTION_HISTORY);
-        setEarningsStats(cached?.earningsStats || DEMO_EARNINGS_STATS);
-      }
-      // Seed cache if empty
-      if (!cached) {
-        saveDemoStore({
-          machines: DEMO_MACHINES, activeRequests: [],
-          chats: DEMO_CHATS, producerChats: DEMO_CHATS,
-          radarJobs: DEMO_RADAR_JOBS, transactionHistory: DEMO_TRANSACTION_HISTORY,
-          earningsStats: DEMO_EARNINGS_STATS, producerStats: DEMO_PRODUCER_STATS,
-        });
-      }
-
-      setChatsLoading(false);
-      setMachinesLoading(false);
-      setRequestsLoading(false);
-      setHistoryLoading(false);
-      setActiveTab(role === 'consumer' ? 'fleet' : 'requests');
-      setView('dashboard');
-      setToast({ message: 'Welcome to Demo Mode (offline)', type: 'info' });
+      console.error('Demo login failed — backend unavailable:', err);
+      setToast({ message: 'Demo backend unavailable. Please try again.', type: 'error' });
+      setIsDemo(false);
+      setAuthenticated(false);
+      localStorage.removeItem('token');
+      localStorage.removeItem('isDemo');
     }
   };
 
@@ -2928,7 +2869,6 @@ function App() {
   }, [socket, view, activeChatId, role]);
 
   const fetchRadarJobs = async () => {
-    if (isDemo) return; // demo mode — never re-fetch, would restore accepted jobs
     try {
       const res = await api.get("/jobs/radar");
       setRadarJobs(Array.isArray(res.data) ? res.data : []);
@@ -3237,7 +3177,6 @@ function App() {
   }, [getStoredUser]);
 
   const fetchProducerChats = async () => {
-    if (isDemo) return; // demo mode — chats managed locally, never overwrite
     setChatsLoading(true);
     try {
       const res = await api.get("/jobs/my");
@@ -3539,7 +3478,6 @@ function App() {
   }, [view, role, activeTab, isDemo, authenticated]);
 
   useEffect(() => {
-    if (isDemo) return; // demo mode — no polling
     if (view === "dashboard" && role === "producer") {
       fetchRadarJobs();
       fetchProducerChats();
@@ -3554,10 +3492,6 @@ function App() {
 
   // When producer switches to messages tab, refresh their chat list
   useEffect(() => {
-    if (isDemo) {
-      setChatsLoading(false);
-      return;
-    }
     if (activeTab === "messages" && role === "producer") {
       fetchProducerChats();
     }
@@ -3610,13 +3544,41 @@ function App() {
   };
 
   // Clear data — wipes demo store then logs out
-  const handleClearDataAndLogout = () => {
+  const handleClearDataAndLogout = async () => {
+    try {
+      await api.post('/demo/reset');
+    } catch (err) {
+      console.warn('[Demo] Reset API failed, clearing localStorage only');
+    }
     clearDemoStore();
     performLogout();
   };
 
   const handleViewExpertProfile = async (chat) => {
     if (!chat) return;
+
+    if (isDemo) {
+      setSelectedExpert({
+        loading: false,
+        name: 'Demo Expert',
+        specialization: 'Industrial Automation Specialist',
+        rating: '4.8',
+        level: 'Gold',
+        experience: '5',
+        avatar: 'DE',
+        online: true,
+        machines: 'Hydraulics, CNC, Motors, PLC',
+        city: 'Mumbai',
+        qualification: 'Certified Technician',
+        jobsCompleted: 12,
+        responseTime: 'Responds in ~1 hr',
+        memberSince: 'January 2025',
+        badge: 'Verified Expert',
+        error: false,
+      });
+      setShowExpertProfileModal(true);
+      return;
+    }
 
     setSelectedExpert({ loading: true, name: chat.name, online: chat.online });
     setShowExpertProfileModal(true);
@@ -4661,7 +4623,7 @@ function App() {
         </div>
       )}
 
-      {showDeleteModal && (
+      {showDeleteModal && !isDemo && (
         <div className="modal-overlay">
           <div className="premium-modal" style={{ maxWidth: "440px" }}>
             <div className="p-12 text-center space-y-8">

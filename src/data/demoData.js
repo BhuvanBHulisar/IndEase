@@ -127,16 +127,7 @@ export const DEMO_MACHINES = [
   },
 ];
 
-export const DEMO_ACTIVE_REQUESTS = [
-  {
-    id: 'demo-req-1',
-    machine_name: 'Hydraulic Press #08',
-    issue_description: 'Oil leakage from main cylinder seal',
-    status: 'in_progress',
-    rawStatus: 'in_progress',
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-];
+export const DEMO_ACTIVE_REQUESTS = [];
 
 export const DEMO_TRANSACTION_HISTORY = [
   {
