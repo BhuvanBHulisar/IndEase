@@ -8,7 +8,8 @@ import {
   HelpCircle,
   LogOut,
   Shield,
-  Activity
+  Activity,
+  Briefcase
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from './ui/base';
@@ -16,17 +17,18 @@ import { cn } from './ui/base';
 const getMainMenuItems = (role) => {
   if (role === 'producer') {
     return [
-      { id: 'fleet', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'performance', label: 'My Performance', icon: Activity },
-      { id: 'messages', label: 'Messages', icon: MessageSquare },
-      { id: 'history', label: 'Service Logs', icon: History },
+      { id: 'fleet',       label: 'Dashboard',      icon: LayoutDashboard },
+      { id: 'performance', label: 'My Performance',  icon: Activity },
+      { id: 'active-jobs', label: 'Active Jobs',     icon: Briefcase, badge: true },
+      { id: 'messages',    label: 'Messages',        icon: MessageSquare },
+      { id: 'history',     label: 'Service Logs',    icon: History },
     ];
   }
   return [
-    { id: 'fleet', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'machines', label: 'My Machines', icon: HardDrive },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'history', label: 'Service Logs', icon: History },
+    { id: 'fleet',    label: 'Dashboard',    icon: LayoutDashboard },
+    { id: 'machines', label: 'My Machines',  icon: HardDrive },
+    { id: 'messages', label: 'Messages',     icon: MessageSquare },
+    { id: 'history',  label: 'Service Logs', icon: History },
   ];
 };
 
@@ -35,7 +37,7 @@ const generalItems = [
   { id: 'support', label: 'Help & Support', icon: HelpCircle },
 ];
 
-const Sidebar = ({ activeTab, setActiveTab, onLogout, user, role }) => {
+const Sidebar = ({ activeTab, setActiveTab, onLogout, user, role, activeJobsCount = 0 }) => {
   const firstName = user?.firstName || 'User';
   const displayRole = role === 'consumer' ? 'Fleet Operator' : 'Service Expert';
   const isExpert = role === 'producer';
@@ -88,7 +90,14 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user, role }) => {
                     <Icon size={18} strokeWidth={2} className={cn("transition-colors", isActive ? primaryText : "text-slate-400 group-hover:text-slate-900")} />
                     <span className={`font-semibold text-sm tracking-tight ${isActive ? '' : 'text-slate-600'}`}>{item.label}</span>
                   </div>
-                  {isActive && <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-${primaryColor} rounded-l-full`} />}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {item.badge && activeJobsCount > 0 && (
+                      <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center">
+                        {activeJobsCount}
+                      </span>
+                    )}
+                    {isActive && <div className={`w-1 h-5 bg-${primaryColor} rounded-l-full`} />}
+                  </div>
                 </button>
               );
             })}

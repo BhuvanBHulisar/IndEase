@@ -73,12 +73,14 @@ import FleetView from "./components/FleetView";
 import MachinesView from "./components/MachinesView";
 import MessagesView from "./components/MessagesView";
 import HistoryView from "./components/HistoryView";
-import LegacySearchView from "./components/LegacySearchView";
+
 import ProfileView from "./components/ProfileView";
 import { SupportView } from "./components/SupportSettingsView";
 import ProducerDashboard from "./components/ProducerDashboard";
 import MachineDetailView from "./components/MachineDetailView";
+import ActiveJobsView from "./components/ActiveJobsView";
 import { generateInvoicePDF } from "./utils/invoiceGenerator";
+import { loadDemoStore, saveDemoStore, clearDemoStore, patchDemoStore } from "./utils/demoStore";
 import {
   DEMO_PRODUCER_STATS,
   DEMO_RADAR_JOBS,
@@ -340,11 +342,23 @@ function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [wasOffline, setWasOffline] = useState(false);
   
-  const [machinesLoading, setMachinesLoading] = useState(true);
-  const [requestsLoading, setRequestsLoading] = useState(true);
-  const [chatsLoading, setChatsLoading] = useState(true);
-  const [historyLoading, setHistoryLoading] = useState(true);
+  const [machinesLoading, setMachinesLoading] = useState(false);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [chatsLoading, setChatsLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+
+  // Safety net — loading states can never be stuck forever (8s max)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setMachinesLoading(false);
+      setChatsLoading(false);
+      setRequestsLoading(false);
+      setHistoryLoading(false);
+      setAuthChecking(false);
+    }, 8000);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
       const handleOnline = () => {
@@ -382,24 +396,10 @@ function App() {
   }, []);
 
   const [authChecking, setAuthChecking] = useState(true);
-  const [authenticated, setAuthenticated] = useState(
-    localStorage.getItem("isAuth") === "true",
-  );
+  // Instead of auto-logging in from localStorage on startup:
+  // Only restore session if token is still valid
+  const [authenticated, setAuthenticated] = useState(false); // always start false
 
-  // PART 1 — Sync authenticated state from token on mount
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    console.log("TOKEN:", token); // PART 4 — debug
-    if (token) {
-      setAuthenticated(true);
-      if (localStorage.getItem("isAuth") !== "true") {
-        localStorage.setItem("isAuth", "true");
-      }
-    } else {
-      setAuthenticated(false);
-      localStorage.removeItem("isAuth");
-    }
-  }, []);
 
   // [NEW] LOGIN FORM STATE
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -691,15 +691,7 @@ function App() {
   const [serviceRadius, setServiceRadius] = useState(50);
 
   // Load Razorpay Script
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+  // Razorpay script is loaded via index.html — no dynamic injection needed
 
   // --- REFS ---
   const fileInputRef = useRef(null);
@@ -901,6 +893,8 @@ function App() {
     salary: 0,
     recentPointEvents: [],
   });
+  const [activeJobs, setActiveJobs] = useState([]);
+  const [acceptingJobId, setAcceptingJobId] = useState(null);
   const [earningsStats, setEarningsStats] = useState({
     totalRevenue: 0,
     pendingPayout: 0,
@@ -1339,6 +1333,11 @@ function App() {
 
   // [NEW] SESSION & SOCKET INITIALIZATION
   useEffect(() => {
+    // Always start from landing page — clear any saved view/tab state
+    localStorage.removeItem('lastView');
+    localStorage.removeItem('lastTab');
+    localStorage.removeItem('activeTab');
+
     // 1. Check for existing industrial session
     const token = localStorage.getItem("token");
     const userStr = localStorage.getItem("user");
@@ -1359,9 +1358,11 @@ function App() {
       // send the user back to the landing page.
       if (skipSessionCheckRef.current) {
         skipSessionCheckRef.current = false;
+        const resolvedRole = user.role === "admin" ? "consumer" : user.role || "consumer";
         setView("dashboard");
-        setRole(user.role === "admin" ? "consumer" : user.role || "consumer");
+        setRole(resolvedRole);
         setAuthChecking(false);
+        // Data fetches will fire via the view/role useEffects below
         return;
       }
 
@@ -1371,21 +1372,24 @@ function App() {
         setRole(demoRole);
         setAuthenticated(true);
         setAuthChecking(false);
-        // Restore demo persona — never use real DB data
         const demo = demoRole === "producer" ? DEMO_USERS.producer : DEMO_USERS.consumer;
         setFirstName(demo.firstName);
         setLastName(demo.lastName);
         setEmail(demo.email);
+        // Demo offline mode — loading states off, no API calls
+        setMachinesLoading(false);
+        setChatsLoading(false);
+        setRequestsLoading(false);
+        setHistoryLoading(false);
       } else {
         api
           .get("/auth/me")
           .then((res) => {
             const freshUser = res.data.user || res.data;
+            const resolvedRole = freshUser.role === "admin" ? "consumer" : freshUser.role || "consumer";
             setView("dashboard");
             setAuthenticated(true);
-            const resolvedRole = freshUser.role === "admin" ? "consumer" : freshUser.role || "consumer";
             setRole(resolvedRole);
-            // If this is a demo account, use demo persona not real DB data
             if (localStorage.getItem("isDemo") === "true") {
               const demo = resolvedRole === "producer" ? DEMO_USERS.producer : DEMO_USERS.consumer;
               setFirstName(demo.firstName);
@@ -1397,6 +1401,7 @@ function App() {
               setEmail(freshUser.email || "");
             }
             fetchNotifications();
+            // Data fetches will fire via the view/role useEffects below
           })
           .catch((err) => {
             console.warn("[Auth] Session invalid or expired");
@@ -1554,37 +1559,7 @@ function App() {
 
   const handleClearNotifs = () => setNotifications([]);
 
-  // [NEW] Legacy Search States
-  const [legacyQuery, setLegacyQuery] = useState("");
-  const [legacyResults, setLegacyResults] = useState([]);
 
-  // [NEW] Demo Database of Legacy Makers
-  const legacyDatabase = [
-    {
-      id: 101,
-      name: "Hydra-Tech Germany",
-      years: "1970-1995",
-      status: "Dissolved",
-      replacement: "Berlin Industrial Corp",
-      category: "Hydraulics",
-    },
-    {
-      id: 102,
-      name: "Textile-Matic UK",
-      years: "1982-2004",
-      status: "Acquired",
-      replacement: "Global Weaver Group",
-      category: "Textiles",
-    },
-    {
-      id: 103,
-      name: "Precision Motors Inc",
-      years: "1965-Present",
-      status: "Active",
-      replacement: "Direct Support Available",
-      category: "Motors",
-    },
-  ];
 
   // [NEW] FAQ LIST FOR SEARCH
   const faqs = [
@@ -1871,23 +1846,7 @@ function App() {
     }
   }, [activeTab]);
 
-  const handleLegacySearch = async () => {
-    if (!legacyQuery) return setLegacyResults([]);
-    try {
-      const res = await api.get(
-        `/legacy/search?q=${encodeURIComponent(legacyQuery)}`,
-      );
-      setLegacyResults(res.data);
-    } catch (err) {
-      console.warn("Legacy search offline, using local cache.");
-      const results = legacyDatabase.filter(
-        (item) =>
-          item.name.toLowerCase().includes(legacyQuery.toLowerCase()) ||
-          item.category.toLowerCase().includes(legacyQuery.toLowerCase()),
-      );
-      setLegacyResults(results);
-    }
-  };
+
 
   const handleRequestSpecs = (item) => {
     // Add to local notifications for instant feedback
@@ -1959,41 +1918,42 @@ function App() {
 
   // 1. Fetch Chat History when activeChatId changes
   useEffect(() => {
-    // [FIX] Robust guard: Only fetch if authenticated and in dashboard view
     const token = localStorage.getItem("token");
-    if (activeChatId && view === "dashboard" && token) {
-      // API Call with robust fallback
-      api
-        .get(`/chat/${activeChatId}`)
-        .then((res) => {
-          if (Array.isArray(res.data) && res.data.length > 0) {
-            const dbMessages = res.data.map((m) => ({
-              id: m.id,
-              chatId: m.request_id,
-              sender: m.role === "consumer" ? "user" : "expert",
-              text: m.message_text,
-              time: new Date(m.created_at).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-              ...parseMessageBody(m.message_text),
-            }));
-            setMessages(dbMessages);
-          }
-        })
-        .catch((err) => {
-          console.warn(
-            "Failed to load chat history (DB Offline?), keeping demo chat.",
-            err,
-          );
-        });
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    // Skip for mock IDs, unauthenticated, or demo mode (use local state only)
+    if (!activeChatId || !token) return;
+    if (!uuidRegex.test(String(activeChatId))) return;
+    if (isDemo) return; // demo mode — no chat history API calls
 
-      // Join the socket room for this job
-      if (socket) {
-        socket.emit("join_job", activeChatId);
-      }
+    api
+      .get(`/chat/${activeChatId}`)
+      .then((res) => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const dbMessages = res.data.map((m) => ({
+            id: m.id,
+            chatId: m.request_id,
+            sender: m.role === "consumer" ? "user" : "expert",
+            text: m.message_text,
+            time: new Date(m.created_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            ...parseMessageBody(m.message_text),
+          }));
+          setMessages(dbMessages);
+        }
+      })
+      .catch((err) => {
+        // 403 = user not part of this job — silently ignore
+        if (err.response?.status !== 403) {
+          console.warn("Failed to load chat history:", err.message);
+        }
+      });
+
+    if (socket) {
+      socket.emit("join_job", activeChatId);
     }
-  }, [activeChatId, socket, view]);
+  }, [activeChatId, socket, view, isDemo]);
 
   // 2. Listen for Incoming Messages
   useEffect(() => {
@@ -2181,38 +2141,56 @@ function App() {
   }, [socket, role]);
 
   // 3. Send Message Handler
+  const DEMO_AUTO_REPLIES = [
+    "Thank you for the update! Please let me know when you have diagnosed the issue.",
+    "Okay, I understand. How long do you think the repair will take?",
+    "Great, please proceed. I am available if you need anything.",
+    "Thank you for keeping me updated!",
+    "Understood. Please keep me posted on the progress.",
+  ];
+
   const handleSendMessage = (text) => {
     const msgToSubmit = text || newMessage;
-    if (msgToSubmit.trim()) {
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
-      if (!user) return;
+    if (!msgToSubmit.trim()) return;
 
-      // Optimistic UI update so it shows immediately
-      const newMsgObj = {
-        id: Date.now(),
-        chatId: activeChatId,
-        sender: role === "consumer" ? "user" : "expert",
+    const userStr = localStorage.getItem("user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    if (!user) return;
+
+    const newMsgObj = {
+      id: Date.now(),
+      chatId: activeChatId,
+      sender: role === "consumer" ? "user" : "expert",
+      text: msgToSubmit,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setMessages((prev) => [...prev, newMsgObj]);
+
+    // Demo mode — auto-reply from the other party after 2s
+    if (isDemo) {
+      setTimeout(() => {
+        const replyText = DEMO_AUTO_REPLIES[Math.floor(Math.random() * DEMO_AUTO_REPLIES.length)];
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            chatId: activeChatId,
+            sender: role === "consumer" ? "expert" : "user",
+            text: replyText,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+      }, 2000);
+    } else if (socket) {
+      socket.emit("send_message", {
+        requestId: activeChatId,
+        senderId: user.id,
         text: msgToSubmit,
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-
-      setMessages((prev) => [...prev, newMsgObj]);
-
-      // Emit to Server
-      if (socket) {
-        socket.emit("send_message", {
-          requestId: activeChatId,
-          senderId: user.id,
-          text: msgToSubmit,
-        });
-      }
-
-      setNewMessage("");
+      });
     }
+
+    setNewMessage("");
   };
 
   // [ADDED] Demo Data for Service History -> [MODIFIED] Now State
@@ -2472,18 +2450,31 @@ function App() {
         ifscCode: '',
         accountHolderName: demo.name,
       });
-      if (role === 'producer') {
-        setProducerDashStats(DEMO_PRODUCER_STATS);
-        setRadarJobs(DEMO_RADAR_JOBS);
-        setProducerChats(DEMO_CHATS);
-        setTransactionHistory(DEMO_TRANSACTION_HISTORY);
+
+      // Load from 24-hour cache or use fresh defaults
+      const cached = loadDemoStore();
+      if (demoRole === 'producer') {
+        setProducerDashStats(cached?.producerStats || DEMO_PRODUCER_STATS);
+        setRadarJobs(cached?.radarJobs || DEMO_RADAR_JOBS);
+        setProducerChats(cached?.producerChats || DEMO_CHATS);
+        setTransactionHistory(cached?.transactionHistory || DEMO_TRANSACTION_HISTORY);
       } else {
-        setMachines(DEMO_MACHINES);
-        setActiveRequests(DEMO_ACTIVE_REQUESTS);
-        setChats(DEMO_CHATS);
-        setTransactionHistory(DEMO_TRANSACTION_HISTORY);
-        setEarningsStats(DEMO_EARNINGS_STATS);
+        setMachines(cached?.machines || DEMO_MACHINES);
+        setActiveRequests(cached?.activeRequests || DEMO_ACTIVE_REQUESTS);
+        setChats(cached?.chats || DEMO_CHATS);
+        setTransactionHistory(cached?.transactionHistory || DEMO_TRANSACTION_HISTORY);
+        setEarningsStats(cached?.earningsStats || DEMO_EARNINGS_STATS);
       }
+      // Seed cache if empty
+      if (!cached) {
+        saveDemoStore({
+          machines: DEMO_MACHINES, activeRequests: DEMO_ACTIVE_REQUESTS,
+          chats: DEMO_CHATS, producerChats: DEMO_CHATS,
+          radarJobs: DEMO_RADAR_JOBS, transactionHistory: DEMO_TRANSACTION_HISTORY,
+          earningsStats: DEMO_EARNINGS_STATS, producerStats: DEMO_PRODUCER_STATS,
+        });
+      }
+
       setChatsLoading(false);
       setMachinesLoading(false);
       setRequestsLoading(false);
@@ -2739,7 +2730,6 @@ function App() {
     const user = userStr ? JSON.parse(userStr) : null;
 
     if (user && user.id === "demo-123") {
-      // Optimistically add to UI for instant feedback
       const mockMachine = {
         id: "demo-new-" + Date.now(),
         name: newMachineData.name,
@@ -2748,14 +2738,13 @@ function App() {
         model_year: newMachineData.model_year || "2024",
         condition_score: 100,
       };
-      setMachines((prev) => [mockMachine, ...prev]);
-      setShowAddMachineModal(false);
-      setNewMachineData({
-        name: "",
-        oem: "",
-        model_year: "",
-        machine_type: "",
+      setMachines((prev) => {
+        const updated = [mockMachine, ...prev];
+        patchDemoStore({ machines: updated });
+        return updated;
       });
+      setShowAddMachineModal(false);
+      setNewMachineData({ name: "", oem: "", model_year: "", machine_type: "" });
       return;
     }
 
@@ -2920,6 +2909,7 @@ function App() {
   }, [socket, view, activeChatId, role]);
 
   const fetchRadarJobs = async () => {
+    if (isDemo) return; // demo mode — never re-fetch, would restore accepted jobs
     try {
       const res = await api.get("/jobs/radar");
       setRadarJobs(Array.isArray(res.data) ? res.data : []);
@@ -3041,7 +3031,7 @@ function App() {
   useEffect(() => {
     if (view !== "dashboard" || role !== "consumer") return;
     fetchConsumerActiveRequests();
-  }, [view, role]);
+  }, [view, role, authenticated]);
 
   useEffect(() => {
     if (!socket || role !== "consumer" || view !== "dashboard") return;
@@ -3228,6 +3218,7 @@ function App() {
   }, [getStoredUser]);
 
   const fetchProducerChats = async () => {
+    if (isDemo) return; // demo mode — chats managed locally, never overwrite
     setChatsLoading(true);
     try {
       const res = await api.get("/jobs/my");
@@ -3259,27 +3250,66 @@ function App() {
 
   const handleAcceptJob = async (jobOrId) => {
     const jobId = typeof jobOrId === "object" ? jobOrId.id : jobOrId;
+    if (acceptingJobId === jobId) return; // prevent double click
+    setAcceptingJobId(jobId);
 
     if (isDemo) {
-      // Simulate accept — update local state only, no API call
+      const job = (radarJobs || []).find((j) => j.id === jobId);
+      setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
+
+      const chatId = `demo-chat-${jobId}`;
+
       setTimeout(() => {
-        setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
-        const job = (radarJobs || []).find((j) => j.id === jobId);
+        const activeJob = {
+          ...(job || {}),
+          id: chatId,
+          originalId: jobId,
+          status: "accepted",
+          progressStage: "accepted",
+          progressNote: "",
+          acceptedAt: new Date().toISOString(),
+        };
+        setActiveJobs((prev) => [activeJob, ...prev]);
+
         const newChat = {
-          id: jobId,
+          id: chatId,
+          jobId: chatId,
           name: `${job?.client_name || "Demo Client"} — ${job?.machine_name || "Machine"}`,
           avatar: (job?.client_name || "DC").substring(0, 2).toUpperCase(),
-          lastMsg: job?.issue_description?.substring(0, 35) + "..." || "Service request accepted",
+          lastMsg: `Hi! I need help with my ${job?.machine_name || "machine"}.`,
           time: "Just now",
           unread: 1,
           status: "accepted",
           expertId: "demo-expert",
         };
-        setProducerChats((prev) => [newChat, ...prev]);
-        setActiveChatId(jobId);
-        setActiveTab("pro-messages");
-        setToast({ message: "Request accepted successfully", type: "success" });
-      }, 800);
+        setProducerChats((prev) => {
+          const updated = [newChat, ...prev];
+          patchDemoStore({ producerChats: updated });
+          return updated;
+        });
+
+        // Seed initial messages for this chat
+        setMessages([
+          {
+            id: "demo-sys-1",
+            chatId,
+            sender: "system",
+            text: `You accepted the service request for ${job?.machine_name || "Machine"}. Chat started.`,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+          {
+            id: "demo-consumer-1",
+            chatId,
+            sender: "user",
+            text: `Hi! I need help with my ${job?.machine_name || "machine"}. The issue is: ${job?.issue_description || "service required"}.`,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+        setActiveChatId(chatId);
+
+        setToast({ message: "Request accepted! Chat started.", type: "success" });
+        setAcceptingJobId(null);
+      }, 600);
       return;
     }
 
@@ -3287,12 +3317,15 @@ function App() {
       const res = await api.patch(`/jobs/${jobId}/accept`);
       const acceptedJob = res.data;
       setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
+      setActiveJobs((prev) => [{ ...acceptedJob, progressStage: "accepted", progressNote: "" }, ...prev]);
       await fetchProducerChats();
       await fetchProducerDashboardStats();
       setActiveChatId(jobId);
-      setActiveTab("pro-messages");
+      setActiveTab("messages");
     } catch (err) {
       alert("Failed to accept job: " + (err.response?.data?.message || err.message));
+    } finally {
+      setAcceptingJobId(null);
     }
   };
 
@@ -3331,15 +3364,60 @@ function App() {
 
   const handleDeclineJob = async (jobOrId) => {
     const jobId = typeof jobOrId === "object" ? jobOrId.id : jobOrId;
+    // In demo mode — just remove locally, no API call
+    if (isDemo) {
+      setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
+      return;
+    }
     try {
       await api.patch(`/jobs/${jobId}/decline`);
-      // Remove from local radar — other producers can still see it
       setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
       await fetchProducerDashboardStats();
     } catch (err) {
-      // Even if API fails (e.g., demo mode), remove locally for good UX
       setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
       console.warn("Decline API call failed (offline?)", err);
+    }
+  };
+
+  const handleOpenChatFromActiveJob = (jobId) => {
+    // jobId here is the activeJob.id which is demo-chat-${originalId} or a real UUID
+    const chat = producerChats.find((c) => c.id === jobId || c.jobId === jobId);
+    setActiveChatId(chat ? chat.id : jobId);
+    setActiveTab("messages");
+  };
+
+  const handleUpdateJobProgress = (jobId, stage, note) => {
+    if (isDemo) {
+      setActiveJobs((prev) =>
+        prev.map((j) => j.id === jobId ? { ...j, progressStage: stage, progressNote: note } : j)
+      );
+      setToast({ message: `Progress updated: ${stage}`, type: "success" });
+      return;
+    }
+    api.patch(`/jobs/${jobId}/progress`, { stage, note })
+      .then(() => {
+        setActiveJobs((prev) =>
+          prev.map((j) => j.id === jobId ? { ...j, progressStage: stage, progressNote: note } : j)
+        );
+        setToast({ message: "Consumer notified of update!", type: "success" });
+      })
+      .catch(() => setToast({ message: "Failed to update progress", type: "error" }));
+  };
+
+  const handleMarkJobComplete = async (jobId) => {
+    if (isDemo) {
+      setActiveJobs((prev) => prev.filter((j) => j.id !== jobId));
+      setProducerDashStats((prev) => ({ ...prev, completedJobs: (prev.completedJobs || 0) + 1 }));
+      setToast({ message: "Job marked as completed", type: "success" });
+      return;
+    }
+    try {
+      await api.patch(`/jobs/${jobId}/complete-work`);
+      setActiveJobs((prev) => prev.filter((j) => j.id !== jobId));
+      await fetchProducerDashboardStats();
+      setToast({ message: "Job completed successfully", type: "success" });
+    } catch (err) {
+      setToast({ message: "Failed to complete job", type: "error" });
     }
   };
 
@@ -3425,9 +3503,10 @@ function App() {
     if (view === "dashboard" && role === "consumer" && activeTab === "fleet") {
       fetchConsumerFleetSnapshot();
     }
-  }, [view, role, activeTab, isDemo]);
+  }, [view, role, activeTab, isDemo, authenticated]);
 
   useEffect(() => {
+    if (isDemo) return; // demo mode — no polling
     if (view === "dashboard" && role === "producer") {
       fetchRadarJobs();
       fetchProducerChats();
@@ -3438,14 +3517,18 @@ function App() {
       }, 10000);
       return () => clearInterval(interval);
     }
-  }, [view, role, fetchProducerDashboardStats, isDemo]);
+  }, [view, role, fetchProducerDashboardStats, isDemo, authenticated]);
 
   // When producer switches to messages tab, refresh their chat list
   useEffect(() => {
-    if (activeTab === "pro-messages" && role === "producer") {
+    if (isDemo) {
+      setChatsLoading(false);
+      return;
+    }
+    if (activeTab === "messages" && role === "producer") {
       fetchProducerChats();
     }
-  }, [activeTab]);
+  }, [activeTab, isDemo]);
 
   // [NEW] FETCH FINANCIAL STATS
   useEffect(() => {
@@ -6020,6 +6103,16 @@ function App() {
             );
           case "performance":
             return <PerformanceView userId={profileData.id} />;
+          case "active-jobs":
+            return (
+              <ActiveJobsView
+                activeJobs={activeJobs}
+                isDemo={isDemo}
+                onProgressUpdate={handleUpdateJobProgress}
+                onMarkComplete={handleMarkJobComplete}
+                onOpenChat={handleOpenChatFromActiveJob}
+              />
+            );
           case "messages":
             return (
               <MessagesView
@@ -6078,15 +6171,7 @@ function App() {
                 />
               </div>
             );
-          case "legacy":
-            return (
-              <LegacySearchView
-                onDownloadReport={handleDownloadReport}
-                results={legacyResults}
-                onSearch={handleLegacySearch}
-                onRequestSpecs={handleRequestSpecs}
-              />
-            );
+
           case "profile":
             return (
               <ProfileView
@@ -6207,6 +6292,7 @@ function App() {
         searchResults={searchResults}
         onSearchResultClick={handleSearchResultClick}
         isDemo={isDemo}
+        activeJobsCount={activeJobs.length}
       >
         {showCompleteProfileBanner && role === 'consumer' && !isDemo && activeTab === 'fleet' && (
            <div className="bg-amber-50 border border-amber-200 px-6 py-4 mb-6 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm relative z-40">

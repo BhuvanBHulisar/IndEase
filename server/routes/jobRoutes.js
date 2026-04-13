@@ -77,6 +77,36 @@ router.patch('/:id/cancel', auth, roleCheck(['consumer']), async (req, res) => {
     }
 });
 
+// @route   PATCH api/jobs/:id/progress
+// @desc    Expert updates job progress stage
+router.patch('/:id/progress', auth, roleCheck(['producer']), async (req, res) => {
+    try {
+        const { stage, note } = req.body;
+        const validStages = ['accepted', 'diagnosing', 'repairing', 'testing', 'completed'];
+        if (!validStages.includes(stage)) {
+            return res.status(400).json({ error: 'Invalid stage' });
+        }
+        await db.query(
+            `UPDATE service_requests SET progress_stage = $1, progress_note = $2, updated_at = NOW()
+             WHERE id = $3 AND producer_id = $4`,
+            [stage, note || null, req.params.id, req.user.id]
+        );
+        await db.query(
+            `INSERT INTO job_progress_history (job_id, stage, note) VALUES ($1, $2, $3)`,
+            [req.params.id, stage, note || null]
+        ).catch(() => {});
+        const job = await db.query('SELECT consumer_id FROM service_requests WHERE id = $1', [req.params.id]);
+        if (job.rows.length && global.io) {
+            global.io.to(`user_${job.rows[0].consumer_id}`).emit('job_progress_updated', {
+                jobId: req.params.id, stage, note: note || ''
+            });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // @route   GET api/jobs/my
 // @desc    Get my active jobs (Chat List)
 router.get('/my', auth, jobController.getMyJobs);

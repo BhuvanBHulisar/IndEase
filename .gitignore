@@ -4,6 +4,8 @@ node_modules/
 # Build output
 dist/
 build/
+tmp/
+tools/
 
 # Environment variables
 .env
@@ -18,8 +20,11 @@ logs/
 *.txt
 
 # SQL dumps
-*.sql
 originode_backup.sql
+
+# Diagram / document exports
+diagram-export-*.png
+document-export-*.md
 
 # OS files
 .DS_Store
@@ -31,6 +36,3 @@ Thumbs.db
 
 # Vite / local dev
 *.local
-
-# GitHub / CI (keep in repo, not ignored by default — remove if needed)
-# .github/
