@@ -110,6 +110,24 @@ import "./App.css";
 import "./producer-styles.css";
 import "./signup.css";
 
+const AI_DIAGNOSIS_MAP = [
+  { keywords: ['leak', 'fluid', 'oil', 'drip', 'wet'],         type: 'Hydraulic Press',      issue: 'Seal leakage detected',           confidence: 87 },
+  { keywords: ['vibrat', 'shake', 'wobble', 'rattle'],         type: 'Rotary Machine',       issue: 'Bearing wear / imbalance',        confidence: 82 },
+  { keywords: ['heat', 'hot', 'overheat', 'temperature'],      type: 'Cooling System',       issue: 'Thermal overload risk',           confidence: 91 },
+  { keywords: ['noise', 'sound', 'loud', 'squeak', 'grind'],   type: 'Gearbox Assembly',     issue: 'Gear tooth wear detected',        confidence: 78 },
+  { keywords: ['slow', 'speed', 'rpm', 'performance', 'weak'], type: 'Drive Motor',          issue: 'Motor efficiency degradation',    confidence: 84 },
+  { keywords: ['smoke', 'burn', 'spark', 'electric', 'power'], type: 'Electrical System',    issue: 'Electrical fault / short risk',   confidence: 93 },
+  { keywords: ['jam', 'stuck', 'block', 'stop', 'freeze'],     type: 'Conveyor System',      issue: 'Mechanical obstruction detected', confidence: 88 },
+];
+
+function getAIDiagnosis(description) {
+  const lower = (description || '').toLowerCase();
+  const match = AI_DIAGNOSIS_MAP.find(entry =>
+    entry.keywords.some(kw => lower.includes(kw))
+  );
+  return match || { type: 'Industrial Equipment', issue: 'General fault pattern detected', confidence: 75 };
+}
+
 // Helper component for reports
 function ReportField({ label, value }) {
   return (
@@ -741,7 +759,9 @@ function App() {
 
   // [NEW] VIDEO DIAGNOSIS STATES
   const [showDiagnosisModal, setShowDiagnosisModal] = useState(false);
-  const [diagnosisStep, setDiagnosisStep] = useState(1); // 1: Upload, 2: Scanning, 3: Results
+  const [diagnosisStep, setDiagnosisStep] = useState(1); // 1: Upload, 2: AI Scanning, 'ai_result': AI card, 3: Success
+  const [aiDiagnosis, setAiDiagnosis] = useState(null);
+  const [broadcastInProgress, setBroadcastInProgress] = useState(false);
   const [videoFile, setVideoFile] = useState(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [diagnosisResults, setDiagnosisResults] = useState([]);
@@ -1470,6 +1490,14 @@ function App() {
           if (prev.some((j) => j.id === newJob.id)) return prev;
           return [newJob, ...prev];
         });
+      });
+
+      newSocket.on('waitlist_offer', (data) => {
+        setToast({
+          message: `A job you waitlisted is now available: ${data.machine_name}. Check incoming requests!`,
+          type: 'success'
+        });
+        fetchRadarJobs && fetchRadarJobs();
       });
 
       newSocket.on('disconnect', () => {
@@ -2804,79 +2832,73 @@ function App() {
   };
 
   // [NEW] SERVICE REQUEST BROADCAST HANDLER
-  const handleBroadcastJob = async () => {
-    if (!activeJobMachine) return alert("No machine selected");
+  // Step 1 → Step 2 (AI scan) → Step 'ai_result'
+  const handleBroadcastJob = () => {
+    if (!activeJobMachine) return;
+    const diagnosis = getAIDiagnosis(diagnosisDesc);
+    setAiDiagnosis(diagnosis);
+    setDiagnosisStep(2);
+    setTimeout(() => setDiagnosisStep('ai_result'), 2500);
+  };
 
-    // 1. Helper to add to state (serverJob from POST /jobs/broadcast when available)
+  // Step 'ai_result' → Step 2 (broadcasting) → Step 3 (success)
+  // Runs in background — closing the modal does NOT cancel it
+  const handleConfirmBroadcast = async () => {
+    if (broadcastInProgress) return;
+    setBroadcastInProgress(true);
+    setDiagnosisStep(2);
+
     const finalizeRequest = (serverJob) => {
       const newReq = {
         id: serverJob?.id ?? Date.now(),
-        machine: activeJobMachine.name,
-        issue: diagnosisDesc || "Routine Service",
-        rawStatus: serverJob?.status || "broadcast",
-        expert: "Assigning...",
-        time: "Just now",
+        machine: activeJobMachine?.name,
+        issue: diagnosisDesc || 'Routine Service',
+        rawStatus: serverJob?.status || 'broadcast',
+        expert: 'Assigning...',
+        time: 'Just now',
       };
       setActiveRequests((prev) => [newReq, ...prev]);
-      setDiagnosisDesc("");
-      setFaultLocation("");
+      setDiagnosisDesc('');
+      setFaultLocation('');
       setVideoFile(null);
+      setBroadcastInProgress(false);
     };
 
-    // 2. Simulate Analysis/Broadcasting UI
-    setDiagnosisStep(2);
+    // Detect demo mode
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const isDemoUser = user && (
+      user.id === 'demo-123' ||
+      (activeJobMachine?.id && String(activeJobMachine.id).startsWith('local'))
+    );
 
+    if (isDemoUser) {
+      // Demo: simulate 2s broadcast then succeed — modal close does not cancel
+      setTimeout(() => {
+        finalizeRequest(null);
+        setDiagnosisStep(3);
+        setShowDiagnosisModal(true);
+      }, 2000);
+      return;
+    }
+
+    // Real mode: fire API, run in background regardless of modal state
     try {
-      // [DEMO MODE BYPASS]
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
-      if (
-        user &&
-        (user.id === "demo-123" ||
-          (activeJobMachine.id &&
-            String(activeJobMachine.id).startsWith("local")))
-      ) {
-        setAnalysisProgress(0);
-        let prog = 0;
-        const interval = setInterval(() => {
-          prog += 20;
-          setAnalysisProgress(prog);
-          if (prog >= 100) {
-            clearInterval(interval);
-            finalizeRequest(null);
-            setDiagnosisStep(3);
-          }
-        }, 300);
-        return;
-      }
-
-      // 2. Post to Backend
-      const payload = {
+      const broadcastRes = await api.post('/jobs/broadcast', {
         machineId: activeJobMachine.id,
-        issueDescription: diagnosisDesc || "Routine maintenance check",
-        priority: "high",
-        videoUrl:
-          "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // Mock video for now
-      };
-
-      const broadcastRes = await api.post("/jobs/broadcast", payload);
-
-      // 3. Show Success UI
-      setAnalysisProgress(0);
-      let p = 0;
-      const inter = setInterval(() => {
-        p += 25;
-        setAnalysisProgress(p);
-        if (p >= 100) {
-          clearInterval(inter);
-          finalizeRequest(broadcastRes.data);
-          setDiagnosisStep(3);
-        }
-      }, 200);
+        issueDescription: diagnosisDesc || 'Routine maintenance check',
+        priority: 'high',
+        videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      });
+      finalizeRequest(broadcastRes.data);
+      setDiagnosisStep(3);
+      setShowDiagnosisModal(true);
     } catch (err) {
-      console.error(err);
-      alert("Failed to broadcast request. Check connection.");
+      console.error('[Broadcast] Failed:', err);
+      setBroadcastInProgress(false);
       setDiagnosisStep(1);
+      setShowDiagnosisModal(true);
+      setToast({ message: 'Failed to broadcast. Check connection.', type: 'error' });
     }
   };
 
@@ -3376,6 +3398,20 @@ function App() {
     } catch (err) {
       setRadarJobs((prev) => prev.filter((j) => j.id !== jobId));
       console.warn("Decline API call failed (offline?)", err);
+    }
+  };
+
+  const handleJoinWaitlist = async (jobOrId) => {
+    const jobId = typeof jobOrId === 'object' ? jobOrId.id : jobOrId;
+    if (isDemo) {
+      setToast({ message: 'Added to waitlist! You will be notified if this job becomes available.', type: 'success' });
+      return;
+    }
+    try {
+      await api.post(`/jobs/${jobId}/waitlist`);
+      setToast({ message: 'Joined waitlist. You will be notified if this job opens up.', type: 'success' });
+    } catch (err) {
+      setToast({ message: 'Failed to join waitlist', type: 'error' });
     }
   };
 
@@ -4742,10 +4778,7 @@ function App() {
               </div>
               <button
                 className="text-slate-400 hover:text-slate-600 transition-colors"
-                onClick={() => {
-                  setShowDiagnosisModal(false);
-                  setDiagnosisStep(1);
-                }}
+                onClick={() => setShowDiagnosisModal(false)}
               >
                 <X size={20} />
               </button>
@@ -4828,12 +4861,54 @@ function App() {
                   </div>
                   <div className="text-center space-y-2">
                     <h4 className="text-xl font-bold text-slate-900 tracking-tight">
-                      Broadcasting Request
+                      {broadcastInProgress ? 'Broadcasting Request' : 'Analysing Video'}
                     </h4>
                     <p className="text-sm font-medium text-slate-500">
-                      Scanning for available expert nodes...
+                      {broadcastInProgress ? 'Scanning for available expert nodes...' : 'AI is scanning for fault patterns...'}
                     </p>
                   </div>
+                  {broadcastInProgress && (
+                    <p className="text-xs text-slate-400 mt-2">
+                      Running in background — you can safely close this
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {diagnosisStep === 'ai_result' && aiDiagnosis && (
+                <div className="animate-fade-in space-y-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-semibold text-emerald-600 uppercase tracking-widest">AI Analysis Complete</span>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Machine type detected</p>
+                        <p className="text-base font-bold text-slate-900">{aiDiagnosis.type}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Confidence</p>
+                        <p className="text-base font-bold text-emerald-600">{aiDiagnosis.confidence}%</p>
+                      </div>
+                    </div>
+                    <div className="pt-3 border-t border-slate-200">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Possible issue</p>
+                      <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">{aiDiagnosis.issue}</p>
+                    </div>
+                  </div>
+                  <button
+                    className="w-full h-12 bg-[#2563EB] text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]"
+                    onClick={handleConfirmBroadcast}
+                  >
+                    Confirm & Broadcast to Experts
+                  </button>
+                  <button
+                    className="w-full h-10 text-slate-500 text-sm hover:text-slate-700 transition-colors"
+                    onClick={() => { setDiagnosisStep(1); setAiDiagnosis(null); }}
+                  >
+                    Edit request
+                  </button>
                 </div>
               )}
 
@@ -4856,7 +4931,11 @@ function App() {
                   </div>
                   <button
                     className="w-full h-12 bg-slate-900 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all"
-                    onClick={() => setShowDiagnosisModal(false)}
+                    onClick={() => {
+                      setShowDiagnosisModal(false);
+                      setDiagnosisStep(1);
+                      setAiDiagnosis(null);
+                    }}
                   >
                     Return to Console
                   </button>
@@ -6098,6 +6177,7 @@ function App() {
                 }}
                 onAcceptJob={handleAcceptJob}
                 onDeclineJob={handleDeclineJob}
+                onJoinWaitlist={handleJoinWaitlist}
                 onViewDetails={() => {}}
               />
             );
@@ -6221,6 +6301,7 @@ function App() {
                 }}
                 onAcceptJob={handleAcceptJob}
                 onDeclineJob={handleDeclineJob}
+                onJoinWaitlist={handleJoinWaitlist}
                 onViewDetails={() => {}}
               />
             );

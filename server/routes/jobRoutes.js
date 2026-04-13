@@ -111,4 +111,8 @@ router.patch('/:id/progress', auth, roleCheck(['producer']), async (req, res) =>
 // @desc    Get my active jobs (Chat List)
 router.get('/my', auth, jobController.getMyJobs);
 
+// @route   POST api/jobs/:id/waitlist
+// @desc    Expert joins the waitlist for a job
+router.post('/:id/waitlist', auth, roleCheck(['producer']), jobController.joinWaitlist);
+
 export default router;

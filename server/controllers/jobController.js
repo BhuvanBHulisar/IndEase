@@ -23,7 +23,7 @@ export const broadcastJob = async (req, res) => {
 
             // 2. Insert into service requests ledger
             const result = await db.query(
-                'INSERT INTO service_requests (machine_id, consumer_id, issue_description, priority, video_url, status, is_demo) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+                'INSERT INTO service_requests (machine_id, consumer_id, issue_description, priority, video_url, status, is_demo, first_broadcast_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING *',
                 [machineId, req.user.id, issueDescription, priority || 'normal', videoUrl, 'broadcast', !!req.user.is_demo]
             );
 
@@ -90,24 +90,76 @@ export const broadcastJob = async (req, res) => {
 // @route   GET /api/jobs/radar
 export const getRadarJobs = async (req, res) => {
     const isDemo = !!req.user.is_demo;
+    const expertCity = req.user.city || null;
     try {
-        const result = await db.query(`
-            SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
+        let rows = [];
+
+        // Tier 1: jobs from same city (always try first)
+        if (expertCity) {
+            const nearbyResult = await db.query(`
+                SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
+                       u.first_name as client_name, u.city as client_city,
+                       true as is_nearby
+                FROM service_requests jr
+                JOIN machines m ON jr.machine_id = m.id
+                JOIN users u ON jr.consumer_id = u.id
+                WHERE jr.status = 'broadcast'
+                AND jr.is_demo = $1
+                AND LOWER(u.city) = LOWER($2)
+                AND jr.id NOT IN (
+                    SELECT request_id FROM declined_jobs WHERE user_id = $3
+                )
+                ORDER BY jr.created_at DESC
+            `, [isDemo, expertCity, req.user.id]);
+            rows = nearbyResult.rows;
+        }
+
+        // Tier 2: jobs older than 10 minutes (no-one accepted yet) — show to all experts
+        const globalResult = await db.query(`
+            SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
+                   u.first_name as client_name, u.city as client_city,
+                   false as is_nearby
             FROM service_requests jr
             JOIN machines m ON jr.machine_id = m.id
             JOIN users u ON jr.consumer_id = u.id
             WHERE jr.status = 'broadcast'
             AND jr.is_demo = $1
+            AND (jr.first_broadcast_at IS NULL OR jr.first_broadcast_at < NOW() - INTERVAL '10 minutes')
             AND jr.id NOT IN (
                 SELECT request_id FROM declined_jobs WHERE user_id = $2
             )
+            AND jr.id NOT IN (${rows.map((_, i) => `$${i + 3}`).join(',') || 'NULL'})
             ORDER BY jr.created_at DESC
-        `, [isDemo, req.user.id]);
-        res.json(result.rows);
+        `, [isDemo, req.user.id, ...rows.map(r => r.id)]);
+
+        // If no city set, also fetch ALL broadcast jobs
+        if (!expertCity) {
+            const allResult = await db.query(`
+                SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
+                       u.first_name as client_name, u.city as client_city,
+                       false as is_nearby
+                FROM service_requests jr
+                JOIN machines m ON jr.machine_id = m.id
+                JOIN users u ON jr.consumer_id = u.id
+                WHERE jr.status = 'broadcast'
+                AND jr.is_demo = $1
+                AND jr.id NOT IN (
+                    SELECT request_id FROM declined_jobs WHERE user_id = $2
+                )
+                ORDER BY jr.created_at DESC
+            `, [isDemo, req.user.id]);
+            rows = allResult.rows;
+        } else {
+            rows = [...rows, ...globalResult.rows];
+        }
+
+        res.json(rows);
     } catch (err) {
+        // fallback — return all broadcast jobs without city filtering
         try {
             const result = await db.query(`
-                SELECT jr.*, m.name as machine_name, m.oem, m.machine_type, u.first_name as client_name
+                SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
+                       u.first_name as client_name, false as is_nearby
                 FROM service_requests jr
                 JOIN machines m ON jr.machine_id = m.id
                 JOIN users u ON jr.consumer_id = u.id
@@ -322,6 +374,7 @@ export const completeWork = async (req, res) => {
 export const declineJob = async (req, res) => {
     const jobId = req.params.id;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const io = req.app.get('socketio') || global.io;
     try {
         if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
             const declineResult = await db.query(
@@ -334,6 +387,57 @@ export const declineJob = async (req, res) => {
 
             if (declineResult.rows.length > 0) {
                 await updateExpertPoints(req.user.id, -10, 'Expert declined request');
+            }
+
+            // Check waitlist — notify next expert in queue
+            const waitlistResult = await db.query(
+                `SELECT expert_id FROM job_waitlist
+                 WHERE job_id = $1
+                 ORDER BY position ASC
+                 LIMIT 1`,
+                [jobId]
+            );
+
+            if (waitlistResult.rows.length > 0) {
+                const nextExpertId = waitlistResult.rows[0].expert_id;
+                // Remove from waitlist now that we're offering it
+                await db.query(
+                    'DELETE FROM job_waitlist WHERE job_id = $1 AND expert_id = $2',
+                    [jobId, nextExpertId]
+                );
+                // Fetch job details to send with notification
+                const jobResult = await db.query(
+                    `SELECT sr.*, m.name as machine_name FROM service_requests sr
+                     JOIN machines m ON sr.machine_id = m.id
+                     WHERE sr.id = $1`,
+                    [jobId]
+                );
+                const job = jobResult.rows[0];
+                if (io && job) {
+                    io.to(`user_${nextExpertId}`).emit('waitlist_offer', {
+                        jobId,
+                        machine_name: job.machine_name,
+                        issue_description: job.issue_description,
+                        message: `A job you waitlisted is now available: ${job.machine_name}`
+                    });
+                }
+            } else {
+                // No one on waitlist — revert job to broadcast so all experts see it again
+                await db.query(
+                    `UPDATE service_requests SET status = 'broadcast' WHERE id = $1 AND status = 'accepted'`,
+                    [jobId]
+                );
+                if (io) {
+                    const jobResult = await db.query(
+                        `SELECT sr.*, m.name as machine_name FROM service_requests sr
+                         JOIN machines m ON sr.machine_id = m.id
+                         WHERE sr.id = $1`,
+                        [jobId]
+                    );
+                    if (jobResult.rows[0]) {
+                        io.to('radar_room').emit('new_signal', jobResult.rows[0]);
+                    }
+                }
             }
         }
         res.json({ message: 'Job declined' });
@@ -480,5 +584,33 @@ export const createInvoice = async (req, res) => {
     } catch (err) {
         console.error('[Jobs] Invoice creation failure:', err);
         res.status(500).json({ message: 'Failed to create invoice' });
+    }
+};
+
+// @desc    Expert joins the waitlist for an already-accepted job
+// @route   POST /api/jobs/:id/waitlist
+export const joinWaitlist = async (req, res) => {
+    const jobId = req.params.id;
+    const expertId = req.user.id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(jobId) || !uuidRegex.test(expertId)) {
+        return res.json({ message: 'Added to waitlist (demo)' });
+    }
+    try {
+        const posResult = await db.query(
+            'SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM job_waitlist WHERE job_id = $1',
+            [jobId]
+        );
+        const nextPos = posResult.rows[0].next_pos;
+        await db.query(
+            `INSERT INTO job_waitlist (job_id, expert_id, position)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (job_id, expert_id) DO NOTHING`,
+            [jobId, expertId, nextPos]
+        );
+        res.json({ message: 'Joined waitlist', position: nextPos });
+    } catch (err) {
+        console.error('[Waitlist] Join failed:', err);
+        res.status(500).json({ message: 'Failed to join waitlist' });
     }
 };

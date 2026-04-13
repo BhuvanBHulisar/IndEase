@@ -40,6 +40,7 @@ export default function ProfileView({
     lastName: user?.lastName || '',
     organization: user?.extraInfo || '',
     phone: user?.phone || '',
+    city: user?.city || '',
     taxId: user?.taxId || '',
     bankAccountNumber: user?.bankAccountNumber || '',
     ifscCode: user?.ifscCode || '',
@@ -59,7 +60,8 @@ export default function ProfileView({
                       lastName: u.last_name || u.lastName || prev.lastName,
                       email: u.email || prev.email,
                       organization: u.company || u.organization || prev.organization,
-                      phone: u.phone || u.phone_number || prev.phone
+                      phone: u.phone || u.phone_number || prev.phone,
+                      city: u.city || prev.city
                   }));
               }
               const res = await api.get('/auth/me');
@@ -71,7 +73,8 @@ export default function ProfileView({
                   lastName: u.last_name || u.lastName || prev.lastName,
                   email: u.email || prev.email,
                   organization: u.company || u.organization || prev.organization,
-                  phone: u.phone || u.phone_number || prev.phone
+                  phone: u.phone || u.phone_number || prev.phone,
+                  city: u.city || prev.city
               }));
               localStorage.setItem('user', JSON.stringify(u));
               
@@ -90,7 +93,8 @@ export default function ProfileView({
               first_name: formData.firstName,
               last_name: formData.lastName,
               company: formData.organization,
-              phone: formData.phone
+              phone: formData.phone,
+              city: formData.city
           });
           
           if (res.data.success) {
@@ -100,7 +104,8 @@ export default function ProfileView({
                   first_name: formData.firstName,
                   last_name: formData.lastName,
                   company: formData.organization,
-                  phone: formData.phone
+                  phone: formData.phone,
+                  city: formData.city
               };
               localStorage.setItem('user', JSON.stringify(updatedUser));
               
@@ -259,6 +264,17 @@ export default function ProfileView({
                              className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none disabled:bg-[#F8FAFC] disabled:text-slate-500"
                            />
                         </div>
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700">City</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Mumbai, Delhi, Bangalore..."
+                          disabled={!isEditing}
+                          className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none disabled:bg-[#F8FAFC] disabled:text-slate-500"
+                          value={formData.city}
+                          onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                        />
                      </div>
                      <div className="space-y-2">
                         <label className="text-sm font-semibold text-slate-700">Tax ID</label>

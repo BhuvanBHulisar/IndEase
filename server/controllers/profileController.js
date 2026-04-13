@@ -225,16 +225,17 @@ export const updateProfileData = async (req, res) => {
             return res.json({ success: true, user: req.user });
         }
         
-        const { first_name, last_name, company, phone } = req.body;
+        const { first_name, last_name, company, phone, city } = req.body;
         
         await db.query(
             `UPDATE users SET 
                 first_name = COALESCE($1, first_name),
                 last_name = COALESCE($2, last_name),
                 organization = COALESCE($3, organization),
-                phone = COALESCE($4, phone)
-             WHERE id = $5`,
-            [first_name, last_name, company, phone, userId]
+                phone = COALESCE($4, phone),
+                city = COALESCE($5, city)
+             WHERE id = $6`,
+            [first_name, last_name, company, phone, city, userId]
         );
         
         const result = await db.query(

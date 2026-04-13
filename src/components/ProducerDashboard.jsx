@@ -180,7 +180,7 @@ function LevelCard({ level, points, salary, meta, progress, onClick }) {
   );
 }
 
-const JobCard = React.forwardRef(({ job, onAccept, onDecline, onViewDetails }, ref) => {
+const JobCard = React.forwardRef(({ job, onAccept, onDecline, onJoinWaitlist, onViewDetails }, ref) => {
   const distHash = String(job.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const dist = 5 + (distHash % 45);
 
@@ -252,6 +252,17 @@ const JobCard = React.forwardRef(({ job, onAccept, onDecline, onViewDetails }, r
                   : 'Just now'}
               </span>
             </div>
+            {job.is_nearby && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                Nearby
+              </span>
+            )}
+            {!job.is_nearby && job.client_city && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-50 text-slate-500 border border-slate-200">
+                {job.client_city}
+              </span>
+            )}
           </div>
         </div>
 
@@ -270,6 +281,15 @@ const JobCard = React.forwardRef(({ job, onAccept, onDecline, onViewDetails }, r
             <ChevronRight size={14} />
           </button>
         </div>
+
+        {(job.status === 'accepted' || job.already_taken) && (
+          <button
+            onClick={onJoinWaitlist}
+            className="mt-3 w-full h-9 rounded-lg border border-amber-200 bg-amber-50 text-[12px] font-semibold text-amber-700 hover:bg-amber-600 hover:text-white transition-all"
+          >
+            Join waitlist — get notified if it opens up
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -282,6 +302,7 @@ export default function ProducerDashboard({
   loading,
   onAcceptJob,
   onDeclineJob,
+  onJoinWaitlist,
   onViewDetails
 }) {
   const [filter, setFilter] = useState('All');
@@ -485,6 +506,7 @@ export default function ProducerDashboard({
                     index={index}
                     onAccept={() => onAcceptJob(job)}
                     onDecline={() => onDeclineJob(job)}
+                    onJoinWaitlist={() => onJoinWaitlist && onJoinWaitlist(job)}
                     onViewDetails={() => onViewDetails && onViewDetails(job)}
                   />
                 ))
