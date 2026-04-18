@@ -18,7 +18,7 @@ import api from '../services/api';
 const STATUS_COLORS = {
     completed: '#22c55e',
     in_progress: '#f59e0b',
-    pending: '#3b82f6',
+    pending: '#14b8a6',
     broadcast: '#8b5cf6',
     accepted: '#06b6d4',
     cancelled: '#ef4444',
@@ -178,7 +178,7 @@ const Analytics = () => {
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} lg={3}>
                     <StatCard 
-                        icon={<Group />} label="Total Consumers" value={totalUsers.toLocaleString()} color="#3b82f6" 
+                        icon={<Group />} label="Total Consumers" value={totalUsers.toLocaleString()} color="#14b8a6" 
                         loading={users.loading} error={users.error} onRetry={loadUsers} 
                     />
                 </Grid>
@@ -219,15 +219,15 @@ const Analytics = () => {
                                         <AreaChart data={last7Days}>
                                             <defs>
                                                 <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
+                                                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} />
                                             <XAxis dataKey="day" tick={{ fontSize: 12 }} />
                                             <YAxis tick={{ fontSize: 12 }} tickFormatter={v => `₹${v.toLocaleString()}`} />
                                             <ChartTooltip formatter={(v) => [`₹${Number(v).toLocaleString()}`, 'Revenue']} />
-                                            <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revenueGrad)" />
+                                            <Area type="monotone" dataKey="revenue" stroke="#14b8a6" strokeWidth={2} fill="url(#revenueGrad)" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </Box>

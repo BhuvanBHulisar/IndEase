@@ -14,7 +14,7 @@ function LegalPage({ title, effectiveDate, sections }) {
           </div>
           <button 
             onClick={() => navigate('/')}
-            className="text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors"
+            className="text-sm font-bold text-slate-600 hover:text-teal-600 transition-colors"
           >
             Back to Home
           </button>
@@ -42,7 +42,7 @@ function LegalPage({ title, effectiveDate, sections }) {
                   <a 
                     key={idx} 
                     href={`#section-${idx}`}
-                    className="text-[14px] font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                    className="text-[14px] font-semibold text-teal-600 transition-colors hover:text-teal-700"
                   >
                     {section.heading}
                   </a>
@@ -54,7 +54,7 @@ function LegalPage({ title, effectiveDate, sections }) {
             <div className="space-y-12">
               {sections.map((section, idx) => (
                 <section key={idx} id={`section-${idx}`} className="space-y-4 scroll-mt-24">
-                  <h2 className="text-[18px] font-semibold text-[#2563EB]">{section.heading}</h2>
+                  <h2 className="text-[18px] font-semibold text-[#0d9488]">{section.heading}</h2>
                   <div className="space-y-4">
                     {section.body.map((item, bodyIdx) => (
                       <p key={bodyIdx} className="text-[15px] leading-[1.8] text-[#374151] font-medium">
@@ -79,15 +79,15 @@ function LegalPage({ title, effectiveDate, sections }) {
             <div className="logo-text text-xl font-extrabold tracking-tight">IndEase</div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-bold text-slate-600">
-            <button type="button" onClick={() => { navigate('/terms'); window.scrollTo(0,0); }} className="transition-colors hover:text-blue-600">
+            <button type="button" onClick={() => { navigate('/terms'); window.scrollTo(0,0); }} className="transition-colors hover:text-teal-600">
               Terms & Conditions
             </button>
             <span className="text-slate-300">|</span>
-            <button type="button" onClick={() => { navigate('/privacy'); window.scrollTo(0,0); }} className="transition-colors hover:text-blue-600">
+            <button type="button" onClick={() => { navigate('/privacy'); window.scrollTo(0,0); }} className="transition-colors hover:text-teal-600">
               Privacy Policy
             </button>
             <span className="text-slate-300">|</span>
-            <a href="mailto:support@originode.com" className="transition-colors hover:text-blue-600">
+            <a href="mailto:support@originode.com" className="transition-colors hover:text-teal-600">
               Contact Us
             </a>
           </div>

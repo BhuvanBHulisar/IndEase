@@ -55,7 +55,7 @@ const subjectColors = {
   "Service Issue": "#f59e0b",
   "Account Issue": "#6366f1",
   Other: "#64748b",
-  "General Support": "#3b82f6",
+  "General Support": "#14b8a6",
   "Machine Diagnosis Issue": "#8b5cf6",
   "Expert Consultation": "#10b981",
   "Billing Inquiry": "#f59e0b",
@@ -132,7 +132,7 @@ export default function SupportRequests() {
               width: 44,
               height: 44,
               borderRadius: 2,
-              background: "linear-gradient(135deg, #3b82f6, #6366f1)",
+              background: "linear-gradient(135deg, #14b8a6, #6366f1)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -379,7 +379,7 @@ export default function SupportRequests() {
       <Box sx={{ mt: 4, textAlign: "center" }}>
         <Typography variant="caption" color="text.disabled">
           Need help? Contact us at{" "}
-          <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "#3b82f6", textDecoration: "none" }}>
+          <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "#14b8a6", textDecoration: "none" }}>
             {SUPPORT_EMAIL}
           </a>
         </Typography>

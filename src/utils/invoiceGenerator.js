@@ -10,7 +10,7 @@ export const generateInvoicePDF = (record) => {
   
   // Color Palette
   const colors = {
-    primary: [37, 99, 235],    // #2563EB - Brand Blue
+    primary: [37, 99, 235],    // #0d9488 - Brand Blue
     secondary: [100, 116, 139], // #64748B - Slate
     dark: [15, 23, 42],        // #0F172A - Navy
     light: [241, 245, 249],     // #F1F5F9 - Gray

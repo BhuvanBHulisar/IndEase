@@ -63,12 +63,12 @@ const INDIA_STATES = {
 };
 
 const SELECT_CLS = (disabled) =>
-  `w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none appearance-none ${
+  `w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 transition-all outline-none appearance-none ${
     disabled ? 'bg-[#F8FAFC] text-slate-500 cursor-default' : 'cursor-pointer'
   }`;
 
-const INPUT_CLS = `w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none disabled:bg-[#F8FAFC] disabled:text-slate-500`;
-const INPUT_ICON_CLS = `w-full h-11 rounded-lg border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none disabled:bg-[#F8FAFC] disabled:text-slate-500`;
+const INPUT_CLS = `w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 transition-all outline-none disabled:bg-[#F8FAFC] disabled:text-slate-500`;
+const INPUT_ICON_CLS = `w-full h-11 rounded-lg border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm font-medium text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 transition-all outline-none disabled:bg-[#F8FAFC] disabled:text-slate-500`;
 
 export default function ProfileView({ 
   user, 
@@ -203,7 +203,7 @@ export default function ProfileView({
                 {userPhoto ? (
                   <img src={userPhoto} alt="Profile" className="w-full h-full object-cover transition-transform duration-700 group-hover/photo:scale-105" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-100 text-blue-600">
+                  <div className="w-full h-full flex items-center justify-center bg-slate-100 text-teal-600">
                     <User size={48} strokeWidth={1.5} />
                   </div>
                 )}
@@ -216,7 +216,7 @@ export default function ProfileView({
               </div>
               <button
                 onClick={onStartCamera}
-                className="absolute right-[calc(50%-44px)] bottom-0 w-10 h-10 bg-white border border-[#E5E7EB] rounded-full shadow-sm flex items-center justify-center text-slate-500 hover:text-blue-600 hover:scale-105 transition-all z-10"
+                className="absolute right-[calc(50%-44px)] bottom-0 w-10 h-10 bg-white border border-[#E5E7EB] rounded-full shadow-sm flex items-center justify-center text-slate-500 hover:text-teal-600 hover:scale-105 transition-all z-10"
               >
                 <Camera size={18} strokeWidth={2.5} />
               </button>

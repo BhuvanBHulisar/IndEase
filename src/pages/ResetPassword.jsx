@@ -103,7 +103,7 @@ export default function ResetPassword() {
 
                 {isValidating ? (
                     <div className="text-center py-8">
-                        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <div className="animate-spin w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto mb-4"></div>
                         <p className="text-slate-500 font-medium">Validating secure token...</p>
                     </div>
                 ) : tokenError ? (

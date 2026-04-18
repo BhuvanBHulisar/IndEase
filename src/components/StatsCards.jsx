@@ -45,7 +45,7 @@ const StatsCards = ({ machines, loading }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       {defaultStats.map((stat, idx) => {
         const Icon = stat.icon;
         const color = stat.color;

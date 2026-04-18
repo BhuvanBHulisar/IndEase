@@ -4032,7 +4032,7 @@ function App() {
             className="bg-white rounded-[24px] shadow-2xl w-full max-w-md overflow-hidden"
           >
             <div className="p-8 flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mb-6">
                 <UserCircle size={32} />
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-2">Complete Your Profile First</h3>
@@ -4053,7 +4053,7 @@ function App() {
                     if (el) el.click();
                     setActiveTab('profile');
                   }}
-                  className="flex-1 py-3 px-4 rounded-xl text-white font-bold bg-[#2563EB] hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all"
+                  className="flex-1 py-3 px-4 rounded-xl text-white font-bold bg-[#0d9488] hover:bg-teal-700 shadow-lg shadow-teal-500/20 transition-all"
                 >
                   Complete Profile
                 </button>
@@ -4135,7 +4135,7 @@ function App() {
                 <div className="modal-body-premium p-6 text-center space-y-6">
                   {/* Top Section */}
                   <div className="relative mx-auto w-24 h-24">
-                    <div className="w-24 h-24 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-500/20">
+                    <div className="w-24 h-24 rounded-full bg-[#0d9488] flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-teal-500/20">
                       {selectedExpert.avatar}
                     </div>
                     <div
@@ -4153,7 +4153,7 @@ function App() {
 
                     {/* Badges Section */}
                     <div className="flex items-center justify-center gap-2 pt-2 pb-1">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold tracking-tight">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-bold tracking-tight">
                         <ShieldCheck size={14} />
                         {selectedExpert.badge}
                       </span>
@@ -4180,7 +4180,7 @@ function App() {
                                 : selectedExpert.level === "Silver"
                                   ? "text-emerald-600"
                                   : selectedExpert.level === "Bronze"
-                                    ? "text-blue-600"
+                                    ? "text-teal-600"
                                     : "text-slate-500",
                           )}
                         >
@@ -4244,7 +4244,7 @@ function App() {
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
                         Typical Speed
                       </p>
-                      <p className="text-[13px] font-semibold text-blue-600">
+                      <p className="text-[13px] font-semibold text-teal-600">
                         {selectedExpert.responseTime}
                       </p>
                     </div>
@@ -4391,7 +4391,7 @@ function App() {
                     onClick={() =>
                       setReviewData((prev) => ({ ...prev, rating: i }))
                     }
-                    className="p-1.5 rounded-xl hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    className="p-1.5 rounded-xl hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200"
                     aria-label={`Rate ${i} star${i > 1 ? "s" : ""}`}
                   >
                     <Star
@@ -4420,7 +4420,7 @@ function App() {
                   }
                   placeholder="Share your experience (optional)"
                   rows={3}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB]"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/30 focus:border-[#0d9488]"
                 />
               </div>
 
@@ -4436,7 +4436,7 @@ function App() {
                   type="button"
                   onClick={handlePostPaymentRatingSubmit}
                   disabled={reviewData.rating < 1}
-                  className="flex-1 h-11 rounded-xl bg-[#2563EB] text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                  className="flex-1 h-11 rounded-xl bg-[#0d9488] text-white text-sm font-semibold hover:bg-teal-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
                 >
                   Submit Rating
                 </button>
@@ -4496,7 +4496,7 @@ function App() {
                 <span className="text-base font-semibold text-slate-900">
                   Total
                 </span>
-                <span className="text-xl font-bold text-[#2563EB]">
+                <span className="text-xl font-bold text-[#0d9488]">
                   ₹{checkoutDetails.totalPayable}
                 </span>
               </div>
@@ -4509,7 +4509,7 @@ function App() {
                   Cancel
                 </button>
                 <button
-                  className="main-action-btn h-12 rounded-lg bg-[#2563EB]"
+                  className="main-action-btn h-12 rounded-lg bg-[#0d9488]"
                   onClick={initiateRazorpayCheckout}
                 >
                   Pay ₹{checkoutDetails.totalPayable}
@@ -4724,7 +4724,7 @@ function App() {
           >
             <div className="modal-header-premium border-b border-slate-100 p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
                   <Wrench size={20} />
                 </div>
                 <div>
@@ -4748,12 +4748,12 @@ function App() {
               {diagnosisStep === 1 && (
                 <div className="animate-fade-in space-y-6">
                   <div
-                    className="h-44 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 group hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer overflow-hidden relative"
+                    className="h-44 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 group hover:border-teal-500 hover:bg-teal-50/30 transition-all cursor-pointer overflow-hidden relative"
                     onClick={() =>
                       document.getElementById("video-input").click()
                     }
                   >
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform text-blue-600">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform text-teal-600">
                       <Video size={20} />
                     </div>
                     <div className="text-center">
@@ -4781,7 +4781,7 @@ function App() {
                       <textarea
                         rows="3"
                         placeholder="Describe the issue with your machine..."
-                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-500 outline-none transition-all text-sm placeholder:text-slate-400"
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none transition-all text-sm placeholder:text-slate-400"
                         value={diagnosisDesc}
                         onChange={(e) => setDiagnosisDesc(e.target.value)}
                       />
@@ -4793,14 +4793,14 @@ function App() {
                       <input
                         type="text"
                         placeholder="e.g. Front hydraulic valve, Main spindle..."
-                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-500 outline-none transition-all text-sm placeholder:text-slate-400"
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none transition-all text-sm placeholder:text-slate-400"
                         value={faultLocation}
                         onChange={(e) => setFaultLocation(e.target.value)}
                       />
                     </div>
                   </div>
                   <button
-                    className="w-full h-12 bg-[#2563EB] text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]"
+                    className="w-full h-12 bg-[#0d9488] text-white rounded-xl font-semibold text-sm hover:bg-teal-700 shadow-md shadow-teal-500/20 transition-all active:scale-[0.98]"
                     onClick={handleBroadcastJob}
                   >
                     Submit Service Request
@@ -4811,11 +4811,11 @@ function App() {
               {diagnosisStep === 2 && (
                 <div className="py-16 flex flex-col items-center justify-center space-y-8 animate-fade-in">
                   <div className="relative">
-                    <div className="w-20 h-20 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin" />
+                    <div className="w-20 h-20 border-4 border-slate-100 border-t-teal-600 rounded-full animate-spin" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Globe
                         size={24}
-                        className="text-blue-600 animate-pulse"
+                        className="text-teal-600 animate-pulse"
                       />
                     </div>
                   </div>
@@ -4858,7 +4858,7 @@ function App() {
                     </div>
                   </div>
                   <button
-                    className="w-full h-12 bg-[#2563EB] text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]"
+                    className="w-full h-12 bg-[#0d9488] text-white rounded-xl font-semibold text-sm hover:bg-teal-700 shadow-md shadow-teal-500/20 transition-all active:scale-[0.98]"
                     onClick={handleConfirmBroadcast}
                   >
                     Confirm & Broadcast to Experts
@@ -4964,7 +4964,7 @@ function App() {
                 <span className="text-base font-semibold text-slate-900">
                   Amount Paid
                 </span>
-                <span className="text-xl font-bold text-[#2563EB]">
+                <span className="text-xl font-bold text-[#0d9488]">
                   {selectedReport.cost || selectedReport.amount}
                 </span>
               </div>
@@ -4977,7 +4977,7 @@ function App() {
                   Close
                 </button>
                 <button
-                  className="main-action-btn h-12 rounded-xl bg-[#2563EB] text-white font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                  className="main-action-btn h-12 rounded-xl bg-[#0d9488] text-white font-semibold text-sm hover:bg-teal-700 shadow-md shadow-teal-500/20 transition-all flex items-center justify-center gap-2"
                   onClick={() => handleDownloadReport(selectedReport)}
                 >
                   <Download size={16} />
@@ -5286,7 +5286,7 @@ function App() {
   if (authChecking) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -5294,21 +5294,21 @@ function App() {
   // --- VIEW 1: PROFESSIONAL LANDING PAGE ---
   if (view === "landing") {
     return (
-      <div className="bg-white min-h-screen selection:bg-teal-100 selection:text-teal-900">
+      <div className="bg-white min-h-screen selection:bg-teal-100 selection:text-teal-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
         {/* NAVBAR */}
         <nav className={`nav-sticky ${scrolled ? "scrolled" : ""} bg-white/80 backdrop-blur-md sticky top-0 z-[1000] border-b border-slate-200`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
-            <div className="logo-container flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
-              <Settings className="text-teal-600" size={24} strokeWidth={2.5} />
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+            <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => navigate("/")}>
+              <Settings className="text-[#0d9488]" size={24} strokeWidth={2.5} />
               <span className="text-2xl font-bold tracking-tight text-slate-900">IndEase</span>
             </div>
             
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-8 px-4 flex-1 justify-center">
                <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Features</button>
                <button onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">How It Works</button>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 shrink-0">
               <button onClick={() => {
                 const el = document.getElementById("platform-access");
                 el?.scrollIntoView({ behavior: "smooth" });
@@ -5337,11 +5337,11 @@ function App() {
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-semibold tracking-wide uppercase mb-8 mx-auto shadow-sm">
-                <Settings size={14} className="text-teal-400" />
+                <Settings size={14} className="text-blue-400" />
                 AI-Powered Industrial Repair Platform
               </div>
               <h1 className="text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
-                Connect Legacy Machines with <span className="text-teal-400">Expert Repair</span>
+                Connect Legacy Machines with <span className="text-blue-400">Expert Repair</span>
               </h1>
               <p className="text-lg sm:text-xl text-slate-300 mb-10 max-w-3xl mx-auto font-medium">
                 Upload a video of your faulty industrial machine. Our AI identifies the issue and instantly connects you with the right repair expert — nearby, top-rated, or available.
@@ -5374,22 +5374,24 @@ function App() {
         <section className="bg-white border-b border-slate-200">
            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-slate-200 text-center">
-                 <div className="px-4">
-                    <div className="text-3xl font-black text-teal-600 tracking-tight">500+</div>
-                    <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Machines Repaired</div>
-                 </div>
-                 <div className="px-4">
-                    <div className="text-3xl font-black text-teal-600 tracking-tight">200+</div>
-                    <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Verified Experts</div>
-                 </div>
-                 <div className="px-4">
-                    <div className="text-3xl font-black text-teal-600 tracking-tight">98%</div>
-                    <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Resolution Rate</div>
-                 </div>
-                 <div className="px-4">
-                    <div className="text-3xl font-black text-teal-600 tracking-tight">24hr</div>
-                    <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Avg Response Time</div>
-                 </div>
+                 {[
+                   { value: "500+", label: "Machines Repaired" },
+                   { value: "200+", label: "Verified Experts" },
+                   { value: "98%", label: "Resolution Rate" },
+                   { value: "24hr", label: "Avg Response Time" },
+                 ].map((stat, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
+                      className="px-4"
+                    >
+                       <div className="text-3xl font-black text-[#0d9488] tracking-tight">{stat.value}</div>
+                       <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">{stat.label}</div>
+                    </motion.div>
+                 ))}
               </div>
            </div>
         </section>
@@ -5404,48 +5406,30 @@ function App() {
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
-                     <Video size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Video-Based Reporting</h3>
-                  <p className="text-slate-600 leading-relaxed">Upload a video of your faulty machine and describe the issue. Our AI processes both visual and text inputs.</p>
-               </div>
-               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
-                     <Brain size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">AI-Powered Analysis</h3>
-                  <p className="text-slate-600 leading-relaxed">Advanced AI identifies machine type, detects visible faults, and extracts keywords from your description.</p>
-               </div>
-               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
-                     <Users size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Smart Expert Matching</h3>
-                  <p className="text-slate-600 leading-relaxed">Priority-based algorithm finds nearby experts first, then top-rated ones, ensuring no request goes unresolved.</p>
-               </div>
-               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
-                     <MessageSquare size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Real-Time Chat</h3>
-                  <p className="text-slate-600 leading-relaxed">Communicate directly with assigned experts. Share additional media and discuss repair plans.</p>
-               </div>
-               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
-                     <CreditCard size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Secure Payments</h3>
-                  <p className="text-slate-600 leading-relaxed">Integrated payment system with platform fee handling, GST calculation, and expert payout management.</p>
-               </div>
-               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
-                     <FileText size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Invoice & Records</h3>
-                  <p className="text-slate-600 leading-relaxed">Auto-generated invoices and complete service history stored in your profile for future reference.</p>
-               </div>
+               {[
+                 { icon: <Video size={24} />, title: "Video-Based Reporting", desc: "Upload a video of your faulty machine and describe the issue. Our AI processes both visual and text inputs." },
+                 { icon: <Brain size={24} />, title: "AI-Powered Analysis", desc: "Advanced AI identifies machine type, detects visible faults, and extracts keywords from your description." },
+                 { icon: <Users size={24} />, title: "Smart Expert Matching", desc: "Priority-based algorithm finds nearby experts first, then top-rated ones, ensuring no request goes unresolved." },
+                 { icon: <MessageSquare size={24} />, title: "Real-Time Chat", desc: "Communicate directly with assigned experts. Share additional media and discuss repair plans." },
+                 { icon: <CreditCard size={24} />, title: "Secure Payments", desc: "Integrated payment system with platform fee handling, GST calculation, and expert payout management." },
+                 { icon: <FileText size={24} />, title: "Invoice & Records", desc: "Auto-generated invoices and complete service history stored in your profile for future reference." },
+               ].map((feature, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    whileHover={{ y: -4, boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}
+                    className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm transition-shadow"
+                  >
+                     <div className="w-12 h-12 rounded-xl bg-teal-50 text-[#0d9488] flex items-center justify-center mb-6">
+                        {feature.icon}
+                     </div>
+                     <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
+                     <p className="text-slate-600 leading-relaxed">{feature.desc}</p>
+                  </motion.div>
+               ))}
             </div>
           </div>
         </section>
@@ -5464,29 +5448,25 @@ function App() {
                {/* Arrows between steps (desktop only) */}
                <div className="hidden md:block absolute top-[60px] left-[20%] right-[20%] h-0.5 bg-slate-200" />
                
-               <div className="relative text-center">
-                  <div className="w-16 h-16 mx-auto bg-white border-2 border-teal-500 rounded-full flex items-center justify-center text-teal-600 text-xl font-extrabold shadow-sm relative z-10 mb-6">01</div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-3">Upload Issue</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">Record and upload a video of the faulty machine with a description</p>
-               </div>
-               
-               <div className="relative text-center">
-                  <div className="w-16 h-16 mx-auto bg-white border-2 border-teal-500 rounded-full flex items-center justify-center text-teal-600 text-xl font-extrabold shadow-sm relative z-10 mb-6">02</div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-3">AI Analyzes</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">Our AI identifies the machine type, fault, and required expertise</p>
-               </div>
-               
-               <div className="relative text-center">
-                  <div className="w-16 h-16 mx-auto bg-white border-2 border-teal-500 rounded-full flex items-center justify-center text-teal-600 text-xl font-extrabold shadow-sm relative z-10 mb-6">03</div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-3">Expert Matched</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">System finds the nearest or best available repair expert for you</p>
-               </div>
-               
-               <div className="relative text-center">
-                  <div className="w-16 h-16 mx-auto bg-white border-2 border-teal-500 rounded-full flex items-center justify-center text-teal-600 text-xl font-extrabold shadow-sm relative z-10 mb-6">04</div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-3">Service Done</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">Expert repairs your machine, payment processed, invoice generated</p>
-               </div>
+               {[
+                 { num: "01", title: "Upload Issue", desc: "Record and upload a video of the faulty machine with a description" },
+                 { num: "02", title: "AI Analyzes", desc: "Our AI identifies the machine type, fault, and required expertise" },
+                 { num: "03", title: "Expert Matched", desc: "System finds the nearest or best available repair expert for you" },
+                 { num: "04", title: "Service Done", desc: "Expert repairs your machine, payment processed, invoice generated" },
+               ].map((step, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: index * 0.15 }}
+                    className="relative text-center"
+                  >
+                     <div className="w-16 h-16 mx-auto bg-white border-2 border-[#0d9488] rounded-full flex items-center justify-center text-[#0d9488] text-xl font-extrabold shadow-sm relative z-10 mb-6">{step.num}</div>
+                     <h3 className="text-lg font-bold text-slate-900 mb-3">{step.title}</h3>
+                     <p className="text-sm text-slate-600 leading-relaxed">{step.desc}</p>
+                  </motion.div>
+               ))}
             </div>
            </div>
         </section>
@@ -5533,7 +5513,7 @@ function App() {
                 whileHover={{ y: -5 }}
                 className="bg-white p-10 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl transition-all"
               >
-                <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mb-8">
+                <div className="w-16 h-16 bg-teal-50 text-[#0d9488] rounded-2xl flex items-center justify-center mb-8">
                   <Cpu size={32} />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-4">Fleet Operator</h3>
@@ -5564,7 +5544,7 @@ function App() {
                 whileHover={{ y: -5 }}
                 className="bg-white p-10 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl transition-all"
               >
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-8">
+                <div className="w-16 h-16 bg-teal-50 text-[#0d9488] rounded-2xl flex items-center justify-center mb-8">
                   <Shield size={32} />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-4">Service Expert</h3>
@@ -5573,7 +5553,7 @@ function App() {
                 </p>
                 <div className="flex flex-col gap-3">
                   <button
-                    className="w-full py-3.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                    className="w-full py-3.5 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 transition-colors shadow-sm"
                     onClick={() => navigateToAuth("producer", true)}
                   >
                     Log In as Expert
@@ -5591,7 +5571,7 @@ function App() {
                 navigate("/");
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}>
-               <Settings className="text-teal-500" size={20} strokeWidth={2.5} />
+               <Settings className="text-[#0d9488]" size={20} strokeWidth={2.5} />
               <div className="text-xl font-bold text-white tracking-tight">IndEase</div>
             </div>
             
@@ -5621,11 +5601,9 @@ function App() {
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
-            <div
-              className="logo-container mx-auto mb-6"
-              onClick={() => navigate("/")}
-            >
-              <div className="logo-text text-3xl">IndEase</div>
+            <div className="flex items-center gap-2 justify-center cursor-pointer mb-6" onClick={() => navigate("/")}>
+              <Settings className="text-[#0d9488]" size={22} strokeWidth={2.5} />
+              <span className="text-2xl font-bold text-slate-900">IndEase</span>
             </div>
             <h2 className="mt-6 text-3xl font-extrabold text-slate-900">
               {authTitle}
@@ -5644,7 +5622,7 @@ function App() {
                 {recoverySent ? (
                   <div className="text-center space-y-6 animate-fade-in">
                     <div
-                      className={`w-16 h-16 ${role === "consumer" ? "bg-blue-50 text-blue-600" : "bg-indigo-50 text-indigo-600"} rounded-full flex items-center justify-center mx-auto mb-4`}
+                      className={`w-16 h-16 ${role === "consumer" ? "bg-teal-50 text-teal-600" : "bg-indigo-50 text-indigo-600"} rounded-full flex items-center justify-center mx-auto mb-4`}
                     >
                       <MailIcon size={32} />
                     </div>
@@ -5662,7 +5640,7 @@ function App() {
                       </p>
                     </div>
                     <button
-                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === "consumer" ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" : "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`}
+                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === "consumer" ? "bg-teal-600 hover:bg-teal-700 focus:ring-teal-500" : "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`}
                       onClick={() => {
                         setView("auth");
                         setRecoverySent(false);
@@ -5687,7 +5665,7 @@ function App() {
                           type="email"
                           autoComplete="email"
                           required
-                          className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                          className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                           placeholder="name@industrial.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -5695,7 +5673,7 @@ function App() {
                       </div>
                     </div>
                     <button
-                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === "consumer" ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" : "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`}
+                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === "consumer" ? "bg-teal-600 hover:bg-teal-700 focus:ring-teal-500" : "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`}
                       onClick={handleLogin}
                     >
                       Send Recovery Link
@@ -5704,7 +5682,7 @@ function App() {
                       <button
                         type="button"
                         onClick={() => setView("auth")}
-                        className={`font-medium ${role === "consumer" ? "text-blue-600 hover:text-blue-500" : "text-indigo-600 hover:text-indigo-500"} transition-colors`}
+                        className={`font-medium ${role === "consumer" ? "text-teal-600 hover:text-teal-500" : "text-indigo-600 hover:text-indigo-500"} transition-colors`}
                       >
                         Back to Login
                       </button>
@@ -5729,7 +5707,7 @@ function App() {
                         type="email"
                         autoComplete="email"
                         required
-                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                         placeholder="name@industrial.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -5745,7 +5723,7 @@ function App() {
                         </label>
                         <button
                           type="button"
-                          className={`text-xs font-semibold ${role === "consumer" ? "text-blue-600 hover:text-blue-500" : "text-indigo-600 hover:text-indigo-500"} transition-colors`}
+                          className={`text-xs font-semibold ${role === "consumer" ? "text-teal-600 hover:text-teal-500" : "text-indigo-600 hover:text-indigo-500"} transition-colors`}
                           onClick={() => setView("forgot")}
                         >
                           Forgot your password?
@@ -5757,7 +5735,7 @@ function App() {
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
                         required
-                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -5769,14 +5747,14 @@ function App() {
                       </div>
                     )}
                     <button
-                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === "consumer" ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" : "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`}
+                      className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white ${role === "consumer" ? "bg-teal-600 hover:bg-teal-700 focus:ring-teal-500" : "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`}
                       onClick={handleLogin}
                     >
                       Continue
                     </button>
 
                     <button
-                      className={`mt-4 w-full flex justify-center py-3 px-4 rounded-xl border border-dashed border-slate-200 text-sm font-semibold text-slate-500 hover:border-${role === "consumer" ? "blue-200 hover:text-blue-600" : "indigo-200 hover:text-indigo-600"} transition-all`}
+                      className={`mt-4 w-full flex justify-center py-3 px-4 rounded-xl border border-dashed border-slate-200 text-sm font-semibold text-slate-500 hover:border-${role === "consumer" ? "teal-200 hover:text-teal-600" : "indigo-200 hover:text-indigo-600"} transition-all`}
                       onClick={handleDemoLogin}
                     >
                       Quick Demo Access
@@ -5788,7 +5766,7 @@ function App() {
                         <button
                           type="button"
                           onClick={() => navigateToAuth(role, false)}
-                          className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                          className="font-medium text-teal-600 hover:text-teal-500 transition-colors"
                         >
                           Sign Up
                         </button>
@@ -5810,7 +5788,7 @@ function App() {
                         type="text"
                         autoComplete="name"
                         required
-                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                         placeholder="John Doe"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
@@ -5829,7 +5807,7 @@ function App() {
                         type="email"
                         autoComplete="email"
                         required
-                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                         placeholder="name@industrial.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -5848,7 +5826,7 @@ function App() {
                         type="password"
                         autoComplete="new-password"
                         required
-                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                        className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -5867,7 +5845,7 @@ function App() {
                           id="company-name"
                           name="companyName"
                           type="text"
-                          className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                          className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                           placeholder="Enterprise Co."
                           value={extraInfo}
                           onChange={(e) => setExtraInfo(e.target.value)}
@@ -5886,7 +5864,7 @@ function App() {
                             id="expertise-type"
                             name="expertiseType"
                             type="text"
-                            className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                            className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                             placeholder="e.g. Hydraulics, CNC"
                             value={extraInfo}
                             onChange={(e) => setExtraInfo(e.target.value)}
@@ -5903,7 +5881,7 @@ function App() {
                             id="years-experience"
                             name="yearsExperience"
                             type="number"
-                            className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "blue-500" : "indigo-500"} focus:border-${role === "consumer" ? "blue-500" : "indigo-500"} sm:text-sm`}
+                            className={`appearance-none block w-full px-3 py-2 border border-slate-300 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${role === "consumer" ? "teal-500" : "indigo-500"} focus:border-${role === "consumer" ? "teal-500" : "indigo-500"} sm:text-sm`}
                             placeholder="5"
                             value={yearsExp}
                             onChange={(e) => setYearsExp(e.target.value)}
@@ -5919,7 +5897,7 @@ function App() {
                     )}
 
                     <button
-                      className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                      className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors"
                       onClick={handleLogin}
                     >
                       Create Account
@@ -5931,7 +5909,7 @@ function App() {
                         <button
                           type="button"
                           onClick={() => navigate("/terms")}
-                          className="font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                          className="font-semibold text-teal-600 transition-colors hover:text-teal-700"
                         >
                           Terms & Conditions
                         </button>{" "}
@@ -5939,7 +5917,7 @@ function App() {
                         <button
                           type="button"
                           onClick={() => navigate("/privacy")}
-                          className="font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                          className="font-semibold text-teal-600 transition-colors hover:text-teal-700"
                         >
                           Privacy Policy
                         </button>
@@ -5951,7 +5929,7 @@ function App() {
                       <button
                         type="button"
                         onClick={() => navigateToAuth(role, true)}
-                        className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                        className="font-medium text-teal-600 hover:text-teal-500 transition-colors"
                       >
                         Log In
                       </button>
@@ -6444,7 +6422,7 @@ function App() {
               >
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <p className="text-xs font-black uppercase tracking-[0.3em] text-blue-600">
+                    <p className="text-xs font-black uppercase tracking-[0.3em] text-teal-600">
                       Expert Agreement
                     </p>
                     <h2 className="text-3xl font-extrabold text-slate-900">
@@ -6456,8 +6434,8 @@ function App() {
                     </p>
                   </div>
 
-                  <div className="rounded-[1.5rem] border border-blue-100 bg-blue-50/70 p-6">
-                    <p className="mb-4 text-sm font-bold uppercase tracking-[0.25em] text-blue-700">
+                  <div className="rounded-[1.5rem] border border-teal-100 bg-teal-50/70 p-6">
+                    <p className="mb-4 text-sm font-bold uppercase tracking-[0.25em] text-teal-700">
                       Key points
                     </p>
                     <div className="space-y-3">
@@ -6478,7 +6456,7 @@ function App() {
                   <button
                     type="button"
                     onClick={() => navigate("/terms")}
-                    className="text-left text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                    className="text-left text-sm font-semibold text-teal-600 transition-colors hover:text-teal-700"
                   >
                     Review full Terms & Conditions
                   </button>
@@ -6490,7 +6468,7 @@ function App() {
                       onChange={(event) =>
                         setExpertTermsChecked(event.target.checked)
                       }
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                     />
                     <span className="text-sm font-medium text-slate-700">
                       I have read and agree to the Terms & Conditions
@@ -6501,7 +6479,7 @@ function App() {
                     type="button"
                     disabled={!expertTermsChecked}
                     onClick={handleExpertTermsAccept}
-                    className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className="w-full rounded-2xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
                     Accept and Continue
                   </button>
@@ -6534,10 +6512,10 @@ function App() {
                 </button>
 
                 {/* Header Gradient */}
-                <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600" />
+                <div className="h-2 bg-gradient-to-r from-teal-600 via-indigo-600 to-violet-600" />
 
                 <div className="p-8 md:p-12 text-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 rounded-[1.75rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
+                  <div className="w-20 h-20 bg-gradient-to-br from-teal-50 to-indigo-50 text-teal-600 rounded-[1.75rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
                     <CreditCard size={40} strokeWidth={1.5} />
                   </div>
 
@@ -6567,7 +6545,7 @@ function App() {
                           "w-full h-14 px-5 rounded-2xl bg-slate-50 border-2 transition-all text-sm font-bold placeholder:text-slate-300 shadow-sm",
                           bankDetailsErrors.accountHolderName
                             ? "border-red-100 focus:border-red-500 focus:ring-red-500/5 bg-red-50/30"
-                            : "border-slate-100 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5",
+                            : "border-slate-100 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/5",
                         )}
                         placeholder="Full name as per bank records"
                         value={bankDetailsForm.accountHolderName}
@@ -6596,7 +6574,7 @@ function App() {
                           "w-full h-14 px-5 rounded-2xl bg-slate-50 border-2 transition-all text-sm font-bold placeholder:text-slate-300 shadow-sm",
                           bankDetailsErrors.bankAccountNumber
                             ? "border-red-100 focus:border-red-500 focus:ring-red-500/5 bg-red-50/30"
-                            : "border-slate-100 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5",
+                            : "border-slate-100 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/5",
                         )}
                         placeholder="Enter 9–18 digit account number"
                         value={bankDetailsForm.bankAccountNumber}
@@ -6622,7 +6600,7 @@ function App() {
                           "w-full h-14 px-5 rounded-2xl bg-slate-50 border-2 transition-all text-sm font-bold placeholder:text-slate-300 shadow-sm uppercase",
                           bankDetailsErrors.ifscCode
                             ? "border-red-100 focus:border-red-500 focus:ring-red-500/5 bg-red-50/30"
-                            : "border-slate-100 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5",
+                            : "border-slate-100 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/5",
                         )}
                         placeholder="SBIN0001234"
                         value={bankDetailsForm.ifscCode}
@@ -6652,7 +6630,7 @@ function App() {
                       }
                       className="group relative w-full h-16 overflow-hidden rounded-2xl bg-slate-900 text-white font-bold text-base shadow-2xl shadow-slate-200 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-teal-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <span className="relative z-10 flex items-center justify-center gap-2 text-base">
                         Save Bank Details <ArrowRight size={20} />
                       </span>
@@ -6687,7 +6665,7 @@ function App() {
                 exit={{ scale: 0.95, opacity: 0 }}
                 className="w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl border border-slate-100 text-center"
               >
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <InfoIcon size={32} />
                 </div>
                 <h3 className="text-xl font-black text-slate-900 mb-2">
@@ -6715,7 +6693,7 @@ function App() {
                         type: "info",
                       });
                     }}
-                    className="h-12 rounded-xl bg-[#2563EB] text-white font-bold text-sm hover:bg-blue-700 transition-all"
+                    className="h-12 rounded-xl bg-[#0d9488] text-white font-bold text-sm hover:bg-teal-700 transition-all"
                   >
                     Continue
                   </button>

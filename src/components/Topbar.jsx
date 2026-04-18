@@ -3,7 +3,7 @@ import { Search, Bell, ChevronDown, UserCircle, Command, Sparkles, AlertCircle, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './ui/base';
 
-const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, onSearch, searchResults = [], onResultClick, isDemo }) => {
+const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, onSearch, searchResults = [], onResultClick, isDemo, onMenuClick }) => {
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
@@ -36,9 +36,9 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
   const firstName = user?.firstName || 'User';
   const initial = firstName.charAt(0).toUpperCase();
   const isExpert = role === 'producer';
-  const primaryColor = isExpert ? 'indigo-600' : '[#2563EB]';
-  const primaryText = isExpert ? 'text-indigo-600' : 'text-[#2563EB]';
-  const primaryRing = isExpert ? 'indigo-500/10' : 'blue-500/10';
+  const primaryColor = isExpert ? 'indigo-600' : '[#0d9488]';
+  const primaryText = isExpert ? 'text-indigo-600' : 'text-[#0d9488]';
+  const primaryRing = isExpert ? 'indigo-500/10' : 'teal-500/10';
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -49,9 +49,21 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
   }, []);
 
   return (
-    <header className="h-20 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-10 sticky top-0 z-[100]">
-      {/* Smart Search Bar */}
-      <div className="relative group w-full max-w-md">
+    <header className="h-16 sm:h-20 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-4 sm:px-6 lg:px-10 sticky top-0 z-[50]">
+      <div className="flex items-center gap-3 sm:gap-4 w-full lg:w-auto">
+        {/* Mobile Menu Toggle */}
+        <button 
+          onClick={onMenuClick}
+          className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-900 focus:outline-none rounded-lg hover:bg-slate-50"
+          aria-label="Open sidebar"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        {/* Smart Search Bar */}
+        <div className="relative group w-full max-w-[200px] sm:max-w-xs md:max-w-md">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
           <Search size={16} className={cn("transition-colors", isSearchFocused ? primaryText : "text-slate-400")} />
         </div>
@@ -67,7 +79,7 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
           placeholder="Search..."
           className={cn(
             "w-full h-10 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl pl-10 pr-4 text-slate-900 font-semibold text-sm transition-all focus:bg-white focus:outline-none focus:ring-4 placeholder:text-slate-400",
-            isSearchFocused ? `border-${isExpert ? 'indigo-600' : '[#2563EB]'} ring-${primaryRing}` : ""
+            isSearchFocused ? `border-${isExpert ? 'indigo-600' : '[#0d9488]'} ring-${primaryRing}` : ""
           )}
         />
         
@@ -89,7 +101,7 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
                     }} 
                     className="p-3 hover:bg-slate-50 cursor-pointer flex items-center gap-3 border-b border-[#E5E7EB] last:border-0 transition-colors"
                   >
-                     <div className={`p-2 rounded-lg bg-blue-50 text-blue-600 shrink-0 flex items-center justify-center`}>
+                     <div className={`p-2 rounded-lg bg-teal-50 text-teal-600 shrink-0 flex items-center justify-center`}>
                        {res.icon === 'machine' ? <HardDrive size={16} /> : <AlertCircle size={16} />}
                      </div>
                      <div className="flex flex-col">
@@ -106,7 +118,7 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
       </div>
 
       {/* Action Cluster */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 ml-2 shrink-0">
         {/* Demo Mode Badge */}
         {isDemo && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg">
@@ -151,7 +163,7 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
               >
                  <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-slate-50/50">
                     <h3 className="text-[11px] font-semibold text-slate-500 tracking-widest">Notifications</h3>
-                    <button onClick={() => onMarkAllRead && onMarkAllRead()} className="text-[10px] text-[#2563EB] font-semibold hover:underline">Mark all read</button>
+                    <button onClick={() => onMarkAllRead && onMarkAllRead()} className="text-[10px] text-[#0d9488] font-semibold hover:underline">Mark all read</button>
                  </div>
                  
                  <div className="max-h-80 overflow-y-auto no-scrollbar">
@@ -160,10 +172,10 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
                          <div 
                            key={n.id || i} 
                            onClick={() => onMarkAsRead && onMarkAsRead(n.id)}
-                           className={`px-5 py-4 border-b border-[#E5E7EB] hover:bg-slate-50 transition-all cursor-pointer group flex gap-3 relative ${!n.read ? 'bg-blue-50/30' : ''}`}
+                           className={`px-5 py-4 border-b border-[#E5E7EB] hover:bg-slate-50 transition-all cursor-pointer group flex gap-3 relative ${!n.read ? 'bg-teal-50/30' : ''}`}
                          >
-                            {!n.read && <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-600" />}
-                            <div className={`w-8 h-8 rounded-lg ${isExpert ? 'bg-indigo-50' : 'bg-blue-50'} flex items-center justify-center shrink-0`}>
+                            {!n.read && <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-teal-600" />}
+                            <div className={`w-8 h-8 rounded-lg ${isExpert ? 'bg-indigo-50' : 'bg-teal-50'} flex items-center justify-center shrink-0`}>
                                <AlertCircle size={16} className={primaryText} />
                             </div>
                             <div className="flex flex-col gap-0.5 flex-1">
@@ -180,7 +192,7 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
                  </div>
                  {notifications.length > 0 && (
                     <div className="p-3 border-t border-[#E5E7EB] text-center bg-slate-50">
-                       <button className="text-[11px] text-slate-500 hover:text-blue-600 font-semibold uppercase tracking-widest">View all</button>
+                       <button className="text-[11px] text-slate-500 hover:text-teal-600 font-semibold uppercase tracking-widest">View all</button>
                     </div>
                  )}
               </motion.div>
@@ -189,15 +201,15 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
         </div>
 
         {/* User Identity Segment */}
-        <button aria-label={`Account menu for ${firstName}`} className="flex items-center gap-3 pl-6 border-l border-[#E5E7EB] h-10 group">
-          <div className={`w-8 h-8 rounded-lg bg-${isExpert ? 'indigo-600' : '[#2563EB]'} flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm`}>
+        <button aria-label={`Account menu for ${firstName}`} className="flex items-center gap-2 lg:gap-3 pl-3 sm:pl-4 lg:pl-6 border-l border-[#E5E7EB] h-10 group shrink-0">
+          <div className={`w-8 h-8 rounded-lg bg-${isExpert ? 'indigo-600' : '[#0d9488]'} flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm`}>
             {initial}
           </div>
-          <div className="hidden xl:flex flex-col text-left">
+          <div className="hidden lg:flex flex-col text-left">
             <span className="text-sm font-bold text-slate-900 leading-none tracking-tight">{firstName}</span>
-            <span className={`text-[10px] font-bold ${isExpert ? 'text-indigo-600' : 'text-[#2563EB]'} uppercase tracking-widest mt-1.5`}>{isExpert ? 'Service Expert' : 'Fleet Operator'}</span>
+            <span className={`text-[10px] font-bold ${isExpert ? 'text-indigo-600' : 'text-[#0d9488]'} uppercase tracking-widest mt-1.5`}>{isExpert ? 'Service Expert' : 'Fleet Operator'}</span>
           </div>
-          <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-900 transition-colors" />
+          <ChevronDown size={14} className="hidden sm:block text-slate-400 group-hover:text-slate-900 transition-colors" />
         </button>
       </div>
     </header>

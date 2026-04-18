@@ -31,13 +31,13 @@ export default function ThemeProviderWrapper({ children }) {
                     mode,
                     ...(mode === 'light'
                         ? {
-                            primary: { main: '#3b82f6' },
+                            primary: { main: '#0d9488' },
                             secondary: { main: '#6366f1' },
                             background: { default: '#f8fafc', paper: '#ffffff' },
                             text: { primary: '#0f172a', secondary: '#64748b' },
                         }
                         : {
-                            primary: { main: '#60a5fa' },
+                            primary: { main: '#2dd4bf' },
                             secondary: { main: '#818cf8' },
                             background: { default: '#0f172a', paper: '#1e293b' },
                             text: { primary: '#f8fafc', secondary: '#94a3b8' },

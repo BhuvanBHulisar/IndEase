@@ -12,12 +12,12 @@ export function cn(...inputs) {
 export const Button = React.forwardRef(({ className, variant = "default", size = "default", asChild = false, ...props }, ref) => {
   const Comp = asChild ? "span" : "button"
   const variants = {
-    default: "bg-[#2563EB] text-white hover:bg-blue-700 shadow-sm border-none",
+    default: "bg-[#0d9488] text-white hover:bg-teal-700 shadow-sm border-none",
     destructive: "bg-red-600 text-white hover:bg-red-700 shadow-sm",
     outline: "border border-[#E5E7EB] bg-transparent text-[#374151] hover:bg-gray-50 transition-colors",
     secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 shadow-sm",
     ghost: "hover:bg-gray-100 text-gray-600 transition-colors",
-    link: "text-[#2563EB] underline-offset-4 hover:underline",
+    link: "text-[#0d9488] underline-offset-4 hover:underline",
   }
   const sizes = {
     default: "h-10 px-4 py-2",

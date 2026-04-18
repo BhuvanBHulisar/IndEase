@@ -94,7 +94,7 @@ const AdminLayout = () => {
         <Box sx={{ mt: 6, textAlign: "center", opacity: 0.5, pb: 2 }}>
           <Typography variant="caption" color="text.disabled">
             Need help? Contact us at{" "}
-            <a href="mailto:originode7@gmail.com" style={{ color: "#3b82f6", textDecoration: "none" }}>
+            <a href="mailto:originode7@gmail.com" style={{ color: "#14b8a6", textDecoration: "none" }}>
               originode7@gmail.com
             </a>
           </Typography>

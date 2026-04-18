@@ -32,10 +32,10 @@ const LEVEL_META = {
     min: 100,
     next: 300,
     nextLevel: 'Silver',
-    accent: '#2563eb',
-    cardClass: 'border-blue-200 bg-blue-50/70',
-    pillClass: 'bg-blue-100 text-blue-700',
-    progressClass: 'bg-blue-600'
+    accent: '#0d9488',
+    cardClass: 'border-teal-200 bg-teal-50/70',
+    pillClass: 'bg-teal-100 text-teal-700',
+    progressClass: 'bg-teal-600'
   },
   Silver: {
     min: 300,
@@ -204,7 +204,7 @@ const JobCard = React.forwardRef(({ job, onAccept, onDecline, onJoinWaitlist, on
             <div
               className={cn(
                 'flex h-12 w-12 items-center justify-center rounded-lg text-xl font-bold',
-                job.priority === 'critical' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+                job.priority === 'critical' ? 'bg-red-50 text-red-600' : 'bg-teal-50 text-teal-600'
               )}
             >
               {job.client_name?.[0] || job.other_party?.[0] || 'C'}
@@ -220,7 +220,7 @@ const JobCard = React.forwardRef(({ job, onAccept, onDecline, onJoinWaitlist, on
                   </span>
                 ) : null}
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+              <h3 className="text-lg font-semibold text-slate-900 transition-colors group-hover:text-teal-600">
                 {job.machine_name || 'Service Request'}
               </h3>
               <div className="pt-0.5 text-[13px] font-medium text-slate-500">
@@ -342,7 +342,7 @@ export default function ProducerDashboard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         {loading ? (
            <div className="col-span-full"><SkeletonStats /></div>
         ) : (
@@ -380,10 +380,10 @@ export default function ProducerDashboard({
       />
 
       {!isGuideDismissed && (stats?.completedJobs === 0 || !stats?.completedJobs) && (
-        <div className="relative overflow-hidden rounded-[16px] border border-blue-200 bg-blue-50 p-6 shadow-sm">
+        <div className="relative overflow-hidden rounded-[16px] border border-teal-200 bg-teal-50 p-6 shadow-sm">
           <button 
             onClick={handleDismissGuide}
-            className="absolute right-4 top-4 text-blue-400 hover:text-blue-600 transition-colors"
+            className="absolute right-4 top-4 text-blue-400 hover:text-teal-600 transition-colors"
           >
             <X size={20} />
           </button>
@@ -391,16 +391,16 @@ export default function ProducerDashboard({
             <h3 className="text-lg font-bold text-blue-900">Getting Started with IndEase</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-xl bg-white p-4 shadow-sm border border-blue-100 flex flex-col gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-600">1</div>
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-teal-100 flex flex-col gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 text-sm font-bold text-teal-600">1</div>
               <h4 className="font-semibold text-slate-900 text-sm">Complete your profile and add bank details</h4>
             </div>
-            <div className="rounded-xl bg-white p-4 shadow-sm border border-blue-100 flex flex-col gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-600">2</div>
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-teal-100 flex flex-col gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 text-sm font-bold text-teal-600">2</div>
               <h4 className="font-semibold text-slate-900 text-sm">Wait for incoming service requests from consumers</h4>
             </div>
-            <div className="rounded-xl bg-white p-4 shadow-sm border border-blue-100 flex flex-col gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-600">3</div>
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-teal-100 flex flex-col gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 text-sm font-bold text-teal-600">3</div>
               <h4 className="font-semibold text-slate-900 text-sm">Accept requests and start earning</h4>
             </div>
           </div>
@@ -466,7 +466,7 @@ export default function ProducerDashboard({
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-semibold leading-tight text-slate-900">Incoming Requests</h3>
             {(radarJobs || []).length > 0 && (
-              <div className="flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-600">
+              <div className="flex items-center gap-1.5 rounded-md bg-teal-50 px-2.5 py-1 text-[10px] font-semibold text-teal-600">
                 {radarJobs.length} New
               </div>
             )}
@@ -490,7 +490,7 @@ export default function ProducerDashboard({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
             <>
               <SkeletonCard />

@@ -133,13 +133,13 @@ export function SupportView({ user }) {
            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Help & Support</h2>
            <p className="text-sm font-medium text-slate-500 max-w-2xl">
              Submit a support request and our team will get back to you via email. You can also reach us directly at{' '}
-             <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-600 hover:underline font-medium">{SUPPORT_EMAIL}</a>.
+             <a href={`mailto:${SUPPORT_EMAIL}`} className="text-teal-600 hover:underline font-medium">{SUPPORT_EMAIL}</a>.
            </p>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="h-10 px-4 flex items-center bg-blue-50 text-blue-700 rounded-lg border border-blue-100 font-semibold text-sm gap-2 shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          <div className="h-10 px-4 flex items-center bg-teal-50 text-teal-700 rounded-lg border border-teal-100 font-semibold text-sm gap-2 shadow-sm">
+            <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
             Support Active
           </div>
         </div>
@@ -152,7 +152,7 @@ export function SupportView({ user }) {
             <div className="space-y-6">
               <div className="border-b border-[#E5E7EB] pb-4">
                 <h3 className="text-lg font-semibold text-slate-900 leading-tight flex items-center gap-2">
-                  <Terminal size={18} className="text-blue-600" />
+                  <Terminal size={18} className="text-teal-600" />
                   Submit a Request
                 </h3>
               </div>
@@ -165,7 +165,7 @@ export function SupportView({ user }) {
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="Auto-filled"
-                    className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none"
+                    className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 transition-all outline-none"
                   />
                 </div>
                 <div className="space-y-2">
@@ -175,7 +175,7 @@ export function SupportView({ user }) {
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     placeholder="Auto-filled"
-                    className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none"
+                    className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 transition-all outline-none"
                   />
                 </div>
 
@@ -185,7 +185,7 @@ export function SupportView({ user }) {
                     <select
                       value={form.subject}
                       onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                      className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none appearance-none cursor-pointer"
+                      className="w-full h-11 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 transition-all outline-none appearance-none cursor-pointer"
                     >
                       {SUBJECTS.map(s => (
                         <option key={s} value={s}>{s}</option>
@@ -204,7 +204,7 @@ export function SupportView({ user }) {
                     placeholder="Describe your issue in detail..."
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
-                    className="w-full h-32 rounded-lg border border-[#E5E7EB] bg-white p-4 text-sm font-medium text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all outline-none resize-none"
+                    className="w-full h-32 rounded-lg border border-[#E5E7EB] bg-white p-4 text-sm font-medium text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 transition-all outline-none resize-none"
                   />
                 </div>
               </div>
@@ -213,7 +213,7 @@ export function SupportView({ user }) {
                 <button
                   onClick={handleSubmit}
                   disabled={loading || submitted}
-                  className="h-11 px-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-semibold text-sm shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="h-11 px-8 rounded-lg bg-teal-600 text-white hover:bg-teal-700 font-semibold text-sm shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <><Loader2 size={16} className="animate-spin" /> Sending...</>
@@ -239,9 +239,9 @@ export function SupportView({ user }) {
             </div>
           </div>
 
-          <div className="bg-blue-50/50 border border-blue-100 rounded-[16px] p-6 flex flex-col gap-4 relative overflow-hidden group">
+          <div className="bg-teal-50/50 border border-teal-100 rounded-[16px] p-6 flex flex-col gap-4 relative overflow-hidden group">
             <div className="relative z-10 flex items-start gap-3">
-              <HelpCircle className="text-blue-600 mt-0.5" size={20} strokeWidth={2.5} />
+              <HelpCircle className="text-teal-600 mt-0.5" size={20} strokeWidth={2.5} />
               <div>
                 <h4 className="text-sm font-bold text-blue-900 mb-1">
                   Urgent Issues
@@ -251,7 +251,7 @@ export function SupportView({ user }) {
                 </p>
               </div>
             </div>
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="w-full text-center h-10 flex items-center justify-center rounded-lg font-semibold text-sm bg-white border border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 shadow-sm transition-all relative z-10">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="w-full text-center h-10 flex items-center justify-center rounded-lg font-semibold text-sm bg-white border border-teal-200 text-teal-700 hover:bg-teal-600 hover:text-white hover:border-teal-600 shadow-sm transition-all relative z-10">
               {SUPPORT_EMAIL}
             </a>
           </div>

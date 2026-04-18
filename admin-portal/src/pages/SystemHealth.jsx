@@ -100,7 +100,7 @@ const PulseDot = ({ status }) => {
   );
 };
 
-const MiniStatCard = ({ icon, label, value, color = "#3b82f6", theme }) => (
+const MiniStatCard = ({ icon, label, value, color = "#14b8a6", theme }) => (
   <Paper
     elevation={0}
     sx={{
@@ -588,7 +588,7 @@ export default function SystemHealth() {
               icon={<TimerIcon />}
               label="Server Uptime"
               value={health.uptime}
-              color="#3b82f6"
+              color="#14b8a6"
               theme={theme}
             />
           </Grid>

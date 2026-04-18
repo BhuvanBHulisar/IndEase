@@ -322,7 +322,7 @@ const Login = () => {
                     textTransform: "none",
                     letterSpacing: "0.5px",
                     boxShadow: "0 8px 20px rgba(59, 130, 246, 0.4)",
-                    background: "linear-gradient(to right, #3b82f6, #6366f1)",
+                    background: "linear-gradient(to right, #14b8a6, #6366f1)",
                     transition: "all 0.3s ease",
                     "&:hover": {
                       boxShadow: "0 12px 28px rgba(59, 130, 246, 0.6)",

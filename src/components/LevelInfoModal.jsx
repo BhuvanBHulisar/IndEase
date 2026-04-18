@@ -6,7 +6,7 @@ const LEVELS = [
   { name: 'Elite',   min: 1000, salary: 28000, color: 'text-violet-700', bg: 'bg-violet-50',  border: 'border-violet-200' },
   { name: 'Gold',    min: 600,  salary: 18000, color: 'text-amber-700',  bg: 'bg-amber-50',   border: 'border-amber-200'  },
   { name: 'Silver',  min: 300,  salary: 10000, color: 'text-emerald-700',bg: 'bg-emerald-50', border: 'border-emerald-200'},
-  { name: 'Bronze',  min: 100,  salary: 5000,  color: 'text-blue-700',   bg: 'bg-blue-50',    border: 'border-blue-200'   },
+  { name: 'Bronze',  min: 100,  salary: 5000,  color: 'text-teal-700',   bg: 'bg-teal-50',    border: 'border-teal-200'   },
   { name: 'Starter', min: 0,    salary: 0,     color: 'text-slate-600',  bg: 'bg-slate-50',   border: 'border-slate-200'  },
 ];
 
@@ -73,7 +73,7 @@ export default function LevelInfoModal({ open, onClose, currentLevel = 'Starter'
             </div>
             <div className="w-full bg-white/70 h-2 rounded-full overflow-hidden border border-white">
               <div
-                className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                className="h-full rounded-full bg-teal-500 transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -86,8 +86,8 @@ export default function LevelInfoModal({ open, onClose, currentLevel = 'Starter'
 
           {/* Section 2 — Next Level */}
           {next && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 flex items-center gap-3">
-              <TrendingUp size={16} className="text-blue-600 shrink-0" />
+            <div className="rounded-xl border border-teal-100 bg-teal-50 p-4 flex items-center gap-3">
+              <TrendingUp size={16} className="text-teal-600 shrink-0" />
               <p className="text-sm font-semibold text-blue-800">
                 Earn <span className="font-bold">{next.min - points} more pts</span> to unlock{' '}
                 <span className="font-bold">{next.name}</span> — ₹{next.salary.toLocaleString('en-IN')}/month

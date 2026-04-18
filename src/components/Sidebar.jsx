@@ -12,6 +12,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { cn } from './ui/base';
 
 const getMainMenuItems = (role) => {
@@ -37,17 +38,36 @@ const generalItems = [
   { id: 'support', label: 'Help & Support', icon: HelpCircle },
 ];
 
-const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user, role, activeJobsCount = 0 }) => {
+const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user, role, activeJobsCount = 0, isOpen, setIsOpen }) => {
   const firstName = user?.firstName || 'User';
   const displayRole = role === 'consumer' ? 'Fleet Operator' : 'Service Expert';
   const isExpert = role === 'producer';
-  const primaryColor = isExpert ? 'indigo-600' : '[#2563EB]';
+  const primaryColor = isExpert ? 'indigo-600' : '[#0d9488]';
   const primaryBg = isExpert ? 'bg-indigo-50' : 'bg-[#EFF6FF]';
-  const primaryText = isExpert ? 'text-indigo-600' : 'text-[#2563EB]';
+  const primaryText = isExpert ? 'text-indigo-600' : 'text-[#0d9488]';
 
   return (
-    <aside className="w-72 bg-white border-r border-[#E5E7EB] h-screen sticky top-0 flex flex-col z-[101]">
-      {/* Premium Brand Area */}
+    <>
+      {/* Mobile Backdrop */}
+      <div 
+        className={cn(
+          "fixed inset-0 bg-slate-900/50 z-[100] lg:hidden transition-opacity backdrop-blur-sm",
+          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setIsOpen && setIsOpen(false)}
+      />
+
+      <aside className={cn(
+        "fixed lg:sticky top-0 left-0 h-[100dvh] w-[280px] bg-white border-r border-[#E5E7EB] flex flex-col z-[101] transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        {/* Close Button for Mobile */}
+        <button 
+          onClick={() => setIsOpen && setIsOpen(false)}
+          className="absolute top-6 right-4 p-2 text-slate-400 hover:text-slate-900 lg:hidden"
+        >
+          <X size={20} />
+        </button>
       <div className="h-24 px-8 flex items-center gap-3.5 group cursor-pointer" onClick={() => setActiveTab('fleet')}>
         <div className="relative">
           <div className={`w-10 h-10 bg-${primaryColor} rounded-xl flex items-center justify-center transform transition-transform duration-300 shadow-sm`}>
@@ -58,7 +78,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
           <span className="text-xl font-bold text-slate-900 tracking-tight leading-none group-hover:text-slate-700 transition-colors">
             IndEase
           </span>
-          <span className={`text-[10px] font-bold ${isExpert ? 'text-indigo-600' : 'text-[#2563EB]'} uppercase tracking-widest mt-1.5`}>
+          <span className={`text-[10px] font-bold ${isExpert ? 'text-indigo-600' : 'text-[#0d9488]'} uppercase tracking-widest mt-1.5`}>
             Enterprise
           </span>
         </div>
@@ -139,7 +159,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
       {/* User Session Footer */}
       <div className="p-6 border-t border-[#E5E7EB] bg-white">
         <div className="flex items-center gap-3 mb-6 px-2">
-           <div className={`w-10 h-10 rounded-xl ${primaryBg} border ${isExpert ? 'border-indigo-100' : 'border-blue-100'} flex items-center justify-center ${primaryText} font-bold text-xs shadow-sm`}>
+           <div className={`w-10 h-10 rounded-xl ${primaryBg} border ${isExpert ? 'border-indigo-100' : 'border-teal-100'} flex items-center justify-center ${primaryText} font-bold text-xs shadow-sm`}>
              {firstName[0].toUpperCase()}
            </div>
            <div className="flex flex-col min-w-0">
@@ -173,7 +193,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
           </button>
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 

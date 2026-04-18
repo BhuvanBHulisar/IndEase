@@ -20,7 +20,7 @@ import api from '../services/api';
 
 const LEVEL_META = {
   Starter: { accent: '#6b7280', cardClass: 'border-slate-200 bg-slate-50', progressClass: 'bg-slate-500', nextLevel: 'Bronze', nextPoints: 100 },
-  Bronze: { accent: '#2563eb', cardClass: 'border-blue-200 bg-blue-50', progressClass: 'bg-blue-600', nextLevel: 'Silver', nextPoints: 300 },
+  Bronze: { accent: '#0d9488', cardClass: 'border-teal-200 bg-teal-50', progressClass: 'bg-teal-600', nextLevel: 'Silver', nextPoints: 300 },
   Silver: { accent: '#16a34a', cardClass: 'border-emerald-200 bg-emerald-50', progressClass: 'bg-emerald-600', nextLevel: 'Gold', nextPoints: 600 },
   Gold: { accent: '#d97706', cardClass: 'border-amber-200 bg-amber-50', progressClass: 'bg-amber-500', nextLevel: 'Elite', nextPoints: 1000 },
   Elite: { accent: '#7c3aed', cardClass: 'border-violet-200 bg-violet-50', progressClass: 'bg-violet-600', nextLevel: null, nextPoints: null }
@@ -117,7 +117,7 @@ export default function PerformanceView({ userId }) {
             </div>
          </div>
          <div className="rounded-[20px] bg-white border border-slate-200 p-6 shadow-sm flex flex-col gap-4">
-            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
                <Zap size={24} />
             </div>
             <div>
@@ -195,7 +195,7 @@ export default function PerformanceView({ userId }) {
            <div className="space-y-5">
               <StatRow icon={CheckCircle2} label="Acceptance Rate" value={data.acceptanceRate} color="text-indigo-600" bg="bg-indigo-50" />
               <StatRow icon={Star} label="Avg. Rating" value={`${data.rating}/5.0`} color="text-amber-600" bg="bg-amber-50" />
-              <StatRow icon={Clock} label="Avg. Completion" value={data.avgCompletionTime} color="text-blue-600" bg="bg-blue-50" />
+              <StatRow icon={Clock} label="Avg. Completion" value={data.avgCompletionTime} color="text-teal-600" bg="bg-teal-50" />
               <StatRow icon={CheckCircle2} label="Total Completed" value={data.jobsCompleted} color="text-emerald-600" bg="bg-emerald-50" />
               <StatRow icon={XSquare} label="Total Declined" value={data.totalJobsDeclined} color="text-rose-600" bg="bg-rose-50" />
            </div>

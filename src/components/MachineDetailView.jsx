@@ -34,7 +34,7 @@ const MachineDetailView = ({ machine, onBack, onReportFault, onDecommission }) =
       <div className="flex items-center gap-4 mb-2">
         <button 
           onClick={onBack}
-          className="w-10 h-10 rounded-full bg-white border border-[#E5E7EB] flex items-center justify-center text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 transition-all shadow-sm"
+          className="w-10 h-10 rounded-full bg-white border border-[#E5E7EB] flex items-center justify-center text-slate-400 hover:text-[#0d9488] hover:bg-teal-50 transition-all shadow-sm"
         >
           <ArrowLeft size={18} />
         </button>
@@ -55,7 +55,7 @@ const MachineDetailView = ({ machine, onBack, onReportFault, onDecommission }) =
               <circle 
                 cx="80" cy="80" r="76" 
                 fill="none" 
-                stroke="#2563EB" 
+                stroke="#0d9488" 
                 strokeWidth="8" 
                 strokeDasharray={477} 
                 strokeDashoffset={477 * (1 - machine.condition_score / 100)}
@@ -68,7 +68,7 @@ const MachineDetailView = ({ machine, onBack, onReportFault, onDecommission }) =
           <div className="flex-1 space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="px-2.5 py-1 bg-blue-50 text-[#2563EB] rounded-lg border border-blue-100 text-[10px] font-semibold uppercase tracking-widest">Health Metric</span>
+                <span className="px-2.5 py-1 bg-teal-50 text-[#0d9488] rounded-lg border border-teal-100 text-[10px] font-semibold uppercase tracking-widest">Health Metric</span>
                 {machine.condition_score > 80 && (
                   <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 text-[10px] font-semibold uppercase tracking-widest">Optimal</span>
                 )}
@@ -81,7 +81,7 @@ const MachineDetailView = ({ machine, onBack, onReportFault, onDecommission }) =
             <div className="flex flex-wrap gap-3">
               <button 
                 onClick={onReportFault}
-                className="h-10 px-6 rounded-[10px] bg-[#2563EB] text-white font-medium text-sm shadow-sm hover:bg-blue-700 transition-all"
+                className="h-10 px-6 rounded-[10px] bg-[#0d9488] text-white font-medium text-sm shadow-sm hover:bg-teal-700 transition-all"
               >
                 Report Structural Fault
               </button>
@@ -102,16 +102,16 @@ const MachineDetailView = ({ machine, onBack, onReportFault, onDecommission }) =
         <Card className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slate-900 tracking-tight flex items-center gap-2">
-              <Clock size={20} className="text-[#2563EB]" />
+              <Clock size={20} className="text-[#0d9488]" />
               Service & Registry History
             </h3>
-            <button className="text-[10px] font-semibold text-[#2563EB] uppercase tracking-widest hover:underline">View All</button>
+            <button className="text-[10px] font-semibold text-[#0d9488] uppercase tracking-widest hover:underline">View All</button>
           </div>
           <div className="space-y-3">
             {history.map((log, idx) => (
-              <div key={idx} className="flex items-center justify-between p-4 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB] hover:border-blue-200 transition-all group">
+              <div key={idx} className="flex items-center justify-between p-4 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB] hover:border-teal-200 transition-all group">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E7EB] flex items-center justify-center text-slate-400 group-hover:text-[#2563EB] transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E7EB] flex items-center justify-center text-slate-400 group-hover:text-[#0d9488] transition-colors">
                     <ShieldCheck size={18} />
                   </div>
                   <div>
@@ -130,7 +130,7 @@ const MachineDetailView = ({ machine, onBack, onReportFault, onDecommission }) =
         {/* Technical Specifications */}
         <Card className="p-6 space-y-6">
            <h3 className="text-lg font-semibold text-slate-900 tracking-tight flex items-center gap-2">
-             <HardDrive size={20} className="text-[#2563EB]" />
+             <HardDrive size={20} className="text-[#0d9488]" />
              Technical Specifications
            </h3>
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
@@ -167,7 +167,7 @@ const MachineDetailView = ({ machine, onBack, onReportFault, onDecommission }) =
                  initial={{ width: 0 }}
                  animate={{ width: "25%" }}
                  transition={{ duration: 1, delay: 0.5 }}
-                 className="h-full bg-[#2563EB] rounded-full" 
+                 className="h-full bg-[#0d9488] rounded-full" 
                />
              </div>
              <p className="text-sm font-normal text-slate-500 leading-relaxed">

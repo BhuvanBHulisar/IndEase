@@ -21,7 +21,7 @@ const Dashboard = ({ activeTab, setActiveTab, user, notifications, onLogout, onC
       subtitle="Comprehensive diagnostic oversight and real-time management of your active industrial assets."
       action={
         <Button
-          className="rounded-xl h-12 px-6 bg-[#3B82F6] text-white font-semibold text-sm transition-all flex items-center gap-2.5 hover:bg-blue-600 shadow-sm border-none active:scale-95"
+          className="rounded-xl h-12 px-6 bg-[#14b8a6] text-white font-semibold text-sm transition-all flex items-center gap-2.5 hover:bg-teal-600 shadow-sm border-none active:scale-95"
         >
           <Plus size={18} />
           Initialize Node

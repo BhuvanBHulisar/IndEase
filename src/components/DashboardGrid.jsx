@@ -74,7 +74,7 @@ const DashboardGrid = ({ machines, notifications }) => {
       <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-6 shadow-sm flex flex-col h-full">
         <div className="flex items-center justify-between mb-8">
            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+              <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
                 <Terminal size={18} strokeWidth={2} />
               </div>
               <div className="flex flex-col">
@@ -82,7 +82,7 @@ const DashboardGrid = ({ machines, notifications }) => {
                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Live Updates</p>
               </div>
            </div>
-           <button className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 uppercase tracking-widest transition-colors">Audit Terminal</button>
+           <button className="text-[10px] font-semibold text-teal-600 hover:text-teal-700 uppercase tracking-widest transition-colors">Audit Terminal</button>
         </div>
         
         <div className="space-y-3 flex-1">

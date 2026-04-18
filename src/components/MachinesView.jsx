@@ -14,7 +14,7 @@ const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#E5E7EB]">
          <div className="space-y-2">
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-               <span className="p-2 bg-blue-50 text-[#2563EB] rounded-[10px]">
+               <span className="p-2 bg-teal-50 text-[#0d9488] rounded-[10px]">
                  <HardDrive size={24} />
                </span>
                My Machines
@@ -26,7 +26,7 @@ const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine
          <div className="flex items-center gap-3">
             <button 
                onClick={() => setShowAddMachineModal(true)}
-               className="h-10 px-6 rounded-[10px] bg-[#2563EB] text-white font-medium text-sm shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2"
+               className="h-10 px-6 rounded-[10px] bg-[#0d9488] text-white font-medium text-sm shadow-sm hover:bg-teal-700 transition-all flex items-center gap-2"
              >
                 <Plus size={18} />
                 Add Machine
@@ -48,7 +48,7 @@ const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine
             onClick={() => { if(typeof onViewMachine === 'function') onViewMachine(m) }}
           >
             <div className="flex justify-between items-start mb-6">
-              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563EB] transition-colors group-hover:bg-[#2563EB] group-hover:text-white">
+              <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center text-[#0d9488] transition-colors group-hover:bg-[#0d9488] group-hover:text-white">
                 <HardDrive size={24} />
               </div>
               <div className={`px-3 py-1 rounded-full text-[9px] font-semibold uppercase tracking-widest border ${
@@ -67,7 +67,7 @@ const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine
 
             <div className="pt-6 border-t border-[#E5E7EB] flex items-center justify-between">
               <button 
-                className="h-10 px-4 rounded-[10px] bg-[#2563EB] text-white text-xs font-medium hover:bg-blue-700 transition-colors z-10 relative"
+                className="h-10 px-4 rounded-[10px] bg-[#0d9488] text-white text-xs font-medium hover:bg-teal-700 transition-colors z-10 relative"
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   if(typeof setActiveJobMachine === 'function') setActiveJobMachine(m);
@@ -77,7 +77,7 @@ const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine
                 Request Service
               </button>
               <div className="flex items-center gap-2 text-slate-300">
-                <ArrowUpRight size={18} className="group-hover:text-[#2563EB] transition-colors" />
+                <ArrowUpRight size={18} className="group-hover:text-[#0d9488] transition-colors" />
               </div>
             </div>
           </div>

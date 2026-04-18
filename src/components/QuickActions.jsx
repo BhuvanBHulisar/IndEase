@@ -7,14 +7,14 @@ const actions = [
   {
     label: 'Register Node',
     icon: Plus,
-    color: '#2563eb',
+    color: '#0d9488',
     description: 'Integrate new industrial hardware',
     accent: 'Enterprise'
   },
   {
     label: 'Audit Reports',
     icon: Database,
-    color: '#2563eb',
+    color: '#0d9488',
     description: 'Analyze maintenance history logs',
     accent: 'Compliance'
   },
@@ -57,11 +57,11 @@ const QuickActions = ({ onAddMachine, onViewHistory, onSendMessage }) => {
                   "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
                   action.label === 'Emergency Link' 
                     ? "bg-red-50 text-red-500 group-hover:bg-red-500 group-hover:text-white" 
-                    : "bg-blue-50 text-blue-600 group-hover:bg-[#2563EB] group-hover:text-white"
+                    : "bg-teal-50 text-teal-600 group-hover:bg-[#0d9488] group-hover:text-white"
                 )}>
                    <Icon size={20} strokeWidth={2} />
                 </div>
-                <ArrowRight size={18} className="text-slate-300 group-hover:text-[#2563EB] transition-all group-hover:translate-x-1" />
+                <ArrowRight size={18} className="text-slate-300 group-hover:text-[#0d9488] transition-all group-hover:translate-x-1" />
               </div>
               
               <div className="space-y-2">

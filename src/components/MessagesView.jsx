@@ -105,7 +105,7 @@ export default function MessagesView({
               </div>
                <input 
                  placeholder="Search experts..." 
-                 className={`w-full h-10 pl-10 pr-4 bg-white border border-[#E5E7EB] rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-${currentUser?.id === 'expert' ? 'indigo-500' : 'blue-500'} focus:border-${currentUser?.id === 'expert' ? 'indigo-500' : 'blue-500'} transition-all`}
+                 className={`w-full h-10 pl-10 pr-4 bg-white border border-[#E5E7EB] rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-${currentUser?.id === 'expert' ? 'indigo-500' : 'teal-500'} focus:border-${currentUser?.id === 'expert' ? 'indigo-500' : 'teal-500'} transition-all`}
                  value={''}
                  onChange={e => {}}
                />
@@ -149,7 +149,7 @@ export default function MessagesView({
             <div className="min-h-[5rem] border-b border-[#E5E7EB] flex items-center justify-between gap-4 px-6 sm:px-10 py-3 bg-white z-10 shrink-0">
                <div className="flex items-center gap-4 min-w-0 flex-1">
                   <div className="relative shrink-0">
-                    <div className={`w-10 h-10 rounded-full ${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#2563EB]'} flex items-center justify-center text-white font-semibold text-xs`}>
+                    <div className={`w-10 h-10 rounded-full ${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#0d9488]'} flex items-center justify-center text-white font-semibold text-xs`}>
                       {activeChat.name?.[0] || 'E'}
                     </div>
                     {activeChat.online && <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />}
@@ -186,7 +186,7 @@ export default function MessagesView({
                   variant="outline" 
                   size="sm"
                   onClick={handleViewProfile}
-                  className={`h-9 px-4 rounded-xl border-[#E5E7EB] text-slate-600 font-medium text-xs transition-all hover:bg-${currentUser?.id === 'expert' ? 'indigo-50' : 'blue-50'} hover:border-${currentUser?.id === 'expert' ? 'indigo-200' : 'blue-200'} hover:text-${currentUser?.id === 'expert' ? 'indigo-600' : 'blue-600'}`}
+                  className={`h-9 px-4 rounded-xl border-[#E5E7EB] text-slate-600 font-medium text-xs transition-all hover:bg-${currentUser?.id === 'expert' ? 'indigo-50' : 'teal-50'} hover:border-${currentUser?.id === 'expert' ? 'indigo-200' : 'teal-200'} hover:text-${currentUser?.id === 'expert' ? 'indigo-600' : 'teal-600'}`}
                 >
                   <User size={14} className="mr-2" />
                   View Profile
@@ -225,7 +225,7 @@ export default function MessagesView({
                         setShowCompleteConfirm(false);
                         onMarkComplete?.();
                       }}
-                      className="h-10 px-4 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+                      className="h-10 px-4 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700"
                     >
                       Confirm
                     </button>
@@ -342,7 +342,7 @@ export default function MessagesView({
                   <button 
                     type="button" 
                     onClick={() => fileInputRef.current?.click()}
-                    className={`w-10 h-10 rounded-xl bg-slate-50 text-slate-500 hover:text-${currentUser?.id === 'expert' ? 'indigo-600' : 'blue-600'} hover:bg-${currentUser?.id === 'expert' ? 'indigo-50' : 'blue-50'} border border-[#E5E7EB] flex items-center justify-center transition-all`}
+                    className={`w-10 h-10 rounded-xl bg-slate-50 text-slate-500 hover:text-${currentUser?.id === 'expert' ? 'indigo-600' : 'teal-600'} hover:bg-${currentUser?.id === 'expert' ? 'indigo-50' : 'teal-50'} border border-[#E5E7EB] flex items-center justify-center transition-all`}
                   >
                     <Paperclip size={18} />
                   </button>
@@ -355,7 +355,7 @@ export default function MessagesView({
 
                   <input 
                     placeholder="Type your message..." 
-                    className={`flex-1 h-11 bg-white border border-[#E5E7EB] rounded-xl px-4 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-${currentUser?.id === 'expert' ? 'indigo-500' : 'blue-500'} focus:border-${currentUser?.id === 'expert' ? 'indigo-500' : 'blue-500'} transition-all placeholder:text-slate-400 placeholder:font-normal`}
+                    className={`flex-1 h-11 bg-white border border-[#E5E7EB] rounded-xl px-4 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-${currentUser?.id === 'expert' ? 'indigo-500' : 'teal-500'} focus:border-${currentUser?.id === 'expert' ? 'indigo-500' : 'teal-500'} transition-all placeholder:text-slate-400 placeholder:font-normal`}
                     value={msgInput}
                     onChange={e => setMsgInput(e.target.value)}
                   />
@@ -372,7 +372,7 @@ export default function MessagesView({
                   <button 
                     type="submit"
                     disabled={!msgInput.trim()} 
-                    className={`h-11 w-11 rounded-xl ${currentUser?.id === 'expert' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-[#2563EB] hover:bg-blue-700'} text-white shadow-sm transition-all disabled:opacity-50 flex items-center justify-center`}
+                    className={`h-11 w-11 rounded-xl ${currentUser?.id === 'expert' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-[#0d9488] hover:bg-teal-700'} text-white shadow-sm transition-all disabled:opacity-50 flex items-center justify-center`}
                   >
                     <Send size={18} />
                   </button>
@@ -415,10 +415,10 @@ function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], curre
           <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[12px] p-4 my-2 shadow-sm w-full max-w-xs">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg ${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#2563EB]'} flex items-center justify-center text-white shadow-sm`}>
+                <div className={`w-8 h-8 rounded-lg ${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#0d9488]'} flex items-center justify-center text-white shadow-sm`}>
                   <CreditCard size={16} />
                 </div>
-                <span className={`text-[10px] font-semibold ${currentUser?.id === 'expert' ? 'text-indigo-600' : 'text-[#2563EB]'} uppercase tracking-widest`}>Service Cost</span>
+                <span className={`text-[10px] font-semibold ${currentUser?.id === 'expert' ? 'text-indigo-600' : 'text-[#0d9488]'} uppercase tracking-widest`}>Service Cost</span>
               </div>
               {isPaid && (
                 <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold">PAID</Badge>
@@ -448,7 +448,7 @@ function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], curre
                   "w-full h-9 rounded-[8px] font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2",
                   isPaid 
                     ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
-                    : "bg-[#2563EB] hover:bg-blue-700 text-white"
+                    : "bg-[#0d9488] hover:bg-teal-700 text-white"
                 )}
               >
                 {isPaid ? "Payment Completed" : "Pay Now"}
@@ -476,7 +476,7 @@ function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], curre
       <div className={cn(
         "max-w-[75%] px-4 py-3 rounded-[16px] shadow-sm",
         isMine 
-          ? `${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#2563EB]'} text-white rounded-tr-none shadow-md shadow-blue-500/10` 
+          ? `${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#0d9488]'} text-white rounded-tr-none shadow-md shadow-teal-500/10` 
           : "bg-white border border-[#E5E7EB] text-slate-700 rounded-tl-none shadow-sm"
       )}>
         {renderMessageContent()}
@@ -499,7 +499,7 @@ function ChatListItem({ chat, isActive, onClick }) {
       className={cn(
         "flex items-center gap-3 w-full p-3 rounded-xl transition-all text-left group relative",
         isActive 
-          ? `bg-white shadow-sm ring-1 ring-${chat.role === 'producer' ? 'indigo-600/10' : 'blue-600/10'}` 
+          ? `bg-white shadow-sm ring-1 ring-${chat.role === 'producer' ? 'indigo-600/10' : 'teal-600/10'}` 
           : "hover:bg-white/50"
       )}
     >
@@ -507,7 +507,7 @@ function ChatListItem({ chat, isActive, onClick }) {
         <div className={cn(
           "w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all", 
           isActive 
-            ? (chat.role === 'producer' ? 'bg-indigo-600 text-white' : 'bg-[#2563EB] text-white')
+            ? (chat.role === 'producer' ? 'bg-indigo-600 text-white' : 'bg-[#0d9488] text-white')
             : "bg-white border border-[#E5E7EB] text-slate-400 group-hover:border-slate-300"
         )}>
           {chat.name?.[0] || 'E'}
@@ -521,7 +521,7 @@ function ChatListItem({ chat, isActive, onClick }) {
         <div className="flex justify-between items-center mb-1">
           <h5 className={cn(
             "font-bold truncate text-sm tracking-tight", 
-            isActive ? (chat.role === 'producer' ? 'text-indigo-600' : 'text-[#2563EB]') : "text-slate-900"
+            isActive ? (chat.role === 'producer' ? 'text-indigo-600' : 'text-[#0d9488]') : "text-slate-900"
           )}>
             {chat.name}
           </h5>
@@ -532,7 +532,7 @@ function ChatListItem({ chat, isActive, onClick }) {
             {chat.lastMsg || chat.specialty}
           </p>
           {chat.unread > 0 && (
-            <div className="shrink-0 ml-2 w-4 h-4 rounded-full bg-[#2563EB] text-white text-[9px] flex items-center justify-center font-bold">
+            <div className="shrink-0 ml-2 w-4 h-4 rounded-full bg-[#0d9488] text-white text-[9px] flex items-center justify-center font-bold">
               {chat.unread}
             </div>
           )}
@@ -540,7 +540,7 @@ function ChatListItem({ chat, isActive, onClick }) {
       </div>
       
       {isActive && (
-        <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 ${chat.role === 'producer' ? 'bg-indigo-600' : 'bg-[#2563EB]'} rounded-r-full`} />
+        <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 ${chat.role === 'producer' ? 'bg-indigo-600' : 'bg-[#0d9488]'} rounded-r-full`} />
       )}
     </button>
   );

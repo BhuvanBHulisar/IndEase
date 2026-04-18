@@ -32,7 +32,7 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-6 border-b border-[#E5E7EB]">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-             <Badge className="bg-blue-50 text-[#2563EB] border border-blue-100 rounded-lg px-3 py-1 text-[10px] font-semibold tracking-widest">
+             <Badge className="bg-teal-50 text-[#0d9488] border border-teal-100 rounded-lg px-3 py-1 text-[10px] font-semibold tracking-widest">
                 Service Records
              </Badge>
              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 tracking-widest">
@@ -60,7 +60,7 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
               <input 
                 type="text"
                 placeholder="Search history..." 
-                className="w-full pl-12 h-11 rounded-xl bg-white border border-[#E5E7EB] focus:border-[#2563EB] transition-all text-sm font-medium placeholder:font-normal placeholder:text-slate-400 outline-none" 
+                className="w-full pl-12 h-11 rounded-xl bg-white border border-[#E5E7EB] focus:border-[#0d9488] transition-all text-sm font-medium placeholder:font-normal placeholder:text-slate-400 outline-none" 
               />
            </div>
            
@@ -129,7 +129,7 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
                         "inline-flex items-center rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest border w-fit",
                         report.status === 'Completed' || report.status === 'verified'
                           ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                          : "bg-blue-50 text-blue-700 border-blue-100"
+                          : "bg-teal-50 text-teal-700 border-teal-100"
                         )}>
                         {report.status}
                        </div>

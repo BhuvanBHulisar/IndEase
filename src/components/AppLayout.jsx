@@ -12,7 +12,7 @@ const AppLayout = ({
   onLogout 
 }) => {
   return (
-    <div className="flex min-h-screen bg-[#F9FAFB] font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="flex min-h-screen bg-[#F9FAFB] font-sans selection:bg-teal-100 selection:text-blue-900">
       {/* Sidebar Integration */}
       <Sidebar 
         activeTab={activeTab} 

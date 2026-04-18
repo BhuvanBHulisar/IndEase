@@ -42,7 +42,7 @@ function ServiceStatusStepper({ stageIndex }) {
                   i < stageIndex
                     ? 'w-2.5 h-2.5 bg-emerald-500'
                     : i === stageIndex
-                      ? 'w-3 h-3 bg-[#2563EB] ring-2 ring-blue-200'
+                      ? 'w-3 h-3 bg-[#0d9488] ring-2 ring-teal-200'
                       : 'w-2.5 h-2.5 bg-slate-300'
                 }`}
               />
@@ -51,7 +51,7 @@ function ServiceStatusStepper({ stageIndex }) {
                   i < stageIndex
                     ? 'text-emerald-600'
                     : i === stageIndex
-                      ? 'text-[#2563EB]'
+                      ? 'text-[#0d9488]'
                       : 'text-slate-400'
                 }`}
               >
@@ -68,7 +68,7 @@ function ServiceStatusStepper({ stageIndex }) {
 function statusBadgeClasses(variant) {
   if (variant === 'yellow') return 'bg-amber-50 text-amber-800 border-amber-200';
   if (variant === 'green') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  return 'bg-blue-50 text-blue-700 border-blue-200';
+  return 'bg-teal-50 text-teal-700 border-teal-200';
 }
 
 const FleetView = ({ 
@@ -126,7 +126,7 @@ const FleetView = ({
         <div className="flex items-center gap-3">
            <button 
              onClick={() => setShowReportIssueModal(true)}
-             className="h-10 px-6 rounded-[10px] bg-[#2563EB] text-white font-medium text-sm shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2"
+             className="h-10 px-6 rounded-[10px] bg-[#0d9488] text-white font-medium text-sm shadow-sm hover:bg-teal-700 transition-all flex items-center gap-2"
            >
               <AlertCircle size={18} />
               Report Issue
@@ -140,10 +140,10 @@ const FleetView = ({
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-xl font-semibold text-slate-900 tracking-tight flex items-center gap-2">
-              <Clock size={20} className="text-[#2563EB]" />
+              <Clock size={20} className="text-[#0d9488]" />
               Active Service Requests
             </h3>
-            <button className="text-[10px] font-semibold text-[#2563EB] hover:underline">View History</button>
+            <button className="text-[10px] font-semibold text-[#0d9488] hover:underline">View History</button>
           </div>
           
           <div className="grid grid-cols-1 gap-4">
@@ -158,7 +158,7 @@ const FleetView = ({
                     <div className="flex items-start gap-4 min-w-0">
                       <div
                         className={`p-3 rounded-xl shrink-0 ${
-                          meta.stageIndex >= 2 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                          meta.stageIndex >= 2 ? 'bg-teal-50 text-teal-600' : 'bg-amber-50 text-amber-600'
                         }`}
                       >
                         <Activity size={24} />
@@ -202,7 +202,7 @@ const FleetView = ({
 
                       <ArrowUpRight
                         size={20}
-                        className="text-slate-300 group-hover:text-[#2563EB] transition-colors shrink-0"
+                        className="text-slate-300 group-hover:text-[#0d9488] transition-colors shrink-0"
                       />
                     </div>
                   </div>
@@ -217,7 +217,7 @@ const FleetView = ({
         {/* Assigned Experts */}
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-slate-900 tracking-tight px-2 flex items-center gap-2">
-            <User size={20} className="text-[#2563EB]" />
+            <User size={20} className="text-[#0d9488]" />
             Verified Experts
           </h3>
           <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-sm overflow-hidden">
@@ -242,18 +242,18 @@ const FleetView = ({
               </div>
             ))}
             <div className="p-4 bg-slate-50/50">
-              <button className="w-full py-2 text-[10px] font-semibold text-slate-500 hover:text-[#2563EB] transition-colors">Find More Experts</button>
+              <button className="w-full py-2 text-[10px] font-semibold text-slate-500 hover:text-[#0d9488] transition-colors">Find More Experts</button>
             </div>
           </div>
         </div>
       </div>
 
       {/* ROW 3: CHAT & PAYMENTS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Conversations */}
-        <div className="space-y-4">
+        <div className="lg:col-span-2 space-y-4">
           <h3 className="text-xl font-semibold text-slate-900 tracking-tight px-2 flex items-center gap-2">
-            <MessageSquare size={20} className="text-[#2563EB]" />
+            <MessageSquare size={20} className="text-[#0d9488]" />
             Recent Chats
           </h3>
           <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-sm overflow-hidden min-h-[280px]">
@@ -288,7 +288,7 @@ const FleetView = ({
         {/* Payments & Invoices */}
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-slate-900 tracking-tight px-2 flex items-center gap-2">
-            <CreditCard size={20} className="text-[#2563EB]" />
+            <CreditCard size={20} className="text-[#0d9488]" />
             Settle & Invoices
           </h3>
           <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-sm overflow-hidden min-h-[280px]">
@@ -320,7 +320,7 @@ const FleetView = ({
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="p-2 text-slate-400 hover:text-[#2563EB] transition-colors">
+                        <button className="p-2 text-slate-400 hover:text-[#0d9488] transition-colors">
                           <ArrowUpRight size={18} />
                         </button>
                       </td>
@@ -346,7 +346,7 @@ const FleetView = ({
         <div className="flex items-center justify-between px-2">
           <div className="flex flex-col">
             <h3 className="text-xl font-semibold text-slate-900 tracking-tight flex items-center gap-2">
-              <HardDrive size={20} className="text-[#2563EB]" />
+              <HardDrive size={20} className="text-[#0d9488]" />
               My Machines
             </h3>
             <span className="text-[10px] font-semibold text-slate-500 mt-1">{machines?.length || 0} machines registered</span>
@@ -354,7 +354,7 @@ const FleetView = ({
           
           <button 
              onClick={() => setShowAddMachineModal(true)}
-             className="h-10 px-5 rounded-[10px] bg-[#2563EB] text-white font-medium text-sm shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2"
+             className="h-10 px-5 rounded-[10px] bg-[#0d9488] text-white font-medium text-sm shadow-sm hover:bg-teal-700 transition-all flex items-center gap-2"
            >
               <Plus size={16} />
               Add Machine
@@ -369,7 +369,7 @@ const FleetView = ({
               onClick={() => { if(typeof onViewMachine === 'function') onViewMachine(m) }}
             >
               <div className="flex justify-between items-start mb-6">
-                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563EB] transition-colors group-hover:bg-[#2563EB] group-hover:text-white">
+                <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center text-[#0d9488] transition-colors group-hover:bg-[#0d9488] group-hover:text-white">
                   <HardDrive size={24} />
                 </div>
                 <div className={`px-3 py-1 rounded-full text-[9px] font-semibold uppercase tracking-widest border ${
@@ -388,7 +388,7 @@ const FleetView = ({
 
               <div className="pt-6 border-t border-[#E5E7EB] flex items-center justify-between">
                 <button 
-                  className="h-10 px-4 rounded-[10px] bg-[#2563EB] text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+                  className="h-10 px-4 rounded-[10px] bg-[#0d9488] text-white text-xs font-medium hover:bg-teal-700 transition-colors"
                   onClick={(e) => { 
                     e.stopPropagation(); 
                     if(typeof setActiveJobMachine === 'function') setActiveJobMachine(m);
@@ -398,7 +398,7 @@ const FleetView = ({
                   Request Service
                 </button>
                 <div className="flex items-center gap-2 text-slate-300">
-                  <ArrowUpRight size={18} className="group-hover:text-[#2563EB] transition-colors" />
+                  <ArrowUpRight size={18} className="group-hover:text-[#0d9488] transition-colors" />
                 </div>
               </div>
             </div>

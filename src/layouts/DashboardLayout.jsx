@@ -3,21 +3,27 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
 const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTab, onLogout, onClearData, role, onMarkAsRead, onMarkAllRead, socketReconnecting, onSearch, searchResults, onSearchResultClick, isDemo, activeJobsCount = 0 }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       <Sidebar 
         activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setSidebarOpen(false); // Close sidebar on mobile when navigating
+        }}
         onLogout={onLogout}
         onClearData={onClearData}
         isDemo={isDemo}
         user={user}
         role={role}
         activeJobsCount={activeJobsCount}
+        isOpen={sidebarOpen}
+        setIsOpen={setSidebarOpen}
       />
       
-      <div className="flex-1 flex flex-col min-w-0">
-        <Topbar user={user} notifications={notifications} role={role} onMarkAsRead={onMarkAsRead} onMarkAllRead={onMarkAllRead} onSearch={onSearch} searchResults={searchResults} onResultClick={onSearchResultClick} isDemo={isDemo} />
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <Topbar user={user} notifications={notifications} role={role} onMarkAsRead={onMarkAsRead} onMarkAllRead={onMarkAllRead} onSearch={onSearch} searchResults={searchResults} onResultClick={onSearchResultClick} isDemo={isDemo} onMenuClick={() => setSidebarOpen(true)} />
         
         <main className="flex-1 overflow-y-auto bg-slate-50 relative custom-scrollbar">
           {socketReconnecting ? (
@@ -35,7 +41,7 @@ const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTa
               </a>
             </div>
           )}
-          <div className="p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-fade-in">
+          <div className="p-4 sm:p-6 lg:p-8 xl:p-12 max-w-[1600px] mx-auto w-full animate-fade-in">
             {children}
           </div>
           {/* Dashboard Footer */}
@@ -43,7 +49,7 @@ const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTa
             <div className="pt-6 border-t border-slate-200/60 text-center">
               <p className="text-xs text-slate-400 font-medium">
                 Need help? Contact us at{' '}
-                <a href="mailto:originode7@gmail.com" className="text-blue-500 hover:underline font-bold">
+                <a href="mailto:originode7@gmail.com" className="text-teal-500 hover:underline font-bold">
                   originode7@gmail.com
                 </a>
               </p>
