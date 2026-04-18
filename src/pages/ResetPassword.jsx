@@ -80,7 +80,7 @@ export default function ResetPassword() {
             {/* SaaS Header */}
             <div className="auth-logo-header">
                 <button className="logo-container" onClick={() => navigate('/')} aria-label="Go to home page">
-                    <div className="logo-text">origiNode</div>
+                    <div className="logo-text">IndEase</div>
                 </button>
                 <button 
                     className="auth-return-link"

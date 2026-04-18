@@ -9,7 +9,7 @@ export const DEMO_USERS = {
     lastName: 'Expert',
     email: 'demo_expert@originode.com',
     phone: '9999999999',
-    company: 'OrigiNode Industrial',
+    company: 'IndEase Industrial',
     location: 'Mumbai, Maharashtra',
     role: 'producer',
     skills: ['Hydraulics', 'CNC', 'Motors', 'PLC Programming'],

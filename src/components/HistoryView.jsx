@@ -161,7 +161,7 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
                                   </div>
                                </div>
                                <div className="mt-2 pt-2 border-t border-white/10 text-[8px] opacity-60 italic">
-                                  Securely split by OrigiNode Route.
+                                  Securely split by IndEase Route.
                                </div>
                             </div>
                          </div>

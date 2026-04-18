@@ -61,6 +61,8 @@ import {
   ShieldCheck,
   ChevronLeft,
   UserCircle,
+  Brain,
+  Users,
 } from "lucide-react";
 
 // Modern SaaS Dashboard Components
@@ -3717,7 +3719,7 @@ function App() {
         key: razorpayKey,
         amount: order.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
         currency: order.currency,
-        name: "OrigiNode Industrial Services",
+        name: "IndEase Industrial Services",
         description: checkoutDesc,
         order_id: order.id, //This is a sample Order ID. Pass the `id` obtained in the response of create-order.
         handler: async function (response) {
@@ -3973,7 +3975,7 @@ function App() {
           </div>
           <h3>Choose an industrial identity</h3>
           <p>
-            to continue to <strong>origiNode</strong>
+            to continue to <strong>IndEase</strong>
           </p>
         </div>
 
@@ -4000,7 +4002,7 @@ function App() {
         <div className="social-modal-footer">
           <p>
             By continuing, Google/Apple will share your name, email address, and
-            profile picture with origiNode.
+            profile picture with IndEase.
           </p>
           <button
             className="btn-cancel-social"
@@ -4261,7 +4263,7 @@ function App() {
                     <div className="pt-2 border-t border-indigo-100/50 flex items-center gap-2">
                       <ShieldCheck size={14} className="text-emerald-500" />
                       <p className="text-[11px] font-bold text-slate-500">
-                        This expert is verified by origiNode and has completed{" "}
+                        This expert is verified by IndEase and has completed{" "}
                         {selectedExpert.jobsCompleted} jobs.
                       </p>
                     </div>
@@ -5292,282 +5294,315 @@ function App() {
   // --- VIEW 1: PROFESSIONAL LANDING PAGE ---
   if (view === "landing") {
     return (
-      <div className="bg-white min-h-screen selection:bg-blue-100 selection:text-blue-900">
-        {/* Navigation */}
-        <nav className={`nav-sticky ${scrolled ? "scrolled" : ""}`}>
-          <div className="logo-container" onClick={() => navigate("/")}>
-            <div className="logo-text">origiNode</div>
+      <div className="bg-white min-h-screen selection:bg-teal-100 selection:text-teal-900">
+        {/* NAVBAR */}
+        <nav className={`nav-sticky ${scrolled ? "scrolled" : ""} bg-white/80 backdrop-blur-md sticky top-0 z-[1000] border-b border-slate-200`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+            <div className="logo-container flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
+              <Settings className="text-teal-600" size={24} strokeWidth={2.5} />
+              <span className="text-2xl font-bold tracking-tight text-slate-900">IndEase</span>
+            </div>
+            
+            <div className="hidden md:flex items-center gap-8">
+               <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Features</button>
+               <button onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">How It Works</button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button onClick={() => {
+                const el = document.getElementById("platform-access");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }} className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors hidden sm:block">
+                Log In
+              </button>
+              <button 
+                onClick={() => {
+                  const el = document.getElementById("platform-access");
+                  el?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="px-5 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors shadow-sm"
+              >
+                Get Started
+              </button>
+            </div>
           </div>
         </nav>
 
-        {/* Hero Section */}
-        <section className="snap-section">
-          <header className="hero-section">
+        {/* HERO SECTION */}
+        <section className="relative pt-24 pb-32 overflow-hidden flex items-center justify-center min-h-[600px] border-b border-slate-200" style={{ background: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)' }}>
+          <div className="relative z-10 max-w-4xl mx-auto px-4 text-center px-4 sm:px-6 lg:px-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
-              style={{ scale: heroScale }}
             >
-              <h1 className="hero-title">
-                Connecting machine owners with manufacturers and expert
-                technicians.
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-semibold tracking-wide uppercase mb-8 mx-auto shadow-sm">
+                <Settings size={14} className="text-teal-400" />
+                AI-Powered Industrial Repair Platform
+              </div>
+              <h1 className="text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
+                Connect Legacy Machines with <span className="text-teal-400">Expert Repair</span>
               </h1>
-              <p className="hero-desc">
-                Small and medium-scale industries often rely on older machines
-                that become difficult to repair when manufacturers stop
-                supporting them. origiNode connects industries with experts who
-                understand their machinery.
+              <p className="text-lg sm:text-xl text-slate-300 mb-10 max-w-3xl mx-auto font-medium">
+                Upload a video of your faulty industrial machine. Our AI identifies the issue and instantly connects you with the right repair expert — nearby, top-rated, or available.
               </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <motion.button
-                  whileHover={{
-                    y: -2,
-                    boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.3)",
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  className="btn-primary px-10 py-4 text-base"
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button
+                  className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white text-slate-900 text-base font-bold hover:bg-slate-100 transition-colors shadow-lg flex items-center justify-center gap-2 group"
                   onClick={() => {
                     const el = document.getElementById("platform-access");
                     el?.scrollIntoView({ behavior: "smooth" });
                   }}
                 >
-                  Get Started
-                </motion.button>
+                  Report an Issue <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+                <button
+                  className="w-full sm:w-auto px-8 py-4 rounded-xl bg-transparent border-2 border-white/30 text-white text-base font-bold hover:bg-white/10 transition-colors"
+                  onClick={() => {
+                    const el = document.getElementById("platform-access");
+                    el?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                >
+                  Join as Expert
+                </button>
               </div>
             </motion.div>
-          </header>
+          </div>
         </section>
 
-        {/* Problem and Solution Section */}
-        <section className="snap-section bg-white">
-          <div className="content-section" style={{ maxWidth: "1200px" }}>
-            <div className="grid md:grid-cols-2 gap-8 items-stretch">
-              {/* Problem Card */}
+        {/* STATS BAR */}
+        <section className="bg-white border-b border-slate-200">
+           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-slate-200 text-center">
+                 <div className="px-4">
+                    <div className="text-3xl font-black text-teal-600 tracking-tight">500+</div>
+                    <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Machines Repaired</div>
+                 </div>
+                 <div className="px-4">
+                    <div className="text-3xl font-black text-teal-600 tracking-tight">200+</div>
+                    <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Verified Experts</div>
+                 </div>
+                 <div className="px-4">
+                    <div className="text-3xl font-black text-teal-600 tracking-tight">98%</div>
+                    <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Resolution Rate</div>
+                 </div>
+                 <div className="px-4">
+                    <div className="text-3xl font-black text-teal-600 tracking-tight">24hr</div>
+                    <div className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Avg Response Time</div>
+                 </div>
+              </div>
+           </div>
+        </section>
+
+        {/* FEATURES SECTION */}
+        <section id="features" className="py-24 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16 max-w-3xl mx-auto">
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight mb-4">Everything You Need</h2>
+              <p className="text-lg text-slate-600">
+                A complete platform to diagnose, connect, and resolve industrial machine issues.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
+                     <Video size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">Video-Based Reporting</h3>
+                  <p className="text-slate-600 leading-relaxed">Upload a video of your faulty machine and describe the issue. Our AI processes both visual and text inputs.</p>
+               </div>
+               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
+                     <Brain size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">AI-Powered Analysis</h3>
+                  <p className="text-slate-600 leading-relaxed">Advanced AI identifies machine type, detects visible faults, and extracts keywords from your description.</p>
+               </div>
+               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
+                     <Users size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">Smart Expert Matching</h3>
+                  <p className="text-slate-600 leading-relaxed">Priority-based algorithm finds nearby experts first, then top-rated ones, ensuring no request goes unresolved.</p>
+               </div>
+               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
+                     <MessageSquare size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">Real-Time Chat</h3>
+                  <p className="text-slate-600 leading-relaxed">Communicate directly with assigned experts. Share additional media and discuss repair plans.</p>
+               </div>
+               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
+                     <CreditCard size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">Secure Payments</h3>
+                  <p className="text-slate-600 leading-relaxed">Integrated payment system with platform fee handling, GST calculation, and expert payout management.</p>
+               </div>
+               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6">
+                     <FileText size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">Invoice & Records</h3>
+                  <p className="text-slate-600 leading-relaxed">Auto-generated invoices and complete service history stored in your profile for future reference.</p>
+               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* HOW IT WORKS SECTION */}
+        <section id="how-it-works" className="py-24 bg-slate-50 border-y border-slate-200">
+           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16 max-w-3xl mx-auto">
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight mb-4">How It Works</h2>
+              <p className="text-lg text-slate-600">
+                From issue to resolution in four simple steps.
+              </p>
+            </div>
+            
+            <div className="grid md:grid-cols-4 gap-8 relative">
+               {/* Arrows between steps (desktop only) */}
+               <div className="hidden md:block absolute top-[60px] left-[20%] right-[20%] h-0.5 bg-slate-200" />
+               
+               <div className="relative text-center">
+                  <div className="w-16 h-16 mx-auto bg-white border-2 border-teal-500 rounded-full flex items-center justify-center text-teal-600 text-xl font-extrabold shadow-sm relative z-10 mb-6">01</div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-3">Upload Issue</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">Record and upload a video of the faulty machine with a description</p>
+               </div>
+               
+               <div className="relative text-center">
+                  <div className="w-16 h-16 mx-auto bg-white border-2 border-teal-500 rounded-full flex items-center justify-center text-teal-600 text-xl font-extrabold shadow-sm relative z-10 mb-6">02</div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-3">AI Analyzes</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">Our AI identifies the machine type, fault, and required expertise</p>
+               </div>
+               
+               <div className="relative text-center">
+                  <div className="w-16 h-16 mx-auto bg-white border-2 border-teal-500 rounded-full flex items-center justify-center text-teal-600 text-xl font-extrabold shadow-sm relative z-10 mb-6">03</div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-3">Expert Matched</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">System finds the nearest or best available repair expert for you</p>
+               </div>
+               
+               <div className="relative text-center">
+                  <div className="w-16 h-16 mx-auto bg-white border-2 border-teal-500 rounded-full flex items-center justify-center text-teal-600 text-xl font-extrabold shadow-sm relative z-10 mb-6">04</div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-3">Service Done</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">Expert repairs your machine, payment processed, invoice generated</p>
+               </div>
+            </div>
+           </div>
+        </section>
+
+        {/* CTA SECTION */}
+        <section className="py-24" style={{ background: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)' }}>
+           <div className="max-w-4xl mx-auto px-4 text-center">
+              <h2 className="text-4xl font-extrabold text-white tracking-tight mb-6">Ready to Fix Your Machine?</h2>
+              <p className="text-xl text-slate-300 font-medium mb-10">Join IndEase today and get connected with verified industrial repair experts.</p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                 <button
+                  className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white text-slate-900 text-base font-bold hover:bg-slate-100 transition-colors shadow-lg"
+                  onClick={() => {
+                    const el = document.getElementById("platform-access");
+                    el?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                 >
+                    Get Started Free
+                 </button>
+                 <button
+                  className="w-full sm:w-auto px-8 py-4 rounded-xl bg-transparent border-2 border-white/30 text-white text-base font-bold hover:bg-white/10 transition-colors"
+                  onClick={() => {
+                    const el = document.getElementById("platform-access");
+                    el?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                 >
+                    Register as Expert
+                 </button>
+              </div>
+           </div>
+        </section>
+
+        {/* PLATFORM ACCESS */}
+        <section id="platform-access" className="py-24 bg-slate-100 border-t border-slate-200">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Select Your Role</h2>
+            </div>
+            <div className="grid md:grid-cols-2 gap-8">
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1] }}
-                className="minimal-saas-card"
+                viewport={{ once: true }}
+                whileHover={{ y: -5 }}
+                className="bg-white p-10 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl transition-all"
               >
-                <div className="icon-container w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mb-6">
-                  <AlertCircle size={20} />
+                <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mb-8">
+                  <Cpu size={32} />
                 </div>
-                <span className="saas-label text-red-600">The Problem</span>
-                <h3 className="saas-heading">
-                  High Maintenance Costs & Downtime
-                </h3>
-                <p className="saas-description">
-                  Small-scale industries often rely on specialized machinery
-                  that lacks modern support networks. When these legacy systems
-                  fail, finding the right expertise becomes an expensive hurdle
-                  that halts production.
+                <h3 className="text-2xl font-bold text-slate-900 mb-4">Fleet Operator</h3>
+                <p className="text-slate-600 mb-8 leading-relaxed">
+                  Register industrial assets, track maintenance cycles, report issues, and connect with verified service experts.
                 </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    className="w-full py-3.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors shadow-sm"
+                    onClick={() => navigateToAuth("consumer", true)}
+                  >
+                    Log In
+                  </button>
+                  <button
+                    className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-900 border border-slate-200 text-sm font-bold hover:bg-slate-100 transition-colors"
+                    onClick={() => navigateToAuth("consumer", false)}
+                  >
+                    Sign Up
+                  </button>
+                </div>
               </motion.div>
 
-              {/* Our Solution Card */}
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{
-                  duration: 0.6,
-                  ease: [0.215, 0.61, 0.355, 1],
-                  delay: 0.2,
-                }}
-                className="minimal-saas-card"
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                whileHover={{ y: -5 }}
+                className="bg-white p-10 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl transition-all"
               >
-                <div className="icon-container w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center mb-6">
-                  <Zap size={20} />
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-8">
+                  <Shield size={32} />
                 </div>
-                <span className="saas-label text-blue-600">Our Solution</span>
-                <h3 className="saas-heading">
-                  A Direct Line to Industrial Expertise
-                </h3>
-                <p className="saas-description">
-                  origiNode bridges the gap between factory operators and master
-                  technicians. We provide a unified platform for rapid
-                  diagnosis, verified repairs, and machine lifecycle management.
+                <h3 className="text-2xl font-bold text-slate-900 mb-4">Service Expert</h3>
+                <p className="text-slate-600 mb-8 leading-relaxed">
+                  Receive service requests, provide repairs, manage your schedule, and get paid securely.
                 </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    className="w-full py-3.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                    onClick={() => navigateToAuth("producer", true)}
+                  >
+                    Log In as Expert
+                  </button>
+                </div>
               </motion.div>
             </div>
           </div>
         </section>
 
-        {/* How the Platform Works */}
-        <section className="snap-section">
-          <section className="content-section">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-10"
-            >
-              <h2 className="section-title">How the Platform Works</h2>
-            </motion.div>
-            <div className="compact-grid">
-              {[
-                {
-                  id: 1,
-                  title: "Register",
-                  icon: <UserPlus size={24} />,
-                  desc: "Create an account as machine owner or service expert.",
-                },
-                {
-                  id: 2,
-                  title: "Report Issue",
-                  icon: <Video size={24} />,
-                  desc: "Upload machine video and describe the fault.",
-                },
-                {
-                  id: 3,
-                  title: "Find Experts",
-                  icon: <Search size={24} />,
-                  desc: "The platform identifies suitable manufacturers or technicians.",
-                },
-                {
-                  id: 4,
-                  title: "Repair & Payment",
-                  icon: <CreditCard size={24} />,
-                  desc: "Experts resolve the issue and payment is completed securely.",
-                },
-              ].map((step, idx) => (
-                <motion.div
-                  key={step.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1 }}
-                  whileHover={{
-                    y: -5,
-                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05)",
-                  }}
-                  className="step-box group"
-                >
-                  <div className="flex items-center gap-4 mb-3">
-                    <motion.div
-                      whileHover={{ scale: 1.15, rotate: 5 }}
-                      className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 transition-colors group-hover:bg-blue-600 group-hover:text-white"
-                    >
-                      {step.icon}
-                    </motion.div>
-                    <h3 className="card-title mb-0">{step.title}</h3>
-                  </div>
-                  <p className="card-text">{step.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-        </section>
-
-        {/* Platform Access */}
-        <section id="platform-access" className="snap-section-last bg-slate-50">
-          <section className="content-section !py-0">
-            <div className="grid md:grid-cols-2 gap-8">
-              <motion.div
-                initial={{ opacity: 0, x: -30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -5 }}
-                className="platform-card"
-              >
-                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-8">
-                  <Cpu size={28} />
-                </div>
-                <h3 className="card-title">Fleet Operator</h3>
-                <p className="card-text mb-8">
-                  Register industrial assets, track maintenance cycles, and
-                  connect with verified service experts.
-                </p>
-                <div className="flex flex-col gap-3">
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="btn-primary w-full"
-                    onClick={() => navigateToAuth("consumer", true)}
-                  >
-                    Login
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="btn-secondary w-full"
-                    onClick={() => navigateToAuth("consumer", false)}
-                  >
-                    Sign Up
-                  </motion.button>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -5 }}
-                className="platform-card"
-              >
-                <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-8">
-                  <Shield size={28} />
-                </div>
-                <h3 className="card-title">Service Expert</h3>
-                <p className="card-text mb-8">
-                  Manage service requests, dispatch technicians, and provide
-                  repair services.
-                </p>
-                <div className="flex flex-col gap-3">
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="btn-primary w-full bg-indigo-600"
-                    onClick={() => navigateToAuth("producer", true)}
-                  >
-                    Login
-                  </motion.button>
-                </div>
-              </motion.div>
-            </div>
-          </section>
-        </section>
-
         {/* Footer */}
-        <footer className="footer-simple">
-          <div className="max-w-4xl mx-auto space-y-4">
-            <div
-              className="logo-container mx-auto justify-center mb-4"
-              onClick={() => {
+        <footer className="bg-slate-900 py-12 border-t border-slate-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => {
                 navigate("/");
                 window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            >
-              <div className="logo-text text-xl">origiNode</div>
+              }}>
+               <Settings className="text-teal-500" size={20} strokeWidth={2.5} />
+              <div className="text-xl font-bold text-white tracking-tight">IndEase</div>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-semibold text-slate-600">
-              <button
-                type="button"
-                onClick={() => navigate("/terms")}
-                className="transition-colors hover:text-blue-600"
-              >
-                Terms & Conditions
-              </button>
-              <span className="text-slate-300">|</span>
-              <button
-                type="button"
-                onClick={() => navigate("/privacy")}
-                className="transition-colors hover:text-blue-600"
-              >
-                Privacy Policy
-              </button>
-              <span className="text-slate-300">|</span>
-              <a
-                href="mailto:support@originode.com"
-                className="transition-colors hover:text-blue-600"
-              >
-                Contact Us
-              </a>
+            
+            <div className="flex items-center gap-6 text-sm font-medium text-slate-400">
+               <button onClick={() => navigate("/terms")} className="hover:text-white transition-colors">Terms</button>
+               <button onClick={() => navigate("/privacy")} className="hover:text-white transition-colors">Privacy</button>
+               <a href="mailto:support@originode.com" className="hover:text-white transition-colors">Contact</a>
             </div>
-            <p className="text-xs text-slate-400">
-              © 2026 origiNode Systems. All rights reserved.
+            
+            <p className="text-sm font-medium text-slate-500">
+              © 2026 IndEase. All rights reserved.
             </p>
           </div>
         </footer>
@@ -5590,7 +5625,7 @@ function App() {
               className="logo-container mx-auto mb-6"
               onClick={() => navigate("/")}
             >
-              <div className="logo-text text-3xl">origiNode</div>
+              <div className="logo-text text-3xl">IndEase</div>
             </div>
             <h2 className="mt-6 text-3xl font-extrabold text-slate-900">
               {authTitle}
@@ -6338,7 +6373,7 @@ function App() {
            <div className="bg-amber-50 border border-amber-200 px-6 py-4 mb-6 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm relative z-40">
               <div className="flex items-center gap-3 text-amber-800">
                  <AlertCircle size={20} className="shrink-0" />
-                 <span className="text-sm font-semibold">Your profile is incomplete. Complete it to start using OrigiNode fully.</span>
+                 <span className="text-sm font-semibold">Your profile is incomplete. Complete it to start using IndEase fully.</span>
               </div>
               <button 
                   onClick={() => setActiveTab('profile')} 
@@ -6429,7 +6464,7 @@ function App() {
                       {[
                         "You must respond to requests within 24 hours.",
                         "Declining requests will affect your performance level.",
-                        "origiNode takes 10% platform fee from each job.",
+                        "IndEase takes 10% platform fee from each job.",
                         "Monthly salary is based on your performance level.",
                         "Inactivity for 10 days will reduce your points.",
                       ].map((point) => (

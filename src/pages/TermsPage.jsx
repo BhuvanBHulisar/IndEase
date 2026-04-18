@@ -5,14 +5,14 @@ const sections = [
   {
     heading: '1. Introduction',
     body: [
-      'Welcome to origiNode. By using our platform you agree to these terms.',
+      'Welcome to IndEase. By using our platform you agree to these terms.',
       'Effective date: March 2026.'
     ]
   },
   {
     heading: '2. About the Platform',
     body: [
-      'origiNode connects machine owners with repair experts.',
+      'IndEase connects machine owners with repair experts.',
       'We are a marketplace, not a direct service provider.'
     ]
   },
@@ -20,7 +20,7 @@ const sections = [
     heading: '3. User Accounts',
     body: [
       'Consumer accounts are available through self-registration.',
-      'Expert accounts are created by origiNode admin only.',
+      'Expert accounts are created by IndEase admin only.',
       'You are responsible for keeping your credentials secure.'
     ]
   },
@@ -29,7 +29,7 @@ const sections = [
     body: [
       'Consumers can submit service requests for their machines.',
       'Experts can accept or decline requests.',
-      'origiNode does not guarantee availability of experts.'
+      'IndEase does not guarantee availability of experts.'
     ]
   },
   {
@@ -59,20 +59,20 @@ const sections = [
   {
     heading: '8. Intellectual Property',
     body: [
-      'All content on origiNode is owned by origiNode Systems.'
+      'All content on IndEase is owned by IndEase Systems.'
     ]
   },
   {
     heading: '9. Limitation of Liability',
     body: [
-      'origiNode is not liable for damages caused during repair.',
+      'IndEase is not liable for damages caused during repair.',
       'We facilitate connection only.'
     ]
   },
   {
     heading: '10. Termination',
     body: [
-      'origiNode reserves the right to suspend accounts for violation of these terms.'
+      'IndEase reserves the right to suspend accounts for violation of these terms.'
     ]
   },
   {

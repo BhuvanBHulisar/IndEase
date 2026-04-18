@@ -388,7 +388,7 @@ export default function ProducerDashboard({
             <X size={20} />
           </button>
           <div className="mb-4">
-            <h3 className="text-lg font-bold text-blue-900">Getting Started with origiNode</h3>
+            <h3 className="text-lg font-bold text-blue-900">Getting Started with IndEase</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-xl bg-white p-4 shadow-sm border border-blue-100 flex flex-col gap-2">

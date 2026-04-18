@@ -10,7 +10,7 @@ function LegalPage({ title, effectiveDate, sections }) {
       <nav className="nav-sticky scrolled bg-white/80 backdrop-blur-md sticky top-0 z-[1000] border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
           <div className="logo-container flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="logo-text text-2xl font-extrabold tracking-tight">origiNode</div>
+            <div className="logo-text text-2xl font-extrabold tracking-tight">IndEase</div>
           </div>
           <button 
             onClick={() => navigate('/')}
@@ -76,7 +76,7 @@ function LegalPage({ title, effectiveDate, sections }) {
             navigate('/');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}>
-            <div className="logo-text text-xl font-extrabold tracking-tight">origiNode</div>
+            <div className="logo-text text-xl font-extrabold tracking-tight">IndEase</div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-bold text-slate-600">
             <button type="button" onClick={() => { navigate('/terms'); window.scrollTo(0,0); }} className="transition-colors hover:text-blue-600">
@@ -91,7 +91,7 @@ function LegalPage({ title, effectiveDate, sections }) {
               Contact Us
             </a>
           </div>
-          <p className="text-xs font-semibold text-slate-400">© 2026 origiNode Systems. All rights reserved.</p>
+          <p className="text-xs font-semibold text-slate-400">© 2026 IndEase Systems. All rights reserved.</p>
         </div>
       </footer>
     </div>

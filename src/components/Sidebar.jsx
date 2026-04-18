@@ -56,7 +56,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
         </div>
         <div className="flex flex-col">
           <span className="text-xl font-bold text-slate-900 tracking-tight leading-none group-hover:text-slate-700 transition-colors">
-            origiNode
+            IndEase
           </span>
           <span className={`text-[10px] font-bold ${isExpert ? 'text-indigo-600' : 'text-[#2563EB]'} uppercase tracking-widest mt-1.5`}>
             Enterprise
