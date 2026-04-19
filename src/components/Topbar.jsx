@@ -116,6 +116,7 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
           )}
         </AnimatePresence>
       </div>
+      </div>
 
       {/* Action Cluster */}
       <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 ml-2 shrink-0">

@@ -36,3 +36,6 @@ Thumbs.db
 
 # Vite / local dev
 *.local
+
+db-viewer/node_modules/
+db-viewer/dist/

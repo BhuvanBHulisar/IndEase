@@ -79,11 +79,51 @@ export const DEMO_CHATS = [
     id: 'demo-chat-1',
     name: 'ABC Industries',
     avatar: 'AI',
-    lastMsg: 'Please resolve the oil leakage ASAP',
+    lastMsg: 'Invoice sent for ₹8,500',
     time: '2m ago',
     unread: 2,
     status: 'in_progress',
     expertId: 'demo-expert-1',
+    jobId: 'demo-chat-1',
+    machineName: 'Hydraulic Press #08',
+    messages: [
+      {
+        id: 'dm-1',
+        senderId: 'demo-consumer-1',
+        senderName: 'ABC Industries',
+        text: 'Please resolve the oil leakage ASAP. The machine is leaking from the base seal.',
+        timestamp: new Date(Date.now() - 10 * 60000).toISOString(),
+        type: 'received'
+      },
+      {
+        id: 'dm-2',
+        senderId: 'demo-expert',
+        senderName: 'Demo Expert',
+        text: 'I have inspected the issue. It is a seal failure on the main hydraulic cylinder. I will need to replace the seal kit.',
+        timestamp: new Date(Date.now() - 8 * 60000).toISOString(),
+        type: 'sent'
+      },
+      {
+        id: 'dm-3',
+        senderId: 'demo-consumer-1',
+        senderName: 'ABC Industries',
+        text: 'Okay, please go ahead. How much will it cost?',
+        timestamp: new Date(Date.now() - 6 * 60000).toISOString(),
+        type: 'received'
+      },
+      {
+        id: 'dm-invoice-1',
+        senderId: 'demo-expert',
+        senderName: 'Demo Expert',
+        type: 'invoice',
+        timestamp: new Date(Date.now() - 4 * 60000).toISOString(),
+        invoice: {
+          amount: 8500,
+          description: 'Hydraulic seal kit replacement + labour charges',
+          status: 'pending'
+        }
+      }
+    ]
   },
   {
     id: 'demo-chat-2',
@@ -94,7 +134,35 @@ export const DEMO_CHATS = [
     unread: 0,
     status: 'accepted',
     expertId: 'demo-expert-2',
-  },
+    jobId: 'demo-chat-2',
+    machineName: 'CNC Lathe #03',
+    messages: [
+      {
+        id: 'dm-4',
+        senderId: 'demo-consumer-2',
+        senderName: 'Precision Parts Ltd',
+        text: 'Our CNC lathe is making a grinding noise during operation.',
+        timestamp: new Date(Date.now() - 60 * 60000).toISOString(),
+        type: 'received'
+      },
+      {
+        id: 'dm-5',
+        senderId: 'demo-expert',
+        senderName: 'Demo Expert',
+        text: 'That sounds like a bearing issue. When can I visit to inspect?',
+        timestamp: new Date(Date.now() - 58 * 60000).toISOString(),
+        type: 'sent'
+      },
+      {
+        id: 'dm-6',
+        senderId: 'demo-consumer-2',
+        senderName: 'Precision Parts Ltd',
+        text: 'When can you visit?',
+        timestamp: new Date(Date.now() - 55 * 60000).toISOString(),
+        type: 'received'
+      }
+    ]
+  }
 ];
 
 export const DEMO_MACHINES = [

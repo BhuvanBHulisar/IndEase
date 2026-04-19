@@ -919,4 +919,50 @@ router.get("/analytics/overview", async (req, res) => {
 router.get("/support", getAllTickets);
 router.patch("/support/:id/status", updateTicketStatus);
 
+const ALLOWED_TABLES = [
+  'users','machines','service_requests','transactions',
+  'chat_messages','notifications','reviews',
+  'producer_profiles','expert_point_events'
+];
+
+router.get('/db/counts', adminOnly, async (req, res) => {
+  try {
+    const counts = {};
+    await Promise.all(ALLOWED_TABLES.map(async (t) => {
+      try {
+        const r = await db.query(`SELECT COUNT(*) FROM ${t}`);
+        counts[t] = parseInt(r.rows[0].count);
+      } catch { counts[t] = 0; }
+    }));
+    res.json(counts);
+  } catch (err) { res.status(500).json({ error: 'Failed' }); }
+});
+
+router.get('/db/:table', adminOnly, async (req, res) => {
+  const { table } = req.params;
+  if (!ALLOWED_TABLES.includes(table))
+    return res.status(400).json({ error: 'Table not allowed' });
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM ${table} ORDER BY created_at DESC NULLS LAST LIMIT 500`
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'Failed' }); }
+});
+
+router.delete('/db/:table/:id', adminOnly, async (req, res) => {
+  const { table, id } = req.params;
+  if (!ALLOWED_TABLES.includes(table))
+    return res.status(400).json({ error: 'Table not allowed' });
+  try {
+    if (table === 'users') {
+      const check = await db.query('SELECT is_demo FROM users WHERE id=$1',[id]);
+      if (check.rows[0]?.is_demo)
+        return res.status(403).json({ error: 'Cannot delete demo accounts' });
+    }
+    await db.query(`DELETE FROM ${table} WHERE id=$1`, [id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: 'Failed to delete' }); }
+});
+
 export default router;

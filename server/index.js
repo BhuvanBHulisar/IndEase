@@ -128,6 +128,8 @@ app.use("/api/providers", providerRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/demo", demoRoutes);
+import aiRoutes from './routes/aiRoutes.js';
+app.use('/api/ai', aiRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });

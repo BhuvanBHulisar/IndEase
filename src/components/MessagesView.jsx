@@ -249,7 +249,7 @@ export default function MessagesView({
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar bg-[#F9FAFB]/30">
-               {chatHistory.map((msg, i) => {
+               {((activeChat?.messages?.length > 0) ? activeChat.messages : chatHistory).map((msg, i) => {
                  if (msg.type === 'rating_prompt') {
                    return (
                      <RatingPromptPlaceholder key={msg.id || `rating-${i}`} />
@@ -397,6 +397,31 @@ export default function MessagesView({
 
 function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], currentUser }) {
   const renderMessageContent = () => {
+    if (msg.type === 'invoice') {
+      return (
+        <div className="bg-white border border-slate-200 rounded-xl p-4 max-w-xs shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Service Invoice</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">₹{msg.invoice?.amount?.toLocaleString()}</p>
+          <p className="text-xs font-medium text-slate-500 mb-4">{msg.invoice?.description}</p>
+          {currentUser?.id !== 'expert' && msg.invoice?.status === 'pending' && (
+            <button
+              onClick={() => onProcessPayment?.(msg.invoice.amount, msg.invoice.description)}
+              className="w-full bg-[#0d9488] hover:bg-teal-700 text-white shadow-sm transition-all rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-2"
+            >
+              Pay Now
+            </button>
+          )}
+          {(msg.invoice?.status === 'paid' || (currentUser?.id === 'expert' && msg.invoice?.status === 'pending')) && (
+            <div className={`w-full bg-${msg.invoice?.status === 'paid' ? 'emerald' : 'slate'}-50 text-${msg.invoice?.status === 'paid' ? 'emerald' : 'slate'}-600 rounded-lg py-2 text-xs font-bold text-center border border-${msg.invoice?.status === 'paid' ? 'emerald' : 'slate'}-200`}>
+              {msg.invoice?.status === 'paid' ? '✓ Paid' : 'Invoice Sent'}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // Handle message format (string vs object)
     let messageText = typeof msg === 'string' ? msg : (msg.text || msg.message || '');
     

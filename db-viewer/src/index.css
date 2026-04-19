@@ -1,0 +1,59 @@
+:root {
+  --bg-color: #0a0e1a;
+  --surface-color: #111827;
+  --surface2-color: #1a2235;
+  --primary-blue: #3b82f6;
+  --teal-accent: #14b8a6;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+  --danger-color: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar for Dark Theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color); 
+}
+ 
+::-webkit-scrollbar-thumb {
+  background: var(--surface2-color); 
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color); 
+}
+
+h1, h2, h3, h4, p {
+  margin: 0;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+}

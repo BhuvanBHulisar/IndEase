@@ -84,10 +84,21 @@ const FleetView = ({
   setShowAddMachineModal, 
   setShowReportIssueModal,
   onCancelRequest,
+  verifiedExperts = [],
   expertPresence = {}
 }) => {
   const verifiedExpertsDisplay = useMemo(() => {
     const pres = expertPresence || {};
+    if (verifiedExperts && verifiedExperts.length > 0) {
+      return verifiedExperts.map(exp => ({
+        id: exp.id,
+        name: exp.name || 'Expert',
+        rating: exp.rating || 4.9,
+        special: exp.specialization || 'Verified Expert',
+        online: pres[String(exp.id)] === true || pres[exp.id] === true || exp.status === 'active'
+      })).slice(0, 5);
+    }
+    
     if (chats && chats.length > 0) {
       const out = [];
       const seen = new Set();
@@ -107,7 +118,7 @@ const FleetView = ({
       ...e,
       online: e.status === 'Active'
     }));
-  }, [chats, expertPresence]);
+  }, [chats, expertPresence, verifiedExperts]);
 
   return (
     <motion.div 

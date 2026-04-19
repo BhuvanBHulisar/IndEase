@@ -912,6 +912,7 @@ function App() {
   const [suggestedSlots, setSuggestedSlots] = useState([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [socketReconnecting, setSocketReconnecting] = useState(false);
+  const [verifiedExperts, setVerifiedExperts] = useState([]);
   const [expertPresence, setExpertPresence] = useState({});
   const consumerFleetRefreshTimerRef = useRef(null);
   const fetchConsumerFleetSnapshotRef = useRef(null);
@@ -2666,11 +2667,24 @@ function App() {
         throw new Error("Invalid response format");
       }
     } catch (err) {
-      console.warn(
-        "[Fleet] Offline mode active (DB disconnected). Using local backup.",
-      );
+      console.warn("[Fleet] Offline mode active.");
       setMachines(MOCK_MACHINES);
-    } finally { setMachinesLoading(false); }
+    } finally { 
+      setMachinesLoading(false); 
+      fetchVerifiedExperts();
+    }
+  };
+
+  const fetchVerifiedExperts = async () => {
+    try {
+      const res = await api.get('/providers/experts');
+      setVerifiedExperts(res.data.map(e => ({
+        ...e,
+        name: e.name || `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Expert'
+      })));
+    } catch (err) {
+      console.error("Failed to load experts:", err);
+    }
   };
 
   const handleAddMachine = async () => {
@@ -2757,15 +2771,54 @@ function App() {
 
   // [NEW] SERVICE REQUEST BROADCAST HANDLER
   // Step 1 → Step 2 (AI scan) → Step 'ai_result'
-  const handleBroadcastJob = () => {
-    // In demo mode, activeJobMachine may not be set — fall back to first machine
-    const machine = activeJobMachine || (machines && machines.length > 0 ? machines[0] : null);
+  const handleBroadcastJob = async () => {
+    const machine = activeJobMachine || (machines?.[0] ?? null);
     if (!machine) return;
     if (!activeJobMachine) setActiveJobMachine(machine);
-    const diagnosis = getAIDiagnosis(diagnosisDesc);
-    setAiDiagnosis(diagnosis);
-    setDiagnosisStep(2);
-    setTimeout(() => setDiagnosisStep('ai_result'), 2500);
+
+    setDiagnosisStep(2); // show scanning animation
+
+    if (isDemo) {
+        // DEMO: use existing mock — no API call
+        const diagnosis = getAIDiagnosis(diagnosisDesc);
+        setAiDiagnosis(diagnosis);
+        setTimeout(() => setDiagnosisStep('ai_result'), 2500);
+        return;
+    }
+
+    // REAL: call Gemini API
+    try {
+        const res = await api.post('/ai/diagnose', {
+            machineName: machine.name,
+            machineType: machine.type,
+            machineYear: machine.year,
+            manufacturer: machine.manufacturer,
+            issueDescription: diagnosisDesc,
+            videoPath: typeof uploadedVideoPath !== 'undefined' ? uploadedVideoPath : null
+        });
+
+        if (res.data.success) {
+            const d = res.data.diagnosis;
+            setAiDiagnosis({
+                type: d.likelyFaults?.[0] || d.faultSummary,
+                issue: d.urgencyReason || d.faultSummary,
+                confidence: d.confidence || 85,
+                severity: d.severity,
+                likelyFaults: d.likelyFaults,
+                requiredExpertise: d.requiredExpertise,
+                estimatedRepairTime: d.estimatedRepairTime,
+                videoFindings: d.videoFindings,
+                faultSummary: d.faultSummary
+            });
+            setDiagnosisStep('ai_result');
+        }
+    } catch (err) {
+        console.error('Gemini diagnosis failed:', err);
+        // Fallback to mock silently — never break for real users
+        const diagnosis = getAIDiagnosis(diagnosisDesc);
+        setAiDiagnosis(diagnosis);
+        setDiagnosisStep('ai_result');
+    }
   };
 
   // Step 'ai_result' → Step 2 (broadcasting) → Step 3 (success)
@@ -2830,9 +2883,24 @@ function App() {
         priority: 'high',
         videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
       });
-      finalizeRequest(broadcastRes.data);
+      const serverJob = broadcastRes.data;
+      finalizeRequest(serverJob);
       setDiagnosisStep(3);
       setShowDiagnosisModal(true);
+
+      if (!isDemo && serverJob?.id) {
+          try {
+              const matchRes = await api.post('/ai/match-expert', {
+                  jobId: serverJob.id,
+                  diagnosis: aiDiagnosis
+              });
+              if (matchRes.data?.success) {
+                  setToast({ message: `Expert matched: ${matchRes.data.match.bestExpertName}`, type: 'success' });
+              }
+          } catch (err) {
+              console.warn('AI expert matching failed — experts notified via broadcast');
+          }
+      }
     } catch (err) {
       console.error('[Broadcast] Failed:', err);
       setBroadcastInProgress(false);
@@ -4856,6 +4924,44 @@ function App() {
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Possible issue</p>
                       <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">{aiDiagnosis.issue}</p>
                     </div>
+
+                    {/* ADD: Severity badge */}
+                    {aiDiagnosis.severity && (
+                        <div className={`text-xs px-3 py-1 rounded-full font-semibold w-fit
+                            ${aiDiagnosis.severity === 'Critical' ? 'bg-red-100 text-red-700' :
+                              aiDiagnosis.severity === 'High' ? 'bg-orange-100 text-orange-700' :
+                              aiDiagnosis.severity === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-green-100 text-green-700'}`}>
+                            {aiDiagnosis.severity} Severity
+                        </div>
+                    )}
+
+                    {/* ADD: Likely faults list */}
+                    {aiDiagnosis.likelyFaults?.length > 0 && (
+                        <div>
+                            <p className="text-xs font-semibold text-slate-500 mb-1">Likely Faults</p>
+                            <div className="flex flex-wrap gap-1">
+                                {aiDiagnosis.likelyFaults.map(f => (
+                                    <span key={f} className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">{f}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ADD: Estimated repair time */}
+                    {aiDiagnosis.estimatedRepairTime && (
+                        <p className="text-xs text-slate-500">
+                            ⏱ Estimated repair: <span className="font-semibold text-slate-700">{aiDiagnosis.estimatedRepairTime}</span>
+                        </p>
+                    )}
+
+                    {/* ADD: Video findings if video was uploaded */}
+                    {aiDiagnosis.videoFindings && aiDiagnosis.videoFindings !== 'null' && (
+                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                            <p className="text-xs font-semibold text-blue-700 mb-1">📹 Video Analysis</p>
+                            <p className="text-xs text-blue-600">{aiDiagnosis.videoFindings}</p>
+                        </div>
+                    )}
                   </div>
                   <button
                     className="w-full h-12 bg-[#0d9488] text-white rounded-xl font-semibold text-sm hover:bg-teal-700 shadow-md shadow-teal-500/20 transition-all active:scale-[0.98]"
@@ -6101,7 +6207,14 @@ function App() {
                 }}
                 isEditing={isEditingProfile}
                 setIsEditing={setIsEditingProfile}
-                onSave={handleSaveConsumerProfile}
+                onSave={(updatedUser) => {
+                  handleSaveConsumerProfile(updatedUser);
+                  const complete = !!(
+                    updatedUser.firstName?.trim() &&
+                    updatedUser.phone?.trim()
+                  );
+                  setShowCompleteProfileBanner(!complete);
+                }}
                 onPhotoUpload={handlePhotoUpload}
                 onStartCamera={startCamera}
                 onDeleteIdentity={() => setShowDeleteModal(true)}
@@ -6121,6 +6234,7 @@ function App() {
                 avgContinuity={avgContinuity}
                 activeRequests={activeRequests}
                 expertPresence={expertPresence}
+                verifiedExperts={verifiedExperts}
                 setShowAddMachineModal={handleOpenAddMachine}
                 setShowReportIssueModal={handleOpenDiagnosisModal}
                 transactionHistory={transactionHistory}
@@ -6161,7 +6275,11 @@ function App() {
                 isDemo={isDemo}
                 onProgressUpdate={handleUpdateJobProgress}
                 onMarkComplete={handleMarkJobComplete}
-                onOpenChat={handleOpenChatFromActiveJob}
+                onOpenChat={(jobId) => {
+                  const chat = producerChats.find(c => c.jobId === jobId || c.id === jobId);
+                  if (chat) setActiveChatId(chat.id || chat.jobId);
+                  setActiveTab('messages');
+                }}
               />
             );
           case "messages":
@@ -6246,7 +6364,12 @@ function App() {
                 setIsEditing={setIsEditingProfile}
                 onSave={(newData) => {
                   setProfileData({ ...profileData, ...newData });
-                  handleSaveConsumerProfile();
+                  handleSaveConsumerProfile(newData);
+                  const complete = !!(
+                    newData.firstName?.trim() &&
+                    newData.phone?.trim()
+                  );
+                  setShowCompleteProfileBanner(!complete);
                 }}
                 onPhotoUpload={handlePhotoUpload}
                 onStartCamera={startCamera}
