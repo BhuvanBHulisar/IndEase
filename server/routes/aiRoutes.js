@@ -87,7 +87,7 @@ router.post('/match-expert', protect, async (req, res) => {
             FROM users u
             JOIN producer_profiles pp ON pp.user_id = u.id
             WHERE u.role = 'producer'
-            AND u.status = 'active'
+            AND pp.status = 'available'
             ORDER BY pp.avg_rating DESC
         `);
 

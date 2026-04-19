@@ -12,11 +12,11 @@ router.get('/experts', auth, async (req, res) => {
             SELECT u.id, 
                    CONCAT(u.first_name, ' ', u.last_name) as name,
                    u.first_name, u.last_name,
-                   pp.specialization, pp.avg_rating as rating,
-                   u.status
+                   pp.skills, pp.rating,
+                   pp.status
             FROM users u
             JOIN producer_profiles pp ON pp.user_id = u.id  
-            WHERE u.role = 'producer' AND u.status = 'active'
+            WHERE u.role = 'producer' AND pp.status = 'available'
         `);
         res.json(result.rows);
     } catch (err) {

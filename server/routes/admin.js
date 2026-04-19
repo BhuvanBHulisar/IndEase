@@ -944,10 +944,13 @@ router.get('/db/:table', adminOnly, async (req, res) => {
     return res.status(400).json({ error: 'Table not allowed' });
   try {
     const { rows } = await db.query(
-      `SELECT * FROM ${table} ORDER BY created_at DESC NULLS LAST LIMIT 500`
+      `SELECT * FROM ${table} LIMIT 500`
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: 'Failed' }); }
+  } catch (err) { 
+    console.error(`DB Fetch Error for ${table}:`, err);
+    res.status(500).json({ error: 'Failed retrieving data' }); 
+  }
 });
 
 router.delete('/db/:table/:id', adminOnly, async (req, res) => {

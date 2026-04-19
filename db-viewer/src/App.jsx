@@ -2,28 +2,54 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 // SVG Icons
-const TrashIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const TrashIcon = ({ size = 16, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M3 6h18"></path>
     <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
     <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
   </svg>
 );
 
-const DatabaseIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-    <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
-    <path d="M3 12A9 3 0 0 0 21 12"></path>
+const Shield = ({ size = 24, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
   </svg>
 );
 
-const SearchIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const SearchIcon = ({ size = 18, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="11" cy="11" r="8"></circle>
     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
   </svg>
 );
+
+const AlertCircle = ({ size = 24, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="8" x2="12" y2="12"></line>
+    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+  </svg>
+);
+
+const ChevronLeft = ({ size = 16, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+);
+
+const ChevronRight = ({ size = 16, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m9 18 6-6-6-6"/>
+  </svg>
+);
+
+const DatabaseIcon = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+    <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
+    <path d="M3 12A9 3 0 0 0 21 12"></path>
+  </svg>
+)
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('db_viewer_token') || '');
@@ -43,7 +69,6 @@ export default function App() {
 
   const [confirmDelete, setConfirmDelete] = useState({ open: false, row: null, table: null });
 
-  // Handle Login
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -73,16 +98,11 @@ export default function App() {
     setSelectedTable(null);
   };
 
-  // Fetch Tables & Counts
   useEffect(() => {
-    if (token) {
-      fetchCounts();
-    }
+    if (token) fetchCounts();
   }, [token]);
 
-  const getHeaders = () => ({
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const getHeaders = () => ({ headers: { Authorization: `Bearer ${token}` } });
 
   const fetchCounts = async () => {
     setLoading(true);
@@ -96,11 +116,8 @@ export default function App() {
         setSelectedTable(tables[0]);
       }
     } catch (err) {
-      if (err.response && err.response.status === 401) {
-        logout();
-      } else {
-        setError("Failed to fetch tables. Is server running?");
-      }
+      if (err.response?.status === 401) logout();
+      else setError("Failed to fetch tables. Is server running?");
     } finally {
       setLoading(false);
     }
@@ -123,9 +140,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (selectedTable && token) {
-      fetchTableData(selectedTable);
-    }
+    if (selectedTable && token) fetchTableData(selectedTable);
   }, [selectedTable, token]);
 
   const handleDelete = async () => {
@@ -140,41 +155,59 @@ export default function App() {
     }
   };
 
+  // --- LOGIN VIEW ---
   if (!token) {
     return (
-      <div style={styles.loginContainer}>
-        <div style={styles.loginCard}>
-          <div style={styles.loginHeader}>
-            <DatabaseIcon />
-            <div>
-              <h2 style={{color: 'var(--primary-blue)', margin: 0}}>IndEase</h2>
-              <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Database Viewer</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+        <div className="w-full max-w-md p-8 bg-white border border-slate-200 rounded-3xl shadow-xl">
+          <div className="flex flex-col items-center gap-4 mb-8">
+            <div className="w-16 h-16 bg-[#0d9488]/10 text-[#0d9488] rounded-full flex items-center justify-center">
+              <Shield size={32} />
+            </div>
+            <div className="text-center">
+              <h2 className="text-2xl font-black tracking-tight">
+                <span className="text-[#0d9488]">INDEASE</span> <span className="text-slate-900">ADMIN</span>
+              </h2>
+              <p className="text-sm font-semibold text-slate-500 mt-1">Data Explorer Access</p>
             </div>
           </div>
-          {error && <div style={styles.errorBanner}>{error}</div>}
-          <form onSubmit={handleLogin} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label>Admin Email</label>
+          
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium flex items-center gap-2">
+              <AlertCircle size={20} className="shrink-0" />
+              {error}
+            </div>
+          )}
+          
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-widest pl-1">Admin Email</label>
               <input 
                 type="email"
-                style={styles.input}
+                className="w-full px-4 py-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all"
                 value={authForm.email} 
                 onChange={e => setAuthForm({...authForm, email: e.target.value})} 
+                placeholder="admin@indease.com"
                 required
               />
             </div>
-            <div style={styles.inputGroup}>
-              <label>Password</label>
+            <div className="space-y-1.5">
+               <label className="text-xs font-bold text-slate-600 uppercase tracking-widest pl-1">Password</label>
               <input 
                 type="password"
-                style={styles.input}
+                className="w-full px-4 py-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all"
                 value={authForm.password} 
                 onChange={e => setAuthForm({...authForm, password: e.target.value})} 
+                placeholder="••••••••"
                 required
               />
             </div>
-            <button type="submit" style={styles.btnPrimary} disabled={loading}>
-              {loading ? 'Connecting...' : 'Connect'}
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full py-4 px-4 rounded-xl bg-[#0d9488] hover:bg-teal-700 text-white text-base font-bold transition-all shadow-md hover:shadow-lg disabled:opacity-50 mt-4"
+            >
+              {loading ? 'Authenticating...' : 'Sign In'}
             </button>
           </form>
         </div>
@@ -182,184 +215,265 @@ export default function App() {
     );
   }
 
-  // Filter and Pagination
+  // --- DATA OPERATIONS ---
   const filteredData = tableData.filter(row => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
-    return Object.values(row).some(val => 
-      val !== null && val !== undefined && val.toString().toLowerCase().includes(q)
-    );
+    return Object.values(row).some(val => val !== null && val !== undefined && val.toString().toLowerCase().includes(q));
   });
 
   const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
   const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-
   const columns = tableData.length > 0 ? Object.keys(tableData[0]) : [];
 
   const renderCellContent = (key, val) => {
-    if (val === null || val === undefined) return <span style={styles.nullText}>null</span>;
-    if (typeof val === 'object') return JSON.stringify(val);
+    if (val === null || val === undefined) return <span className="text-slate-400 italic font-normal">null</span>;
+    if (typeof val === 'object') return <span>{JSON.stringify(val)}</span>;
     
     const lowerKey = key.toLowerCase();
     if (lowerKey.includes('password') || lowerKey.includes('token') || lowerKey.includes('secret')) {
-      return "••••••";
+      return <span className="text-slate-400">••••••••</span>;
     }
 
     if (lowerKey === 'status' || lowerKey === 'role') {
-      const color = val === 'completed' || val === 'approved' || val === 'admin' ? 'var(--teal-accent)' : 
-                    val === 'pending' ? '#f59e0b' : 
-                    val === 'consumer' ? 'var(--primary-blue)' :
-                    val === 'producer' ? '#8b5cf6' :
-                    '#64748b';
-      return <span style={{...styles.badge, backgroundColor: `${color}20`, color: color, border: `1px solid ${color}40`}}>{val}</span>;
+      let badgeClasses = "px-3 py-1 rounded-full text-[11px] font-bold tracking-widest uppercase ";
+      
+      if (val === 'completed' || val === 'approved' || val === 'admin') badgeClasses += "bg-emerald-100 text-emerald-700";
+      else if (val === 'pending') badgeClasses += "bg-amber-100 text-amber-700";
+      else if (val === 'consumer') badgeClasses += "bg-blue-100 text-blue-700";
+      else if (val === 'producer') badgeClasses += "bg-indigo-100 text-indigo-700";
+      else badgeClasses += "bg-slate-100 text-slate-600";
+      
+      return <span className={badgeClasses}>{val}</span>;
     }
 
     if (typeof val === 'boolean') {
-      return val ? 'true' : 'false';
+      return <span className={`font-bold ${val ? 'text-[#0d9488]' : 'text-slate-500'}`}>{val ? 'true' : 'false'}</span>;
     }
 
-    // truncate long text
     const strVal = String(val);
-    if (strVal.length > 50) return strVal.substring(0, 50) + '...';
-    
-    return strVal;
+    if (strVal.length > 50) return <span className="text-slate-600">{strVal.substring(0, 50)}...</span>;
+    return <span className="text-slate-700">{strVal}</span>;
   };
 
   return (
-    <div style={styles.layout}>
-      {/* Sidebar */}
-      <div style={styles.sidebar}>
-        <div style={styles.sidebarHeader}>
-          <DatabaseIcon />
-          <h2 style={{fontSize: '1.2rem', margin: 0}}>DB Viewer</h2>
-        </div>
-        <div style={styles.sidebarContent}>
-          {tablesList.map(t => (
-            <div 
-              key={t} 
-              onClick={() => setSelectedTable(t)}
-              style={{
-                ...styles.tableItem, 
-                backgroundColor: selectedTable === t ? 'var(--surface2-color)' : 'transparent',
-                borderLeft: selectedTable === t ? '3px solid var(--primary-blue)' : '3px solid transparent'
-              }}
+    <div className="flex flex-col h-screen bg-[#f8fafc] text-slate-900 font-sans">
+      
+      {/* Top Header */}
+      <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0">
+         <div className="flex items-center gap-2">
+            <h1 className="text-lg font-black tracking-tight">
+               <span className="text-[#0d9488]">INDEASE</span> <span className="text-slate-900">ADMIN</span>
+            </h1>
+         </div>
+         
+         <div className="flex items-center gap-5">
+            {/* Mock Dark/Bell toggle matching UI screenshot */}
+            <div className="flex items-center gap-4 text-slate-500 pr-5 border-r border-slate-200">
+               <button className="hover:text-slate-900 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+               </button>
+               <button className="hover:text-slate-900 transition-colors relative">
+                  <BellIcon size={20} />
+               </button>
+            </div>
+            
+            {/* Avatar Section */}
+            <div className="flex items-center gap-3">
+               <div className="text-right hidden sm:block">
+                  <p className="text-sm font-bold text-slate-900 leading-tight">Admin Root</p>
+                  <p className="text-xs font-semibold text-slate-500">Database Viewer</p>
+               </div>
+               <div className="w-10 h-10 rounded-full bg-[#0d9488] text-white flex items-center justify-center font-bold text-sm tracking-widest shadow-sm">
+                  AR
+               </div>
+            </div>
+         </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+         {/* Sidebar */}
+         <div className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-10 shadow-sm">
+         <div className="flex-1 overflow-y-auto p-4 space-y-1">
+            <div className="text-[10px] font-black uppercase tracking-widest text-[#0d9488] mb-4 px-3 mt-2">Database Tables</div>
+            {tablesList.map(t => {
+               const isActive = selectedTable === t;
+               return (
+               <button 
+                  key={t} 
+                  onClick={() => setSelectedTable(t)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive ? 'bg-[#0d9488]/10 text-[#0d9488]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+               >
+                  <div className="flex items-center gap-3">
+                     <DatabaseIcon size={16} className={isActive ? "text-[#0d9488]" : "text-slate-400"} />
+                     <span className="truncate tracking-tight capitalize">{t.replace(/_/g, ' ')}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isActive ? 'bg-[#0d9488] text-white' : 'bg-slate-100 text-slate-500'}`}>
+                     {counts[t] || 0}
+                  </span>
+               </button>
+               );
+            })}
+         </div>
+         
+         <div className="p-5 border-t border-slate-200">
+            <button 
+               onClick={logout} 
+               className="w-full py-3 px-4 rounded-xl bg-slate-50 text-slate-600 font-bold hover:bg-red-50 hover:text-red-600 border border-slate-200 hover:border-red-200 transition-all shadow-sm"
             >
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
-                <span style={{color: selectedTable === t ? 'var(--primary-blue)' : 'var(--text-main)'}}>{t}</span>
-                <span style={styles.countBadge}>{counts[t] || 0}</span>
-              </div>
+               Sign Out
+            </button>
+         </div>
+         </div>
+
+         {/* Main Content Pane */}
+         <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50">
+         
+         {/* Top Actions Bar */}
+         <div className="px-8 py-6 flex items-center justify-between border-b border-slate-200 bg-white">
+            <div>
+               <h2 className="text-2xl font-black text-slate-900 capitalize tracking-tight mb-1">{selectedTable?.replace(/_/g, ' ')}</h2>
+               <p className="text-sm font-semibold text-slate-500">{tableData.length} records retrieved</p>
             </div>
-          ))}
-        </div>
-        <div style={styles.sidebarFooter}>
-          <button onClick={logout} style={styles.btnLogout}>Logout</button>
-        </div>
+            
+            <div className="flex items-center gap-3">
+               <div className="relative">
+               <SearchIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+               <input 
+                  type="text" 
+                  placeholder="Search records..." 
+                  className="w-72 pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all placeholder:text-slate-400"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+               />
+               </div>
+               <button 
+                  onClick={() => fetchTableData(selectedTable)} 
+                  className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+               >
+                  Refresh Data
+               </button>
+            </div>
+         </div>
+
+         {error && (
+            <div className="mx-8 mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 font-semibold flex items-center gap-3 shadow-sm">
+               <AlertCircle size={20} className="shrink-0" />
+               {error}
+            </div>
+         )}
+
+         {/* Data Grid Area */}
+         <div className="flex-1 overflow-auto p-8">
+            {loading ? (
+               <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4">
+               <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-[#0d9488] animate-spin" />
+               <p className="font-bold text-sm tracking-wide">Syncing data...</p>
+               </div>
+            ) : tableData.length === 0 ? (
+               <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4">
+               <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center border border-slate-200 shadow-sm">
+                  <DatabaseIcon size={32} className="text-slate-300" />
+               </div>
+               <p className="font-bold text-slate-500">No records found mapped to this table.</p>
+               </div>
+            ) : (
+               <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+               <div className="overflow-x-auto">
+                  <table className="w-full text-left whitespace-nowrap">
+                     <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                     <tr>
+                        <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest w-16 text-center">Actions</th>
+                        {columns.map(col => (
+                           <th key={col} className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                           {col.replace(/_/g, ' ')}
+                           </th>
+                        ))}
+                     </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                     {paginatedData.map((row, idx) => (
+                        <tr key={row.id || typeof row === 'object' ? JSON.stringify(row) : idx} className="hover:bg-slate-50/80 transition-colors">
+                           <td className="px-6 py-3 text-center">
+                           <button 
+                              onClick={() => setConfirmDelete({open: true, row, table: selectedTable})}
+                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                              title="Delete Record"
+                           >
+                              <TrashIcon size={16} />
+                           </button>
+                           </td>
+                           {columns.map(col => (
+                           <td key={col} className="px-6 py-3 text-[13px] font-semibold font-mono text-slate-600 max-w-[300px] truncate">
+                              {renderCellContent(col, row[col])}
+                           </td>
+                           ))}
+                        </tr>
+                     ))}
+                     </tbody>
+                  </table>
+               </div>
+               </div>
+            )}
+         </div>
+
+         {/* Pagination Bar */}
+         {!loading && tableData.length > 0 && (
+            <footer className="h-20 bg-white border-t border-slate-200 px-8 flex items-center justify-between shrink-0">
+               <p className="text-sm font-semibold text-slate-500">
+               Showing <span className="text-slate-900">{(currentPage-1)*rowsPerPage + 1}</span> to <span className="text-slate-900">{Math.min(currentPage*rowsPerPage, filteredData.length)}</span> of <span className="text-slate-900">{filteredData.length}</span> results
+               </p>
+               
+               <div className="flex items-center gap-2">
+               <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-all font-bold"
+               >
+                  <ChevronLeft size={18} />
+               </button>
+               <div className="font-bold text-sm text-slate-700 px-3 border border-slate-200 rounded-xl h-10 flex items-center justify-center">
+                  Page {currentPage} of {totalPages}
+               </div>
+               <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-all font-bold"
+               >
+                  <ChevronRight size={18} />
+               </button>
+               </div>
+            </footer>
+         )}
+         </div>
       </div>
 
-      {/* Main Content */}
-      <div style={styles.main}>
-        {/* Header */}
-        <div style={styles.header}>
-          <div>
-            <h1 style={{fontSize: '1.5rem', textTransform: 'capitalize'}}>{selectedTable?.replace(/_/g, ' ')}</h1>
-            <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{tableData.length} records found</p>
-          </div>
-          <div style={styles.searchBox}>
-            <SearchIcon />
-            <input 
-              type="text" 
-              placeholder="Search in table..." 
-              style={styles.searchInput}
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-            <button onClick={() => fetchTableData(selectedTable)} style={styles.btnRefresh}>Refresh</button>
-          </div>
-        </div>
-
-        {/* Error/Loading */}
-        {error && <div style={styles.errorBanner}>{error}</div>}
-
-        {/* Table Area */}
-        <div style={styles.tableContainer}>
-          {loading ? (
-            <div style={styles.centerMsg}>Loading data...</div>
-          ) : tableData.length === 0 ? (
-            <div style={styles.centerMsg}>No records found in this table.</div>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Actions</th>
-                  {columns.map(col => (
-                    <th key={col} style={styles.th}>{col}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedData.map(row => (
-                  <tr key={row.id || JSON.stringify(row)} style={styles.tr}>
-                    <td style={styles.td}>
-                      <button 
-                        onClick={() => setConfirmDelete({open: true, row, table: selectedTable})}
-                        style={styles.btnDelete}
-                        title="Delete Record"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </td>
-                    {columns.map(col => (
-                      <td key={col} style={styles.td}>
-                        {renderCellContent(col, row[col])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Pagination Details */}
-        {!loading && tableData.length > 0 && (
-          <div style={styles.pagination}>
-            <span style={{color: 'var(--text-muted)'}}>
-              Showing {(currentPage-1)*rowsPerPage + 1} to {Math.min(currentPage*rowsPerPage, filteredData.length)} of {filteredData.length}
-            </span>
-            <div style={{display: 'flex', gap: '0.5rem'}}>
-              <button 
-                style={styles.btnPage} 
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              >
-                Prev
-              </button>
-              <button 
-                style={styles.btnPage} 
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Confirm Delete Modal */}
+      {/* Modern Pop / Modal for Deletion matches light theme */}
       {confirmDelete.open && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <h3 style={{margin: '0 0 1rem 0', color: 'var(--text-main)'}}>Delete this record?</h3>
-            <p style={{color: 'var(--text-muted)', marginBottom: '1.5rem'}}>
-              Are you sure you want to delete record <strong>{confirmDelete.row?.id}</strong> from <strong>{confirmDelete.table}</strong>? This action cannot be undone.
-            </p>
-            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem'}}>
-              <button onClick={() => setConfirmDelete({open: false, row: null, table: null})} style={styles.btnCancel}>Cancel</button>
-              <button onClick={handleDelete} style={{...styles.btnPrimary, backgroundColor: 'var(--danger-color)'}}>Delete</button>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-8 text-center pt-10">
+              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-sm">
+                <TrashIcon size={24} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Delete record?</h3>
+              <p className="text-sm font-semibold text-slate-500 leading-relaxed px-2">
+                Drop <span className="font-bold text-slate-900">{confirmDelete.row?.id ? `ID #${confirmDelete.row.id.substring(0,8)}` : 'this record'}</span> from <span className="font-black text-[#0d9488]">{confirmDelete.table?.replace(/_/g, ' ')}</span>? This action cannot be reversed.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 p-8 pt-2">
+              <button 
+                onClick={() => setConfirmDelete({open: false, row: null, table: null})} 
+                className="py-3.5 px-4 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all text-sm"
+              >
+                Keep it
+              </button>
+              <button 
+                onClick={handleDelete} 
+                className="py-3.5 px-4 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all shadow-md hover:shadow-lg text-sm tracking-wide"
+              >
+                Yes, Delete
+              </button>
             </div>
           </div>
         </div>
@@ -368,110 +482,6 @@ export default function App() {
   );
 }
 
-const styles = {
-  loginContainer: {
-    height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-color)'
-  },
-  loginCard: {
-    backgroundColor: 'var(--surface-color)', padding: '2.5rem', borderRadius: '12px', width: '100%', maxWidth: '400px', border: '1px solid var(--border-color)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-  },
-  loginHeader: {
-    display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem'
-  },
-  form: {
-    display: 'flex', flexDirection: 'column', gap: '1.25rem'
-  },
-  inputGroup: {
-    display: 'flex', flexDirection: 'column', gap: '0.5rem'
-  },
-  input: {
-    padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--surface2-color)', color: 'var(--text-main)', outline: 'none'
-  },
-  btnPrimary: {
-    padding: '0.75rem', borderRadius: '6px', backgroundColor: 'var(--primary-blue)', color: 'white', fontWeight: 'bold', border: 'none', cursor: 'pointer', marginTop: '0.5rem'
-  },
-  errorBanner: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', padding: '0.75rem', borderRadius: '6px', marginBottom: '1.5rem', border: '1px solid var(--danger-color)', fontSize: '0.9rem'
-  },
-  layout: {
-    display: 'flex', height: '100vh', overflow: 'hidden'
-  },
-  sidebar: {
-    width: '240px', backgroundColor: 'var(--surface-color)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column'
-  },
-  sidebarHeader: {
-    padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--primary-blue)'
-  },
-  sidebarContent: {
-    flex: 1, overflowY: 'auto', padding: '1rem 0'
-  },
-  tableItem: {
-    padding: '0.75rem 1.5rem', cursor: 'pointer', display: 'flex', transition: 'background 0.2s', fontSize: '0.95rem'
-  },
-  countBadge: {
-    backgroundColor: 'var(--surface-color)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-muted)'
-  },
-  sidebarFooter: {
-    padding: '1rem', borderTop: '1px solid var(--border-color)'
-  },
-  btnLogout: {
-    width: '100%', padding: '0.75rem', borderRadius: '6px', backgroundColor: 'var(--surface2-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)'
-  },
-  main: {
-    flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)', overflow: 'hidden'
-  },
-  header: {
-    padding: '1.5rem 2rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-color)'
-  },
-  searchBox: {
-    display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--surface-color)', padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid var(--border-color)'
-  },
-  searchInput: {
-    background: 'none', border: 'none', color: 'var(--text-main)', outline: 'none', width: '200px'
-  },
-  btnRefresh: {
-    marginLeft: '1rem', padding: '0.5rem 1rem', borderRadius: '4px', backgroundColor: 'var(--surface2-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)'
-  },
-  tableContainer: {
-    flex: 1, overflow: 'auto', padding: '0'
-  },
-  table: {
-    width: '100%', borderCollapse: 'collapse', textAlign: 'left', whiteSpace: 'nowrap'
-  },
-  th: {
-    padding: '1rem', borderBottom: '2px solid var(--border-color)', position: 'sticky', top: 0, backgroundColor: 'var(--bg-color)', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', zIndex: 10
-  },
-  tr: {
-    borderBottom: '1px solid var(--border-color)'
-  },
-  td: {
-    padding: '0.75rem 1rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', fontSize: '0.9rem'
-  },
-  badge: {
-    padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-block'
-  },
-  nullText: {
-    color: 'var(--text-muted)', fontStyle: 'italic'
-  },
-  btnDelete: {
-    color: 'var(--danger-color)', padding: '0.25rem', opacity: 0.7, transition: 'opacity 0.2s', cursor: 'pointer'
-  },
-  centerMsg: {
-    display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-muted)'
-  },
-  pagination: {
-    padding: '1rem 2rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-color)'
-  },
-  btnPage: {
-    padding: '0.5rem 1rem', borderRadius: '4px', backgroundColor: 'var(--surface-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)'
-  },
-  modalOverlay: {
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100
-  },
-  modal: {
-    backgroundColor: 'var(--surface-color)', padding: '2rem', borderRadius: '8px', border: '1px solid var(--border-color)', width: '100%', maxWidth: '450px'
-  },
-  btnCancel: {
-    padding: '0.75rem 1rem', borderRadius: '4px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)'
-  }
-};
+const BellIcon = ({ size = 20 }) => (
+   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+);

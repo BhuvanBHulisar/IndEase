@@ -348,7 +348,7 @@ const Login = () => {
                   opacity: 0.7,
                 }}
               >
-                &copy; 2026 OrigiNode Systems.
+                &copy; 2026 IndEase Systems.
               </Typography>
               <Box sx={{ mt: 1.5, textAlign: "center" }}>
                 <Typography variant="caption" color="text.secondary">
