@@ -31,6 +31,15 @@ import { startExpertPerformanceCron } from "./services/expertPerformanceService.
 import { ensureDemoSchema, ensureDemoAccounts, seedDemoData } from "./services/demoService.js";
 import demoRoutes from "./routes/demoRoutes.js";
 import healthRouter from './routes/healthRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import path from 'path';
+import fs from 'fs';
+import cron from 'node-cron';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const server = createServer(app);
@@ -132,6 +141,12 @@ app.use("/api/demo", demoRoutes);
 import aiRoutes from './routes/aiRoutes.js';
 app.use('/api/ai', aiRoutes);
 
+// Serve uploaded videos
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Upload route
+app.use('/api/upload', uploadRoutes);
+
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
@@ -209,6 +224,25 @@ async function startServer() {
       console.log('[DB] AI analysis columns verified ✓');
 
       startExpertPerformanceCron();
+
+      // Daily cron: delete orphaned videos older than 7 days
+      cron.schedule('0 2 * * *', () => {
+        const dir = path.join(__dirname, 'uploads', 'videos');
+        if (!fs.existsSync(dir)) return;
+        const files = fs.readdirSync(dir);
+        const now = Date.now();
+        let deleted = 0;
+        files.forEach(file => {
+          const filePath = path.join(dir, file);
+          const stat = fs.statSync(filePath);
+          const ageInDays = (now - stat.mtimeMs) / (1000 * 60 * 60 * 24);
+          if (ageInDays > 7) {
+            fs.unlinkSync(filePath);
+            deleted++;
+          }
+        });
+        if (deleted > 0) console.log(`[Cleanup] Deleted ${deleted} old video(s)`);
+      });
 
       console.log("[DB] Connected and schemas verified ✓");
       return;

@@ -10,7 +10,17 @@ export default function JobDetailsModal({ job, onAcceptAndChat, onDecline, onClo
   const machineType = job.ai_machine_type || job.ai_type || job.machine_type || 'Industrial Machine';
   const issueSummary = job.ai_issue || job.ai_issue_summary || job.issue_description || job.issue || 'No summary available';
   const fullDescription = job.issue_description || job.issue || issueSummary;
-  const videoUrl = job.video_url || job.videoUrl || null;
+  const rawVideoUrl = job.video_url || job.videoUrl || null;
+
+  const getVideoSrc = (videoUrl) => {
+    if (!videoUrl) return null;
+    if (videoUrl.startsWith('http')) return videoUrl;
+    // Relative path — build full server URL
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+    return `${base}${videoUrl}`;
+  };
+
+  const videoSrc = getVideoSrc(rawVideoUrl);
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
@@ -90,10 +100,10 @@ export default function JobDetailsModal({ job, onAcceptAndChat, onDecline, onClo
               <Video size={14} className="text-slate-500" />
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Consumer Recorded Video</span>
             </div>
-            {videoUrl ? (
+            {videoSrc ? (
               <div className="rounded-xl overflow-hidden border border-slate-100 bg-slate-900">
                 <video
-                  src={videoUrl}
+                  src={videoSrc}
                   controls
                   className="w-full max-h-48 object-cover"
                   preload="metadata"
@@ -101,9 +111,9 @@ export default function JobDetailsModal({ job, onAcceptAndChat, onDecline, onClo
                 <p className="text-center text-[10px] text-slate-400 py-2 font-medium">Consumer's fault video</p>
               </div>
             ) : (
-              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-6 text-center">
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center">
                 <Video size={24} className="text-slate-300 mx-auto mb-2" />
-                <p className="text-xs text-slate-400 font-medium">No video provided</p>
+                <p className="text-xs text-slate-400 font-medium">No video uploaded for this request.</p>
               </div>
             )}
           </div>

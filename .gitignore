@@ -39,3 +39,7 @@ Thumbs.db
 
 db-viewer/node_modules/
 db-viewer/dist/
+
+# User uploaded videos (temp storage)
+uploads/
+server/uploads/

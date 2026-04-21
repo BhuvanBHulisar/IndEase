@@ -1,10 +1,36 @@
 import db from '../config/db.js';
 import * as notificationController from './notificationController.js';
+import fs from 'fs';
+import path from 'path';
 import {
     updateExpertPoints,
     wasAcceptedUnderOneHour,
     wasCompletedUnderTwentyFourHours
 } from '../services/expertPerformanceService.js';
+
+// Auto-delete video after job completion
+const deleteJobVideo = async (jobId) => {
+  try {
+    const result = await db.query(
+      'SELECT video_url FROM service_requests WHERE id = $1',
+      [jobId]
+    );
+    const videoUrl = result.rows[0]?.video_url;
+    if (videoUrl && videoUrl.startsWith('/uploads/videos/')) {
+      const filePath = path.join(process.cwd(), videoUrl);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`[Upload] Video deleted for completed job: ${jobId}`);
+      }
+      await db.query(
+        "UPDATE service_requests SET video_url = NULL WHERE id = $1",
+        [jobId]
+      );
+    }
+  } catch (err) {
+    console.error('[Upload] Failed to delete video:', err.message);
+  }
+};
 
 // @desc    Broadcast a new machine issue (Consumer)
 // @route   POST /api/jobs/broadcast
@@ -349,6 +375,9 @@ export const completeWork = async (req, res) => {
             if (completedWithinTwentyFourHours) {
                 await updateExpertPoints(req.user.id, 10, 'Job completed under 24 hours');
             }
+
+            // Auto-delete consumer video now that job is done
+            await deleteJobVideo(jobId);
 
             if (io) {
                 io.emit(`status_update_${jobId}`, { status: 'completed' });

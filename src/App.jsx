@@ -2883,19 +2883,30 @@ function App() {
 
     // Real mode: fire API, run in background regardless of modal state
     try {
-      const TEST_VIDEOS = [
-        'https://assets.mixkit.co/videos/preview/mixkit-robotic-arm-moving-on-a-production-line-4384-large.mp4',
-        'https://assets.mixkit.co/videos/preview/mixkit-industrial-factory-worker-checking-pills-on-conveyor-belt-4340-large.mp4',
-        'https://assets.mixkit.co/videos/preview/mixkit-metal-lathe-polishing-a-round-piece-of-steel-4345-large.mp4'
-      ];
-      const fallbackVideo = TEST_VIDEOS[Math.floor(Math.random() * TEST_VIDEOS.length)];
-      
+      // Upload video file if one was selected by the user
+      let finalVideoUrl = null;
+      if (videoFile) {
+        try {
+          const formData = new FormData();
+          formData.append('video', videoFile);
+          const uploadRes = await api.post('/upload/video', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          if (uploadRes.data.success) {
+            finalVideoUrl = uploadRes.data.videoUrl;
+          }
+        } catch (err) {
+          console.error('[Video] Upload failed, continuing without video:', err);
+          // Non-blocking — do not abort the service request
+        }
+      }
+
       const broadcastRes = await api.post('/jobs/broadcast', {
         machineId: activeJobMachine.id,
         issueDescription: diagnosisDesc || 'Routine maintenance check',
         priority: 'high',
-        videoUrl: typeof uploadedVideoPath !== 'undefined' && uploadedVideoPath ? uploadedVideoPath : fallbackVideo,
-        // [NEW] AI analysis metadata
+        videoUrl: finalVideoUrl || null,
+        // AI analysis metadata
         aiMachineType: aiDiagnosis?.type || null,
         aiIssueSummary: aiDiagnosis?.issue || null,
         aiConfidence: aiDiagnosis?.confidence || null,
