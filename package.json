@@ -4,11 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:admin": "cd admin-portal && npm run dev",
+    "dev": "vite --port 5173",
+    "launch": "node start.js",
     "build": "vite build",
-    "build:admin": "cd admin-portal && npm run build",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {

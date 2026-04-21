@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
+    "dev": "nodemon --quiet index.js",
     "db:check": "node -e \"import db from './config/db.js'; db.query('SELECT 1').then(()=>{console.log('DB_OK'); process.exit(0);}).catch((e)=>{console.error('DB_ERR', e.code, e.message); process.exit(1);});\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

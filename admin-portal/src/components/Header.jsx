@@ -121,7 +121,7 @@ const Header = ({ onMenuClick }) => {
                         component="div"
                         sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '-0.5px' }}
                     >
-                        ORIGINODE <span style={{ color: theme.palette.text.primary }}>ADMIN</span>
+                        INDEASE <span style={{ color: theme.palette.text.primary }}>ADMIN</span>
                     </Typography>
                 </Box>
 

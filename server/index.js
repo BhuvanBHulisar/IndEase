@@ -1,3 +1,4 @@
+process.env.NODE_NO_WARNINGS = '1';
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -200,6 +201,13 @@ async function startServer() {
       await ensureDemoSchema();
       await ensureDemoAccounts();
       await seedDemoData();
+
+      // [NEW] AI Analysis column migrations (safe — only adds if not exists)
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ai_machine_type VARCHAR(100)`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ai_issue_summary TEXT`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ai_confidence INTEGER`);
+      console.log('[DB] AI analysis columns verified ✓');
+
       startExpertPerformanceCron();
 
       console.log("[DB] Connected and schemas verified ✓");

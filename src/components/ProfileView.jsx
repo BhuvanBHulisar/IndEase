@@ -149,23 +149,28 @@ export default function ProfileView({
         pincode:    formData.pincode,
       });
       if (res.data.success) {
+        // Use the server's returned user object as the source of truth
+        const updatedUser = res.data.user || {};
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
         localStorage.setItem('user', JSON.stringify({
           ...storedUser,
-          first_name: formData.firstName,
-          last_name:  formData.lastName,
-          company:    formData.organization,
-          phone:      formData.phone,
-          state:      formData.state,
-          city:       formData.city,
-          pincode:    formData.pincode,
+          ...updatedUser,
+          // Keep camelCase aliases in sync too
+          first_name:   formData.firstName,
+          last_name:    formData.lastName,
+          organization: formData.organization,
+          phone:        formData.phone,
+          state:        formData.state,
+          city:         formData.city,
+          pincode:      formData.pincode,
         }));
         if (onSave) onSave(formData);
         setIsEditing(false);
         alert('Profile updated successfully!');
       }
     } catch (err) {
-      alert('Failed to update profile');
+      const detail = err?.response?.data?.detail || err?.response?.data?.error || err.message;
+      alert('Failed to update profile: ' + detail);
     }
   };
 

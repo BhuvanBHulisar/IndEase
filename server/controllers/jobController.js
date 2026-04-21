@@ -9,7 +9,7 @@ import {
 // @desc    Broadcast a new machine issue (Consumer)
 // @route   POST /api/jobs/broadcast
 export const broadcastJob = async (req, res) => {
-    const { machineId, issueDescription, priority, videoUrl } = req.body;
+    const { machineId, issueDescription, priority, videoUrl, aiMachineType, aiIssueSummary, aiConfidence } = req.body;
     const io = req.app.get('socketio') || global.io;
     try {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -21,10 +21,15 @@ export const broadcastJob = async (req, res) => {
                 return res.status(404).json({ message: 'Machine node not found or access denied' });
             }
 
-            // 2. Insert into service requests ledger
+            // 2. Insert into service requests ledger (with AI analysis fields)
             const result = await db.query(
-                'INSERT INTO service_requests (machine_id, consumer_id, issue_description, priority, video_url, status, is_demo, first_broadcast_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING *',
-                [machineId, req.user.id, issueDescription, priority || 'normal', videoUrl, 'broadcast', !!req.user.is_demo]
+                `INSERT INTO service_requests
+                    (machine_id, consumer_id, issue_description, priority, video_url, status, is_demo, first_broadcast_at,
+                     ai_machine_type, ai_issue_summary, ai_confidence)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10)
+                 RETURNING *`,
+                [machineId, req.user.id, issueDescription, priority || 'normal', videoUrl, 'broadcast', !!req.user.is_demo,
+                 aiMachineType || null, aiIssueSummary || null, aiConfidence || null]
             );
 
             const newJob = result.rows[0];
@@ -422,20 +427,67 @@ export const declineJob = async (req, res) => {
                     });
                 }
             } else {
-                // No one on waitlist — revert job to broadcast so all experts see it again
-                await db.query(
-                    `UPDATE service_requests SET status = 'broadcast' WHERE id = $1 AND status = 'accepted'`,
-                    [jobId]
+                // [SMART AUTO-REASSIGN] No one on waitlist
+                // Find the next best available expert who has NOT already declined this job
+                // Exclude the current decliner too
+                const nextExpertResult = await db.query(
+                    `SELECT u.id, u.first_name, u.last_name, u.location,
+                            COALESCE(pp.rating, 5.0) as rating,
+                            pp.points
+                     FROM users u
+                     JOIN producer_profiles pp ON pp.user_id = u.id
+                     WHERE u.role = 'producer'
+                       AND pp.status = 'available'
+                       AND u.id != $1
+                       AND u.id NOT IN (
+                           SELECT dj.user_id FROM declined_jobs dj WHERE dj.request_id = $2
+                       )
+                     ORDER BY pp.points DESC, pp.rating DESC
+                     LIMIT 1`,
+                    [req.user.id, jobId]
                 );
-                if (io) {
+
+                if (nextExpertResult.rows.length > 0) {
+                    // Assign directly to next best expert
+                    const nextExpert = nextExpertResult.rows[0];
+                    await db.query(
+                        `UPDATE service_requests SET status = 'broadcast', producer_id = NULL WHERE id = $1`,
+                        [jobId]
+                    );
                     const jobResult = await db.query(
                         `SELECT sr.*, m.name as machine_name FROM service_requests sr
                          JOIN machines m ON sr.machine_id = m.id
                          WHERE sr.id = $1`,
                         [jobId]
                     );
-                    if (jobResult.rows[0]) {
-                        io.to('radar_room').emit('new_signal', jobResult.rows[0]);
+                    const job = jobResult.rows[0];
+                    if (io && job) {
+                        // Notify next best expert directly
+                        io.to(`user_${nextExpert.id}`).emit('new_signal', {
+                            ...job,
+                            _reassigned: true,
+                            message: `A service request needs your attention: ${job.machine_name}`
+                        });
+                        // Also broadcast to radar room for others
+                        io.to('radar_room').emit('new_signal', job);
+                        console.log(`[AutoReassign] Job ${jobId} reassigned notification sent to expert ${nextExpert.id}`);
+                    }
+                } else {
+                    // No eligible experts at all — revert to full broadcast
+                    await db.query(
+                        `UPDATE service_requests SET status = 'broadcast', producer_id = NULL WHERE id = $1`,
+                        [jobId]
+                    );
+                    if (io) {
+                        const jobResult = await db.query(
+                            `SELECT sr.*, m.name as machine_name FROM service_requests sr
+                             JOIN machines m ON sr.machine_id = m.id
+                             WHERE sr.id = $1`,
+                            [jobId]
+                        );
+                        if (jobResult.rows[0]) {
+                            io.to('radar_room').emit('new_signal', jobResult.rows[0]);
+                        }
                     }
                 }
             }

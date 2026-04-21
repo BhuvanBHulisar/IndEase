@@ -274,10 +274,10 @@ const JobCard = React.forwardRef(({ job, onAccept, onDecline, onJoinWaitlist, on
             Decline
           </button>
           <button
-            onClick={onAccept}
-            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 text-[12px] font-semibold text-white shadow-sm transition-all hover:bg-emerald-700"
+            onClick={onViewDetails}
+            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 text-[12px] font-semibold text-white shadow-sm transition-all hover:bg-blue-700"
           >
-            Accept
+            View & Accept
             <ChevronRight size={14} />
           </button>
         </div>

@@ -6,13 +6,12 @@ import { AppError } from '../middleware/error.middleware.js';
 import * as authService from '../services/auth.service.js';
 import { generateAccessToken, generateRefreshToken, hashToken } from '../utils/token.util.js';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema } from '../validators/auth.validator.js';
+import { logger } from '../utils/logger.js';
 
 export const googleAuthReact = async (req, res) => {
     try {
-        console.log("AUTH HIT - googleAuthReact");
-        console.log(req.body);
+        logger.info('AUTH HIT - googleAuthReact');
         const { idToken } = req.body;
-        console.log("idToken:", idToken);
         if (!idToken) return res.status(400).json({ error: 'Missing idToken' });
         let payload;
         try {
@@ -116,8 +115,7 @@ const cookieOptions = {
  */
 export const register = async (req, res) => {
     try {
-        console.log("AUTH HIT - register");
-        console.log(req.body);
+        logger.info('AUTH HIT - register', { email: req.body?.email, role: req.body?.role });
         const { email, password, role, firstName, lastName, phone, dob, organization } = req.body;
         const normalizedEmail = email.toLowerCase();
         const userRes = await db.query('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
@@ -195,9 +193,7 @@ export const socialLogin = async (req, res) => {
 
 export const login = async (req, res) => {
     try {
-        console.log("AUTH HIT - login");
-        console.log(req.body);
-        console.log('[Auth] Login attempt for:', req.body.email);
+        logger.info('AUTH HIT - login', { email: req.body?.email });
         const { email, password } = req.body;
         if (!email || !password) {
             return res.status(400).json({ message: 'Missing credentials.' });
@@ -212,26 +208,26 @@ export const login = async (req, res) => {
         );
 
         if (userRes.rows.length === 0) {
-            console.log('[Auth] Login failed: No such user -', normalizedEmail);
+            logger.info('Login failed: no such user', { email: normalizedEmail });
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         const user = userRes.rows[0];
 
         if (user.is_deleted) {
-            console.log('[Auth] Login blocked: User account deleted -', normalizedEmail);
+            logger.warn(`Login blocked: account deleted — ${normalizedEmail}`);
             return res.status(403).json({ message: 'Account has been removed. Contact support.' });
         }
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            console.log('[Auth] Login failed: Password mismatch for', normalizedEmail);
+            logger.info('Login failed: password mismatch', { email: normalizedEmail });
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         // Generate JWT token
         const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
         const token = generateAccessToken({ id: user.id, email: user.email, role: user.role, name });
-        console.log('[Auth] Login successful for', normalizedEmail, '(role:', user.role + ')');
+        logger.info(`Login successful for ${normalizedEmail} (role: ${user.role})`);
 
         const userData = {
             id: user.id,
@@ -370,7 +366,7 @@ export const getMe = async (req, res, next) => {
             return res.status(401).json({ message: 'Invalid identity format' });
         }
 
-        const result = await db.query('SELECT id, email, role, first_name, last_name, email_verified, organization, photo_url FROM users WHERE id = $1', [userId]);
+        const result = await db.query('SELECT id, email, role, first_name, last_name, email_verified, organization, photo_url, phone, city, state, pincode FROM users WHERE id = $1', [userId]);
         if (result.rows.length === 0) return res.status(401).json({ message: 'Identity lost' });
         res.json({ status: 'success', user: result.rows[0] });
     } catch (err) {
@@ -404,17 +400,17 @@ export const checkPhone = async (req, res, next) => {
  */
 export const googleAuthSuccess = async (req, res, next) => {
     try {
-        console.log('[Controller] googleAuthSuccess called');
+        logger.info('googleAuthSuccess called');
         const user = req.user;
         if (!user) {
-            console.error('[Controller] No user in googleAuthSuccess');
+            logger.error('No user in googleAuthSuccess');
             return res.redirect('http://localhost:5173/login?error=google_auth_failed');
         }
 
         // Generate JWT tokens
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
-        console.log('[Controller] Tokens generated:', { accessToken, refreshToken });
+        logger.info('Tokens generated successfully');
 
         // Store refresh token hash
         const hRT = hashToken(refreshToken);
@@ -422,18 +418,18 @@ export const googleAuthSuccess = async (req, res, next) => {
             'INSERT INTO auth_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
             [user.id, hRT, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
         );
-        console.log('[Controller] Refresh token stored');
+        logger.info('Refresh token stored');
 
         // Set httpOnly cookies
         res.cookie('accessToken', accessToken, { ...cookieOptions, httpOnly: true, maxAge: 15 * 60 * 1000 });
         res.cookie('refreshToken', refreshToken, { ...cookieOptions, httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
-        console.log('[Controller] Cookies set');
+        logger.info('Cookies set');
 
         // Redirect to frontend auth-success page with token in URL so React can persist it
         const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
         return res.redirect(`${clientUrl}/auth-success?token=${accessToken}`);
     } catch (err) {
-        console.error('[Controller] Industrial authentication via Google failed:', err);
+        logger.error('Industrial authentication via Google failed', err);
         const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
         return res.redirect(`${clientUrl}/login?error=google_auth_failed`);
     }

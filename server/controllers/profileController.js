@@ -227,27 +227,38 @@ export const updateProfileData = async (req, res) => {
         
         const { first_name, last_name, company, phone, city, state, pincode } = req.body;
         
+        // Use direct assignment (not COALESCE) so users can clear fields
         await db.query(
             `UPDATE users SET 
-                first_name = COALESCE($1, first_name),
-                last_name = COALESCE($2, last_name),
-                organization = COALESCE($3, organization),
-                phone = COALESCE($4, phone),
-                city = COALESCE($5, city),
-                state = COALESCE($6, state),
-                pincode = COALESCE($7, pincode)
+                first_name = $1,
+                last_name = $2,
+                organization = $3,
+                phone = $4,
+                city = $5,
+                state = $6,
+                pincode = $7
              WHERE id = $8`,
-            [first_name, last_name, company, phone, city, state, pincode, userId]
+            [
+                first_name  || null,
+                last_name   || null,
+                company     || null,
+                phone       || null,
+                city        || null,
+                state       || null,
+                pincode     || null,
+                userId
+            ]
         );
         
         const result = await db.query(
-            'SELECT * FROM users WHERE id = $1', [userId]
+            'SELECT id, email, role, first_name, last_name, organization, phone, city, state, pincode, photo_url FROM users WHERE id = $1',
+            [userId]
         );
         
         res.json({ success: true, user: result.rows[0] });
     } catch (err) {
         console.error('Profile update error:', err);
-        res.status(500).json({ error: 'Failed to update profile data' });
+        res.status(500).json({ error: 'Failed to update profile data', detail: err.message });
     }
 };
 

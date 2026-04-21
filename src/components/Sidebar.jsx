@@ -9,7 +9,8 @@ import {
   LogOut,
   Shield,
   Activity,
-  Briefcase
+  Briefcase,
+  ClipboardList
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -26,10 +27,11 @@ const getMainMenuItems = (role) => {
     ];
   }
   return [
-    { id: 'fleet',    label: 'Dashboard',    icon: LayoutDashboard },
-    { id: 'machines', label: 'My Machines',  icon: HardDrive },
-    { id: 'messages', label: 'Messages',     icon: MessageSquare },
-    { id: 'history',  label: 'Service Logs', icon: History },
+    { id: 'fleet',       label: 'Dashboard',    icon: LayoutDashboard },
+    { id: 'machines',    label: 'My Machines',  icon: HardDrive },
+    { id: 'my-requests', label: 'My Requests',  icon: ClipboardList, badge: true, badgeKey: 'activeRequests' },
+    { id: 'messages',    label: 'Messages',     icon: MessageSquare },
+    { id: 'history',     label: 'Service Logs', icon: History },
   ];
 };
 
@@ -38,7 +40,7 @@ const generalItems = [
   { id: 'support', label: 'Help & Support', icon: HelpCircle },
 ];
 
-const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user, role, activeJobsCount = 0, isOpen, setIsOpen }) => {
+const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user, role, activeJobsCount = 0, activeRequestsCount = 0, isOpen, setIsOpen }) => {
   const firstName = user?.firstName || 'User';
   const displayRole = role === 'consumer' ? 'Fleet Operator' : 'Service Expert';
   const isExpert = role === 'producer';
@@ -111,7 +113,12 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
                     <span className={`font-semibold text-sm tracking-tight ${isActive ? '' : 'text-slate-600'}`}>{item.label}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {item.badge && activeJobsCount > 0 && (
+                    {item.badge && item.badgeKey === 'activeRequests' && activeRequestsCount > 0 && (
+                      <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center">
+                        {activeRequestsCount}
+                      </span>
+                    )}
+                    {item.badge && item.badgeKey !== 'activeRequests' && activeJobsCount > 0 && (
                       <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center">
                         {activeJobsCount}
                       </span>

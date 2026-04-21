@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
-const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTab, onLogout, onClearData, role, onMarkAsRead, onMarkAllRead, socketReconnecting, onSearch, searchResults, onSearchResultClick, isDemo, activeJobsCount = 0 }) => {
+const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTab, onLogout, onClearData, role, onMarkAsRead, onMarkAllRead, socketReconnecting, onSearch, searchResults, onSearchResultClick, isDemo, activeJobsCount = 0, activeRequestsCount = 0 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
@@ -18,6 +18,7 @@ const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTa
         user={user}
         role={role}
         activeJobsCount={activeJobsCount}
+        activeRequestsCount={activeRequestsCount}
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
       />

@@ -81,6 +81,8 @@ import { SupportView } from "./components/SupportSettingsView";
 import ProducerDashboard from "./components/ProducerDashboard";
 import MachineDetailView from "./components/MachineDetailView";
 import ActiveJobsView from "./components/ActiveJobsView";
+import MyRequestsView from "./components/MyRequestsView";
+import JobDetailsModal from "./components/JobDetailsModal";
 import { generateInvoicePDF } from "./utils/invoiceGenerator";
 import { loadDemoStore, saveDemoStore, clearDemoStore, patchDemoStore } from "./utils/demoStore";
 import {
@@ -367,6 +369,21 @@ function App() {
   const [chatsLoading, setChatsLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [showReconnecting, setShowReconnecting] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [socket, setSocket] = useState(null);
+
+  // [FIX 1] Only show reconnect banner after 5 seconds of being disconnected
+  useEffect(() => {
+    let timer;
+    if (!socketConnected && authenticated) {
+      timer = setTimeout(() => setShowReconnecting(true), 5000);
+    } else {
+      setShowReconnecting(false);
+    }
+    return () => clearTimeout(timer);
+  }, [socketConnected, authenticated]);
 
   // Safety net — loading states can never be stuck forever (8s max)
   useEffect(() => {
@@ -415,11 +432,8 @@ function App() {
     return `origiNode_expert_terms_accepted_${identifier}`;
   }, []);
 
-  const [authChecking, setAuthChecking] = useState(true);
   // Instead of auto-logging in from localStorage on startup:
   // Only restore session if token is still valid
-  const [authenticated, setAuthenticated] = useState(false); // always start false
-
 
   // [NEW] LOGIN FORM STATE
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -432,7 +446,6 @@ function App() {
   };
   // --- CORE APPLICATION STATES ---
   const [view, setView] = useState("landing");
-  const [socket, setSocket] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [selectedMachineNode, setSelectedMachineNode] = useState(null);
@@ -873,6 +886,7 @@ function App() {
           issue_description: req.issue,
           created_at: req.timestamp || Date.now(),
           status: req.rawStatus || req.status,
+          video_url: req.video_url || req.videoUrl || req.videoPath || null,
         })),
     [activeRequests, declinedJobIds],
   );
@@ -898,6 +912,8 @@ function App() {
   });
   const [activeJobs, setActiveJobs] = useState([]);
   const [acceptingJobId, setAcceptingJobId] = useState(null);
+  const [showJobDetailsModal, setShowJobDetailsModal] = useState(false);
+  const [selectedJobDetails, setSelectedJobDetails] = useState(null);
   const [earningsStats, setEarningsStats] = useState({
     totalRevenue: 0,
     pendingPayout: 0,
@@ -1071,9 +1087,7 @@ function App() {
             location: data.location || "Not Set",
             phone: data.phone || phone,
             email: data.email,
-            id: String(data.id || "IND-88219")
-              .slice(0, 8)
-              .toUpperCase(),
+            id: String(data.id || "IND-88219"),
             skills: data.skills || [],
             bankAccountNumber: data.bank_account_number || "",
             ifscCode: data.ifsc_code || "",
@@ -1420,84 +1434,87 @@ function App() {
           });
       }
 
-      // 2. Initialize Socket Connection
-      const newSocket = io("http://localhost:5000");
-      if (user && user.id) {
-        newSocket.emit("identify", user.id);
-      }
-
-      newSocket.on("notification", (notif) => {
-        setNotifications((prev) => [notif, ...prev]);
-      });
-
-      newSocket.on("invoice_received", (data) => {
-        handlePayment(
-          `₹${data.amount}`,
-          data.message || "Expert Service Invoice",
-          data.requestId,
-        );
-      });
-
-      newSocket.on("status_update", (data) => {
-        if (data.status === "completed") {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              chatId: data.requestId,
-              sender: "system",
-              text: "✓ Service request marked as completed. Payment verified.",
-              time: new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-            },
-          ]);
-        }
-      });
-
-      newSocket.on("job_completed", (data) => {
-        if (role === "producer") setShowPaymentReceived(true);
-        if (data?.requestId) {
-          setChats((prev) =>
-            prev.map((c) =>
-              String(c.id) === String(data.requestId)
-                ? { ...c, status: "completed" }
-                : c,
-            ),
-          );
-        }
-      });
-
-      newSocket.on("new_signal", (newJob) => {
-        setRadarJobs((prev) => {
-          if (prev.some((j) => j.id === newJob.id)) return prev;
-          return [newJob, ...prev];
-        });
-      });
-
-      newSocket.on('waitlist_offer', (data) => {
-        setToast({
-          message: `A job you waitlisted is now available: ${data.machine_name}. Check incoming requests!`,
-          type: 'success'
-        });
-        fetchRadarJobs && fetchRadarJobs();
-      });
-
-      newSocket.on('disconnect', () => {
-          setSocketConnected(false);
-      });
-      newSocket.on('connect', () => {
-          setSocketConnected(true);
-      });
-
-      setSocket(newSocket);
-      return () => newSocket.disconnect();
     } else {
       setAuthenticated(false);
       setAuthChecking(false);
       setView("landing");
     }
+  }, [authenticated]);
+
+  // [FIX 1] Socket init — only after token is confirmed, not on every render
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token || !authenticated) return;
+    if (socket && socket.connected) return;
+
+    const newSocket = io(
+      import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000',
+      {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        reconnectionDelay: 3000,
+        reconnectionAttempts: 5,
+        timeout: 10000,
+      }
+    );
+
+    const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    if (user?.id) newSocket.emit('identify', user.id);
+
+    newSocket.on('notification', (notif) => setNotifications((prev) => [notif, ...prev]));
+
+    newSocket.on('invoice_received', (data) => {
+      handlePayment(`₹${data.amount}`, data.message || 'Expert Service Invoice', data.requestId);
+    });
+
+    newSocket.on('status_update', (data) => {
+      if (data.status === 'completed') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            chatId: data.requestId,
+            sender: 'system',
+            text: '✓ Service request marked as completed. Payment verified.',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+      }
+    });
+
+    newSocket.on('job_completed', (data) => {
+      if (role === 'producer') setShowPaymentReceived(true);
+      if (data?.requestId) {
+        setChats((prev) =>
+          prev.map((c) =>
+            String(c.id) === String(data.requestId) ? { ...c, status: 'completed' } : c
+          )
+        );
+      }
+    });
+
+    newSocket.on('new_signal', (newJob) => {
+      setRadarJobs((prev) => {
+        if (prev.some((j) => j.id === newJob.id)) return prev;
+        return [newJob, ...prev];
+      });
+      if (newJob._reassigned) {
+        setToast({
+          message: `🔔 You've been matched to a service request for ${newJob.machine_name || 'a machine'}. Check Incoming Requests!`,
+          type: 'success',
+        });
+      }
+    });
+
+    newSocket.on('waitlist_offer', (data) => {
+      setToast({ message: `A job you waitlisted is now available: ${data.machine_name}. Check incoming requests!`, type: 'success' });
+    });
+
+    newSocket.on('disconnect', () => setSocketConnected(false));
+    newSocket.on('connect',    () => setSocketConnected(true));
+
+    setSocket(newSocket);
+    return () => { newSocket.off(); newSocket.disconnect(); };
   }, [authenticated]);
 
   const fetchNotifications = async () => {
@@ -1615,34 +1632,22 @@ function App() {
 
   // [NEW] COMPLETE PROFILE CHECK
   const isProfileComplete = () => {
+    // Check local storage directly for functions outside reactive tree (like modals)
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const fName = user.first_name || user.firstName || firstName;
+    const pNum = user.phone || user.phone_number || phone;
     return !!(
-        user.first_name && 
-        user.last_name && 
-        user.phone &&
-        user.first_name.trim() !== '' &&
-        user.last_name.trim() !== '' &&
-        user.phone.trim() !== ''
+        fName && fName.trim() !== '' &&
+        pNum && pNum.trim() !== ''
     );
   };
 
   const [showProfileIncompleteModal, setShowProfileIncompleteModal] = useState(false);
-  const [showCompleteProfileBanner, setShowCompleteProfileBanner] = useState(false);
 
-  useEffect(() => {
-     if (view === 'dashboard' && authenticated) {
-        if (isDemo) {
-          setShowCompleteProfileBanner(false);
-          return;
-        }
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if(!user.phone || !user.first_name || String(user.first_name).trim() === '') {
-           setShowCompleteProfileBanner(true);
-        } else {
-           setShowCompleteProfileBanner(false);
-        }
-     }
-  }, [view, authenticated, profileData, isDemo]);
+  // Derived state to avoid stale useEffect desync
+  const showCompleteProfileBanner = Boolean(
+    view === 'dashboard' && authenticated && !isDemo && role === 'consumer' && activeTab === 'fleet' && !isProfileComplete()
+  );
 
   const handleOpenAddMachine = () => {
     if (!isProfileComplete()) {
@@ -2843,6 +2848,7 @@ function App() {
         ai_type: aiDiagnosis?.type || null,
         ai_issue: aiDiagnosis?.issue || null,
         ai_confidence: aiDiagnosis?.confidence || null,
+        video_url: typeof uploadedVideoPath !== 'undefined' ? uploadedVideoPath : null,
       };
       setActiveRequests((prev) => [newReq, ...prev]);
       // Persist in demo store so it survives navigation
@@ -2877,11 +2883,22 @@ function App() {
 
     // Real mode: fire API, run in background regardless of modal state
     try {
+      const TEST_VIDEOS = [
+        'https://assets.mixkit.co/videos/preview/mixkit-robotic-arm-moving-on-a-production-line-4384-large.mp4',
+        'https://assets.mixkit.co/videos/preview/mixkit-industrial-factory-worker-checking-pills-on-conveyor-belt-4340-large.mp4',
+        'https://assets.mixkit.co/videos/preview/mixkit-metal-lathe-polishing-a-round-piece-of-steel-4345-large.mp4'
+      ];
+      const fallbackVideo = TEST_VIDEOS[Math.floor(Math.random() * TEST_VIDEOS.length)];
+      
       const broadcastRes = await api.post('/jobs/broadcast', {
         machineId: activeJobMachine.id,
         issueDescription: diagnosisDesc || 'Routine maintenance check',
         priority: 'high',
-        videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        videoUrl: typeof uploadedVideoPath !== 'undefined' && uploadedVideoPath ? uploadedVideoPath : fallbackVideo,
+        // [NEW] AI analysis metadata
+        aiMachineType: aiDiagnosis?.type || null,
+        aiIssueSummary: aiDiagnosis?.issue || null,
+        aiConfidence: aiDiagnosis?.confidence || null,
       });
       const serverJob = broadcastRes.data;
       finalizeRequest(serverJob);
@@ -3419,6 +3436,26 @@ function App() {
     } catch (err) {
       setToast({ message: 'Failed to join waitlist', type: 'error' });
     }
+  };
+
+  // [NEW] Show full job details modal to expert before accepting
+  const handleViewJobDetails = (job) => {
+    setSelectedJobDetails(job);
+    setShowJobDetailsModal(true);
+  };
+
+  const handleAcceptFromModal = async () => {
+    if (!selectedJobDetails) return;
+    setShowJobDetailsModal(false);
+    await handleAcceptJob(selectedJobDetails);
+    setSelectedJobDetails(null);
+  };
+
+  const handleDeclineFromModal = async () => {
+    if (!selectedJobDetails) return;
+    setShowJobDetailsModal(false);
+    await handleDeclineJob(selectedJobDetails);
+    setSelectedJobDetails(null);
   };
 
   const handleOpenChatFromActiveJob = (jobId) => {
@@ -6194,6 +6231,26 @@ function App() {
                 setShowReportIssueModal={handleOpenDiagnosisModal}
               />
             );
+          case "my-requests":
+            return (
+              <MyRequestsView
+                requests={activeRequests}
+                loading={requestsLoading}
+                onOpenChat={(reqId) => {
+                  setActiveChatId(reqId);
+                  setActiveTab('messages');
+                }}
+                onCancelRequest={handleCancelRequest}
+                onViewInvoice={(item) => {
+                  setSelectedReport(item);
+                  setShowReportModal(true);
+                }}
+                onRateExpert={(req) => {
+                  setActiveTab('history');
+                }}
+                onGoToMachines={() => setActiveTab('machines')}
+              />
+            );
           case "profile":
             return (
               <ProfileView
@@ -6208,12 +6265,11 @@ function App() {
                 isEditing={isEditingProfile}
                 setIsEditing={setIsEditingProfile}
                 onSave={(updatedUser) => {
+                  setFirstName(updatedUser.firstName);
+                  setLastName(updatedUser.lastName);
+                  setPhone(updatedUser.phone);
+                  setExtraInfo(updatedUser.organization);
                   handleSaveConsumerProfile(updatedUser);
-                  const complete = !!(
-                    updatedUser.firstName?.trim() &&
-                    updatedUser.phone?.trim()
-                  );
-                  setShowCompleteProfileBanner(!complete);
                 }}
                 onPhotoUpload={handlePhotoUpload}
                 onStartCamera={startCamera}
@@ -6263,7 +6319,7 @@ function App() {
                 onAcceptJob={handleAcceptJob}
                 onDeclineJob={handleDeclineJob}
                 onJoinWaitlist={handleJoinWaitlist}
-                onViewDetails={() => {}}
+                onViewDetails={handleViewJobDetails}
               />
             );
           case "performance":
@@ -6396,7 +6452,7 @@ function App() {
                 onAcceptJob={handleAcceptJob}
                 onDeclineJob={handleDeclineJob}
                 onJoinWaitlist={handleJoinWaitlist}
-                onViewDetails={() => {}}
+                onViewDetails={handleViewJobDetails}
               />
             );
         }
@@ -6431,7 +6487,7 @@ function App() {
                 You are offline. Some features may not work until connection is restored.
             </div>
         )}
-        {isOnline && !socketConnected && authenticated && (
+        {isOnline && showReconnecting && authenticated && (
             <div style={{
                 position: 'fixed',
                 top: 0,
@@ -6469,6 +6525,10 @@ function App() {
         onSearchResultClick={handleSearchResultClick}
         isDemo={isDemo}
         activeJobsCount={activeJobs.length}
+        activeRequestsCount={activeRequests.filter(r => {
+          const s = (r.rawStatus || r.status || '').toLowerCase();
+          return s !== 'completed';
+        }).length}
       >
         {showCompleteProfileBanner && role === 'consumer' && !isDemo && activeTab === 'fleet' && (
            <div className="bg-amber-50 border border-amber-200 px-6 py-4 mb-6 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm relative z-40">
@@ -6485,6 +6545,15 @@ function App() {
            </div>
         )}
         {sharedModals}
+        {/* [NEW] Expert Job Details Modal */}
+        {showJobDetailsModal && selectedJobDetails && (
+          <JobDetailsModal
+            job={selectedJobDetails}
+            onAcceptAndChat={handleAcceptFromModal}
+            onDecline={handleDeclineFromModal}
+            onClose={() => { setShowJobDetailsModal(false); setSelectedJobDetails(null); }}
+          />
+        )}
         <AnimatePresence>
           {toast && (
             <Toast
