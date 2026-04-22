@@ -119,6 +119,14 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+// ── Static file serving for uploads (MUST be before route definitions) ────────
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // 2. ROUTES
 app.use("/api/auth", authRoutes);
 app.use("/auth", authRoutes);
@@ -140,9 +148,6 @@ app.use("/api/support", supportRoutes);
 app.use("/api/demo", demoRoutes);
 import aiRoutes from './routes/aiRoutes.js';
 app.use('/api/ai', aiRoutes);
-
-// Serve uploaded videos
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Upload route
 app.use('/api/upload', uploadRoutes);

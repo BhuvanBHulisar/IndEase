@@ -185,6 +185,9 @@ export const getRadarJobs = async (req, res) => {
         }
 
         res.json(rows);
+        if (rows.length > 0) {
+            console.log('[VideoDebug] job video_url from DB:', rows.map(r => ({ id: r.id, video_url: r.video_url })));
+        }
     } catch (err) {
         // fallback — return all broadcast jobs without city filtering
         try {

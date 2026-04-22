@@ -83,6 +83,9 @@ import MachineDetailView from "./components/MachineDetailView";
 import ActiveJobsView from "./components/ActiveJobsView";
 import MyRequestsView from "./components/MyRequestsView";
 import JobDetailsModal from "./components/JobDetailsModal";
+import VideoUploadInput from "./components/VideoUploadInput";
+import VideoPlayer from "./components/VideoPlayer";
+
 import { generateInvoicePDF } from "./utils/invoiceGenerator";
 import { loadDemoStore, saveDemoStore, clearDemoStore, patchDemoStore } from "./utils/demoStore";
 import {
@@ -759,6 +762,8 @@ function App() {
   const [aiDiagnosis, setAiDiagnosis] = useState(null);
   const [broadcastInProgress, setBroadcastInProgress] = useState(false);
   const [videoFile, setVideoFile] = useState(null);
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState(null);
+
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [diagnosisResults, setDiagnosisResults] = useState([]);
 
@@ -2859,6 +2864,7 @@ function App() {
       setDiagnosisDesc('');
       setFaultLocation('');
       setVideoFile(null);
+      setUploadedVideoUrl(null);
       setBroadcastInProgress(false);
     };
 
@@ -2883,29 +2889,11 @@ function App() {
 
     // Real mode: fire API, run in background regardless of modal state
     try {
-      // Upload video file if one was selected by the user
-      let finalVideoUrl = null;
-      if (videoFile) {
-        try {
-          const formData = new FormData();
-          formData.append('video', videoFile);
-          const uploadRes = await api.post('/upload/video', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-          if (uploadRes.data.success) {
-            finalVideoUrl = uploadRes.data.videoUrl;
-          }
-        } catch (err) {
-          console.error('[Video] Upload failed, continuing without video:', err);
-          // Non-blocking — do not abort the service request
-        }
-      }
-
       const broadcastRes = await api.post('/jobs/broadcast', {
         machineId: activeJobMachine.id,
         issueDescription: diagnosisDesc || 'Routine maintenance check',
         priority: 'high',
-        videoUrl: finalVideoUrl || null,
+        videoUrl: uploadedVideoUrl || null,
         // AI analysis metadata
         aiMachineType: aiDiagnosis?.type || null,
         aiIssueSummary: aiDiagnosis?.issue || null,
@@ -4863,31 +4851,10 @@ function App() {
             <div className="modal-body-premium p-8">
               {diagnosisStep === 1 && (
                 <div className="animate-fade-in space-y-6">
-                  <div
-                    className="h-44 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 group hover:border-teal-500 hover:bg-teal-50/30 transition-all cursor-pointer overflow-hidden relative"
-                    onClick={() =>
-                      document.getElementById("video-input").click()
-                    }
-                  >
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform text-teal-600">
-                      <Video size={20} />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {videoFile ? videoFile.name : "Upload fault video"}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        MP4, MOV or AVI (Max 50MB)
-                      </p>
-                    </div>
-                    <input
-                      type="file"
-                      id="video-input"
-                      hidden
-                      accept="video/*"
-                      onChange={handleVideoSelect}
-                    />
-                  </div>
+                  <VideoUploadInput
+                    onUploaded={(url) => setUploadedVideoUrl(url)}
+                    onFileSelected={(file) => setVideoFile(file)}
+                  />
 
                   <div className="space-y-4">
                     <div className="space-y-1.5">
