@@ -1,4 +1,4 @@
-# origiNode 🛡️
+# IndEase 🛡️
 **Tracing the source to keep your business moving.**
 
 origiNode is a specialized industrial platform designed to provide continuity for legacy machinery. It connects consumers with experts to diagnose, maintain, and source parts for aging industrial assets.
