@@ -62,19 +62,20 @@ export default function MessagesView({
   const chatEndRef = useRef(null);
 
   const activeChat = chats.find(c => c.id === activeChatId);
+  const isExpertView = currentUser?.id === 'expert' || currentUser?.role === 'producer';
 
   const jobSt = (jobStatus || '').toLowerCase();
   const statusMeta = getServiceStageMeta(jobStatus, null);
   const canStartWork =
-    currentUser?.id === 'expert' &&
+    isExpertView &&
     typeof onStartWork === 'function' &&
     (jobSt === 'accepted' || jobSt === 'payment_pending');
   const canMarkComplete =
-    currentUser?.id === 'expert' &&
+    isExpertView &&
     typeof onMarkComplete === 'function' &&
     jobSt === 'in_progress';
   const showCompletedBadge =
-    currentUser?.id === 'expert' && jobSt === 'completed';
+    isExpertView && jobSt === 'completed';
 
   const handleViewProfile = () => {
     // Call the modal handler passed via props
@@ -105,7 +106,7 @@ export default function MessagesView({
               </div>
                <input 
                  placeholder="Search experts..." 
-                 className={`w-full h-10 pl-10 pr-4 bg-white border border-[#E5E7EB] rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-${currentUser?.id === 'expert' ? 'indigo-500' : 'teal-500'} focus:border-${currentUser?.id === 'expert' ? 'indigo-500' : 'teal-500'} transition-all`}
+                 className={`w-full h-10 pl-10 pr-4 bg-white border border-[#E5E7EB] rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-${isExpertView ? 'indigo-500' : 'teal-500'} focus:border-${isExpertView ? 'indigo-500' : 'teal-500'} transition-all`}
                  value={''}
                  onChange={e => {}}
                />
@@ -149,7 +150,7 @@ export default function MessagesView({
             <div className="min-h-[5rem] border-b border-[#E5E7EB] flex items-center justify-between gap-4 px-6 sm:px-10 py-3 bg-white z-10 shrink-0">
                <div className="flex items-center gap-4 min-w-0 flex-1">
                   <div className="relative shrink-0">
-                    <div className={`w-10 h-10 rounded-full ${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#0d9488]'} flex items-center justify-center text-white font-semibold text-xs`}>
+                    <div className={`w-10 h-10 rounded-full ${isExpertView ? 'bg-indigo-600' : 'bg-[#0d9488]'} flex items-center justify-center text-white font-semibold text-xs`}>
                       {activeChat.name?.[0] || 'E'}
                     </div>
                     {activeChat.online && <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />}
@@ -166,7 +167,7 @@ export default function MessagesView({
                </div>
 
                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                {currentUser?.id === 'expert' && showCompletedBadge && (
+                {isExpertView && showCompletedBadge && (
                   <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
                     <CheckCircle size={14} />
                     Completed
@@ -186,7 +187,7 @@ export default function MessagesView({
                   variant="outline" 
                   size="sm"
                   onClick={handleViewProfile}
-                  className={`h-9 px-4 rounded-xl border-[#E5E7EB] text-slate-600 font-medium text-xs transition-all hover:bg-${currentUser?.id === 'expert' ? 'indigo-50' : 'teal-50'} hover:border-${currentUser?.id === 'expert' ? 'indigo-200' : 'teal-200'} hover:text-${currentUser?.id === 'expert' ? 'indigo-600' : 'teal-600'}`}
+                  className={`h-9 px-4 rounded-xl border-[#E5E7EB] text-slate-600 font-medium text-xs transition-all hover:bg-${isExpertView ? 'indigo-50' : 'teal-50'} hover:border-${isExpertView ? 'indigo-200' : 'teal-200'} hover:text-${isExpertView ? 'indigo-600' : 'teal-600'}`}
                 >
                   <User size={14} className="mr-2" />
                   View Profile
@@ -249,30 +250,45 @@ export default function MessagesView({
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar bg-[#F9FAFB]/30">
-               {((activeChat?.messages?.length > 0) ? activeChat.messages : chatHistory).map((msg, i) => {
-                 if (msg.type === 'rating_prompt') {
-                   return (
-                     <RatingPromptPlaceholder key={msg.id || `rating-${i}`} />
-                   );
-                 }
-                 const isMine = msg.sender === currentUser?.id || msg.senderId === currentUser?.id;
+               {(() => {
+                 const rawMessages = (activeChat?.messages?.length > 0) ? activeChat.messages : chatHistory;
+                 // FIX 2 — Deduplicate invoices — keep only the last one
+                 const deduplicatedMessages = rawMessages.reduce((acc, msg) => {
+                   if (msg.type === 'invoice' || (msg.text && msg.text.startsWith('[INVOICE]'))) {
+                     // Remove any previous invoice message, keep only latest
+                     const filtered = acc.filter(m => 
+                       !(m.type === 'invoice' || (m.text && m.text.startsWith('[INVOICE]')))
+                     );
+                     return [...filtered, msg];
+                   }
+                   return [...acc, msg];
+                 }, []);
                  
-                 return (
-                   <MessageBubble 
-                     key={msg.id ?? i} 
-                     msg={msg} 
-                     isMine={isMine} 
-                     onProcessPayment={onProcessPayment}
-                     paidInvoices={paidInvoices}
-                     currentUser={currentUser}
-                   />
-                 );
-               })}
+                 return deduplicatedMessages.map((msg, i) => {
+                   if (msg.type === 'rating_prompt') {
+                     return (
+                       <RatingPromptPlaceholder key={msg.id || `rating-${i}`} />
+                     );
+                   }
+                   const isMine = msg.sender === currentUser?.id || msg.senderId === currentUser?.id;
+                   
+                   return (
+                     <MessageBubble 
+                       key={msg.id ?? i} 
+                       msg={msg} 
+                       isMine={isMine} 
+                       onProcessPayment={onProcessPayment}
+                       paidInvoices={paidInvoices}
+                       currentUser={currentUser}
+                     />
+                   );
+                 });
+               })()}
                <div ref={chatEndRef} />
             </div>
 
             {/* Invoice Form Popover */}
-            {currentUser?.id === 'expert' && showInvoiceForm && (
+            {isExpertView && showInvoiceForm && (
               <div className="p-4 bg-white border-t border-[#E5E7EB] shrink-0 space-y-3">
                  <div className="flex items-center justify-between">
                    <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2"><CreditCard size={16} className="text-indigo-600"/> Create Invoice</h4>
@@ -342,7 +358,7 @@ export default function MessagesView({
                   <button 
                     type="button" 
                     onClick={() => fileInputRef.current?.click()}
-                    className={`w-10 h-10 rounded-xl bg-slate-50 text-slate-500 hover:text-${currentUser?.id === 'expert' ? 'indigo-600' : 'teal-600'} hover:bg-${currentUser?.id === 'expert' ? 'indigo-50' : 'teal-50'} border border-[#E5E7EB] flex items-center justify-center transition-all`}
+                    className={`w-10 h-10 rounded-xl bg-slate-50 text-slate-500 hover:text-${isExpertView ? 'indigo-600' : 'teal-600'} hover:bg-${isExpertView ? 'indigo-50' : 'teal-50'} border border-[#E5E7EB] flex items-center justify-center transition-all`}
                   >
                     <Paperclip size={18} />
                   </button>
@@ -355,11 +371,11 @@ export default function MessagesView({
 
                   <input 
                     placeholder="Type your message..." 
-                    className={`flex-1 h-11 bg-white border border-[#E5E7EB] rounded-xl px-4 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-${currentUser?.id === 'expert' ? 'indigo-500' : 'teal-500'} focus:border-${currentUser?.id === 'expert' ? 'indigo-500' : 'teal-500'} transition-all placeholder:text-slate-400 placeholder:font-normal`}
+                    className={`flex-1 h-11 bg-white border border-[#E5E7EB] rounded-xl px-4 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-${isExpertView ? 'indigo-500' : 'teal-500'} focus:border-${isExpertView ? 'indigo-500' : 'teal-500'} transition-all placeholder:text-slate-400 placeholder:font-normal`}
                     value={msgInput}
                     onChange={e => setMsgInput(e.target.value)}
                   />
-                  {currentUser?.id === 'expert' && (
+                  {isExpertView && (
                     <button 
                       type="button" 
                       onClick={() => setShowInvoiceForm(!showInvoiceForm)}
@@ -372,7 +388,7 @@ export default function MessagesView({
                   <button 
                     type="submit"
                     disabled={!msgInput.trim()} 
-                    className={`h-11 w-11 rounded-xl ${currentUser?.id === 'expert' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-[#0d9488] hover:bg-teal-700'} text-white shadow-sm transition-all disabled:opacity-50 flex items-center justify-center`}
+                    className={`h-11 w-11 rounded-xl ${isExpertView ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-[#0d9488] hover:bg-teal-700'} text-white shadow-sm transition-all disabled:opacity-50 flex items-center justify-center`}
                   >
                     <Send size={18} />
                   </button>
@@ -396,32 +412,8 @@ export default function MessagesView({
 }
 
 function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], currentUser }) {
+  const isExpertView = currentUser?.id === 'expert' || currentUser?.role === 'producer';
   const renderMessageContent = () => {
-    if (msg.type === 'invoice') {
-      return (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 max-w-xs shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Service Invoice</span>
-          </div>
-          <p className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">₹{msg.invoice?.amount?.toLocaleString()}</p>
-          <p className="text-xs font-medium text-slate-500 mb-4">{msg.invoice?.description}</p>
-          {currentUser?.id !== 'expert' && msg.invoice?.status === 'pending' && (
-            <button
-              onClick={() => onProcessPayment?.(msg.invoice.amount, msg.invoice.description)}
-              className="w-full bg-[#0d9488] hover:bg-teal-700 text-white shadow-sm transition-all rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-2"
-            >
-              Pay Now
-            </button>
-          )}
-          {(msg.invoice?.status === 'paid' || (currentUser?.id === 'expert' && msg.invoice?.status === 'pending')) && (
-            <div className={`w-full bg-${msg.invoice?.status === 'paid' ? 'emerald' : 'slate'}-50 text-${msg.invoice?.status === 'paid' ? 'emerald' : 'slate'}-600 rounded-lg py-2 text-xs font-bold text-center border border-${msg.invoice?.status === 'paid' ? 'emerald' : 'slate'}-200`}>
-              {msg.invoice?.status === 'paid' ? '✓ Paid' : 'Invoice Sent'}
-            </div>
-          )}
-        </div>
-      );
-    }
-
     // Handle message format (string vs object)
     let messageText = typeof msg === 'string' ? msg : (msg.text || msg.message || '');
     
@@ -440,10 +432,10 @@ function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], curre
           <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[12px] p-4 my-2 shadow-sm w-full max-w-xs">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg ${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#0d9488]'} flex items-center justify-center text-white shadow-sm`}>
+                <div className={`w-8 h-8 rounded-lg ${isExpertView ? 'bg-indigo-600' : 'bg-[#0d9488]'} flex items-center justify-center text-white shadow-sm`}>
                   <CreditCard size={16} />
                 </div>
-                <span className={`text-[10px] font-semibold ${currentUser?.id === 'expert' ? 'text-indigo-600' : 'text-[#0d9488]'} uppercase tracking-widest`}>Service Cost</span>
+                <span className={`text-[10px] font-semibold ${isExpertView ? 'text-indigo-600' : 'text-[#0d9488]'} uppercase tracking-widest`}>Service Cost</span>
               </div>
               {isPaid && (
                 <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold">PAID</Badge>
@@ -457,7 +449,7 @@ function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], curre
               </p>
             </div>
             
-            {currentUser?.id === 'expert' ? (
+            {isExpertView ? (
               <div className="w-full h-9 rounded-[8px] font-semibold text-xs shadow-sm bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center gap-2">
                 <CheckCheck size={16} />
                 {isPaid ? "Payment Completed" : "Invoice Sent"}
@@ -501,7 +493,7 @@ function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], curre
       <div className={cn(
         "max-w-[75%] px-4 py-3 rounded-[16px] shadow-sm",
         isMine 
-          ? `${currentUser?.id === 'expert' ? 'bg-indigo-600' : 'bg-[#0d9488]'} text-white rounded-tr-none shadow-md shadow-teal-500/10` 
+          ? `${isExpertView ? 'bg-indigo-600' : 'bg-[#0d9488]'} text-white rounded-tr-none shadow-md shadow-teal-500/10` 
           : "bg-white border border-[#E5E7EB] text-slate-700 rounded-tl-none shadow-sm"
       )}>
         {renderMessageContent()}

@@ -1,4 +1,5 @@
 import db from '../config/db.js';
+import * as notificationController from './notificationController.js';
 
 // @desc    Retrieve chat history for a specific request
 // @route   GET /api/chat/:requestId
@@ -62,6 +63,29 @@ export const saveMessage = async (requestId, senderId, text) => {
             'INSERT INTO chat_messages (request_id, sender_id, message_text) VALUES ($1, $2, $3) RETURNING *',
             [requestId, senderId, text]
         );
+        const [jobResult, senderResult] = await Promise.all([
+            db.query('SELECT consumer_id, producer_id FROM service_requests WHERE id = $1', [requestId]),
+            db.query('SELECT first_name, role FROM users WHERE id = $1', [senderId])
+        ]);
+        const job = jobResult.rows[0];
+        const sender = senderResult.rows[0];
+        const senderRole = sender?.role;
+        const senderName = sender?.first_name || 'Someone';
+        const messageText = text || '';
+
+        // Notify the other party
+        if (job) {
+            const recipientId = senderRole === 'consumer' ? job.producer_id : job.consumer_id;
+            if (recipientId) {
+                await notificationController.createNotification(
+                    recipientId,
+                    'New Message',
+                    `${senderName} sent you a message: "${messageText.substring(0, 50)}..."`,
+                    'message',
+                    null
+                );
+            }
+        }
         return result.rows[0];
     } catch (err) {
         console.error('[Chat] Message persistence failure:', err);

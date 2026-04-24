@@ -1,5 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import db from '../config/db.js';
 import * as authController from '../controllers/auth.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import passport from 'passport';
@@ -63,5 +64,20 @@ router.post('/google', authController.googleIdTokenLogin);
 // PROTECTED REACH
 router.get('/me', protect, authController.getMe);
 router.post('/logout', protect, authController.logout);
+router.put('/change-password', protect, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    try {
+        const result = await db.query('SELECT password FROM users WHERE id = $1', [req.user.id]);
+        const user = result.rows[0];
+        const bcrypt = await import('bcryptjs');
+        const valid = await bcrypt.default.compare(currentPassword, user.password);
+        if (!valid) return res.status(400).json({ message: 'Current password is incorrect.' });
+        const hashed = await bcrypt.default.hash(newPassword, 10);
+        await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, req.user.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to change password.' });
+    }
+});
 
 export default router;

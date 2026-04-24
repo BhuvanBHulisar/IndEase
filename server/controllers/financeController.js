@@ -215,56 +215,57 @@ export const getHistory = async (req, res) => {
         if (role === 'producer') {
             query = `
                 SELECT 
-                    t.id, t.created_at, t.status, t.amount,
-                    t.expert_amount, t.platform_fee, t.gst, t.type,
-                    COALESCE(u.first_name, 'Consumer') as other_party,
-                    sr.id as service_id
-                FROM transactions t
-                LEFT JOIN service_requests sr ON t.request_id = sr.id OR t.job_id = sr.id
-                LEFT JOIN users u ON sr.consumer_id = u.id
-                WHERE t.expert_id = $1
-                ORDER BY t.created_at DESC
-                LIMIT 20
+                    sr.id,
+                    sr.status,
+                    sr.issue_description,
+                    sr.created_at,
+                    sr.completed_at,
+                    sr.quoted_cost,
+                    m.name as machine_name,
+                    m.machine_type,
+                    u_expert.first_name || ' ' || COALESCE(u_expert.last_name, '') as expert_name,
+                    u_consumer.first_name || ' ' || COALESCE(u_consumer.last_name, '') as consumer_name,
+                    pp.level as expert_level,
+                    t.amount as paid_amount,
+                    t.status as payment_status
+                FROM service_requests sr
+                LEFT JOIN machines m ON sr.machine_id = m.id
+                LEFT JOIN users u_expert ON sr.producer_id = u_expert.id
+                LEFT JOIN users u_consumer ON sr.consumer_id = u_consumer.id
+                LEFT JOIN producer_profiles pp ON sr.producer_id = pp.user_id
+                LEFT JOIN transactions t ON t.request_id = sr.id
+                WHERE sr.producer_id = $1
+                ORDER BY sr.created_at DESC
             `;
         } else {
             query = `
                 SELECT 
-                    t.id, t.created_at, t.status, t.amount,
-                    t.expert_amount, t.platform_fee, t.gst,
-                    COALESCE(u.first_name, 'Expert') as other_party,
-                    sr.id as service_id,
-                    pp.level as expert_level, pp.rating as expert_rating
-                FROM transactions t
-                LEFT JOIN service_requests sr ON t.request_id = sr.id OR t.job_id = sr.id
-                LEFT JOIN users u ON sr.producer_id = u.id
-                LEFT JOIN producer_profiles pp ON pp.user_id = u.id
-                WHERE t.consumer_id = $1
-                ORDER BY t.created_at DESC
-                LIMIT 20
+                    sr.id,
+                    sr.status,
+                    sr.issue_description,
+                    sr.created_at,
+                    sr.completed_at,
+                    sr.quoted_cost,
+                    m.name as machine_name,
+                    m.machine_type,
+                    u_expert.first_name || ' ' || COALESCE(u_expert.last_name, '') as expert_name,
+                    u_consumer.first_name || ' ' || COALESCE(u_consumer.last_name, '') as consumer_name,
+                    pp.level as expert_level,
+                    t.amount as paid_amount,
+                    t.status as payment_status
+                FROM service_requests sr
+                LEFT JOIN machines m ON sr.machine_id = m.id
+                LEFT JOIN users u_expert ON sr.producer_id = u_expert.id
+                LEFT JOIN users u_consumer ON sr.consumer_id = u_consumer.id
+                LEFT JOIN producer_profiles pp ON sr.producer_id = pp.user_id
+                LEFT JOIN transactions t ON t.request_id = sr.id
+                WHERE sr.consumer_id = $1
+                ORDER BY sr.created_at DESC
             `;
         }
 
         const result = await db.query(query, [userId]);
-
-        const formatted = result.rows.map(row => ({
-            id: row.id,
-            created_at: row.created_at,
-            date: row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
-            client: row.other_party,
-            expert_name: row.other_party,
-            expert_level: row.expert_level || 'Elite',
-            expert_rating: row.expert_rating || '5.0',
-            service: `#SR-${row.service_id?.toString().substring(0, 6) || 'N/A'}`,
-            status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
-            amount: `₹${row.amount}`,
-            total_amount: Number(row.amount),
-            expert_payout: Number(row.expert_amount || (row.amount * 0.72)),
-            platform_fee: Number(row.platform_fee || (row.amount * 0.10)),
-            gst: Number(row.gst || (row.amount * 0.18)),
-            is_salary: row.type === 'salary'
-        }));
-
-        res.json(formatted);
+        res.json(result.rows);
     } catch (err) {
         console.error('[Finance] History retrieval failure:', err);
         res.status(500).json({ message: 'Could not fetch transaction history' });

@@ -5,6 +5,7 @@ import {
   History,
   HardDrive,
   User,
+  Settings,
   HelpCircle,
   LogOut,
   Shield,
@@ -37,6 +38,7 @@ const getMainMenuItems = (role) => {
 
 const generalItems = [
   { id: 'profile', label: 'My Account', icon: User },
+  { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'support', label: 'Help & Support', icon: HelpCircle },
 ];
 

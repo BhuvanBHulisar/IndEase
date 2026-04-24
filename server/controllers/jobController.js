@@ -86,6 +86,20 @@ export const broadcastJob = async (req, res) => {
                     jobId: newJob.id
                 });
             }
+            const machineName = machine.rows[0]?.name;
+            // Notify matched experts
+            const expertsResult = await db.query(
+                `SELECT id FROM users WHERE role = 'producer' AND is_deleted = false AND is_suspended = false`
+            );
+            for (const expert of expertsResult.rows) {
+                await notificationController.createNotification(
+                    expert.id,
+                    'New Service Request',
+                    `A consumer needs help with ${machineName || 'a machine'}. Check your dashboard.`,
+                    'new_request',
+                    null
+                );
+            }
             return res.status(201).json(newJob);
         } else {
             // Mock Broadcast
@@ -337,6 +351,22 @@ export const startWork = async (req, res) => {
                     });
                 }
             }
+            // Notify consumer that work has started
+            await notificationController.createNotification(
+                row.consumer_id,
+                'Work Started',
+                `Expert has started working on your machine repair.`,
+                'job_update',
+                null
+            );
+            // Notify expert confirmation
+            await notificationController.createNotification(
+                req.user.id,
+                'Work Started',
+                `You have started work on the repair job.`,
+                'job_update',
+                null
+            );
             return res.json(row);
         }
         if (io) {
@@ -393,6 +423,22 @@ export const completeWork = async (req, res) => {
                     io.to(`user_${row.consumer_id}`).emit('request_completed', { requestId: jobId });
                 }
             }
+            // Notify consumer job is done
+            await notificationController.createNotification(
+                row.consumer_id,
+                'Service Completed',
+                `Your machine repair has been completed. Please rate your experience.`,
+                'job_update',
+                null
+            );
+            // Notify expert
+            await notificationController.createNotification(
+                req.user.id,
+                'Job Completed',
+                `Job marked as complete. +20 points added to your profile.`,
+                'achievement',
+                null
+            );
             return res.json(row);
         }
         if (io) {
@@ -696,5 +742,60 @@ export const joinWaitlist = async (req, res) => {
     } catch (err) {
         console.error('[Waitlist] Join failed:', err);
         res.status(500).json({ message: 'Failed to join waitlist' });
+    }
+};
+
+// @desc    Get service history/logs for producer
+// @route   GET /api/jobs/service-history
+export const getServiceHistory = async (req, res) => {
+    try {
+        const producerId = req.user.id;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        if (!uuidRegex.test(producerId)) {
+            // Return mock service history for demo accounts
+            return res.json([
+                {
+                    id: 'demo-1',
+                    date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    machine: 'Hydraulic Press #08',
+                    service: 'Seal Replacement',
+                    expert: 'Demo Expert',
+                    status: 'Completed',
+                    cost: '₹2500'
+                }
+            ]);
+        }
+
+        const isDemo = !!req.user.is_demo;
+        const result = await db.query(
+            `SELECT 
+                sr.id, sr.created_at, sr.status, sr.quoted_cost, sr.issue_description,
+                m.name as machine_name,
+                u.first_name as consumer_name
+             FROM service_requests sr
+             JOIN machines m ON sr.machine_id = m.id
+             JOIN users u ON sr.consumer_id = u.id
+             WHERE sr.producer_id = $1 AND sr.status IN ('accepted', 'in_progress', 'completed', 'started')
+             AND sr.is_demo = $2
+             ORDER BY sr.created_at DESC`,
+            [producerId, isDemo]
+        );
+
+        const formatted = result.rows.map(row => ({
+            id: row.id,
+            created_at: row.created_at,
+            date: new Date(row.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            machine: row.machine_name,
+            service: row.issue_description || 'Service Request',
+            expert: row.consumer_name,
+            status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
+            cost: row.quoted_cost ? `₹${row.quoted_cost}` : 'Pending'
+        }));
+
+        res.json(formatted);
+    } catch (err) {
+        console.error('[Jobs] Service history retrieval failure:', err);
+        res.status(500).json({ message: 'History retrieval failure' });
     }
 };

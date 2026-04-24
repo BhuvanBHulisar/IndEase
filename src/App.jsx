@@ -77,6 +77,7 @@ import MessagesView from "./components/MessagesView";
 import HistoryView from "./components/HistoryView";
 
 import ProfileView from "./components/ProfileView";
+import SettingsView from "./components/SettingsView";
 import { SupportView } from "./components/SupportSettingsView";
 import ProducerDashboard from "./components/ProducerDashboard";
 import MachineDetailView from "./components/MachineDetailView";
@@ -796,7 +797,10 @@ function App() {
   const [selectedExpert, setSelectedExpert] = useState(null);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [paymentSuccessData, setPaymentSuccessData] = useState(null);
-  const [paidInvoices, setPaidInvoices] = useState([]); // Track paid invoice amounts/desc to disable button
+  const [paidInvoices, setPaidInvoices] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('paidInvoices') || '[]'); }
+    catch { return []; }
+  }); // Track paid invoice amounts/desc to disable button
   const [showExpertTermsModal, setShowExpertTermsModal] = useState(false);
   const [expertTermsChecked, setExpertTermsChecked] = useState(false);
   const [showCompleteProfileModal, setShowCompleteProfileModal] =
@@ -940,21 +944,34 @@ function App() {
   const scheduleConsumerFleetRefreshRef = useRef(() => {});
   const socketWasDisconnectedRef = useRef(false);
 
-  const mapFinanceRowForFleet = (row) => {
-    const st = (row.status || "").toLowerCase();
-    const paid = st === "paid" || st === "completed" || st === "escrow";
-    const costRaw = row.amount || row.cost || "";
-    const cost =
-      typeof costRaw === "string" && costRaw.startsWith("₹")
-        ? costRaw.replace(/₹/g, "").trim()
-        : costRaw;
+  const mapServiceHistoryRow = (r) => {
+    const amountValue =
+      r.paid_amount || r.amount || r.quoted_cost || r.cost || r.totalAmount || 0;
+    const paymentSt = (r.payment_status || r.paymentStatus || "").toLowerCase();
+    const serviceSt = (r.status || "").toLowerCase();
+    const paid =
+      paymentSt === "captured" ||
+      paymentSt === "paid" ||
+      serviceSt === "completed";
     return {
-      id: row.id,
-      cost,
+      id: r.id,
+      date: r.created_at || r.date,
+      machine: r.machine_name || r.machine || r.machineName || "Machine",
+      machine_name: r.machine_name || r.machine || r.machineName || "Machine",
+      machineType: r.machine_type || "",
+      expert: (r.expert_name || r.other_party || "Expert").trim(),
+      expertLevel: r.expert_level || r.level || "Starter",
+      expert_level: r.expert_level || r.level || "Starter",
+      status: r.status || "active",
+      paymentStatus: r.payment_status || r.paymentStatus || "",
+      payment_status: r.payment_status || r.paymentStatus || "",
+      amount: amountValue,
+      cost: amountValue,
+      paid_amount: r.paid_amount || null,
+      quoted_cost: r.quoted_cost || 0,
+      completedAt: r.completed_at,
+      issue: r.issue_description || "",
       paid,
-      date: row.date,
-      machine: row.machine || row.client || "",
-      expert: row.expert || row.other_party || "",
     };
   };
 
@@ -979,13 +996,16 @@ function App() {
           const statsRes = await api.get("/finance/stats");
           setEarningsStats(statsRes.data);
 
-          const historyRes = await api.get("/finance/history");
-          const rows = Array.isArray(historyRes.data) ? historyRes.data : [];
-          if (role === "consumer") {
-            setTransactionHistory(rows.map(mapFinanceRowForFleet));
+          // FIX 5 — For producers, fetch service history from jobs endpoint
+          let historyRes;
+          if (role === "producer") {
+            historyRes = await api.get("/jobs/service-history");
           } else {
-            setTransactionHistory(historyRes.data);
+            historyRes = await api.get("/finance/history");
           }
+          const rows = Array.isArray(historyRes.data) ? historyRes.data : [];
+          const mapped = rows.map(mapServiceHistoryRow);
+          setTransactionHistory(mapped);
 
           const chartRes = await api.get("/finance/chart-data");
           setChartData(chartRes.data);
@@ -1080,40 +1100,45 @@ function App() {
       const fetchProfile = async () => {
         try {
           const res = await api.get("/profile");
-          const data = res.data;
+          const p = res.data;
           setProfileData({
             name:
-              `${data.first_name || ""} ${data.last_name || ""}`.trim() ||
+              `${p.first_name || ""} ${p.last_name || ""}`.trim() ||
               "Expert Technician",
             role:
-              data.role === "producer"
+              p.role === "producer"
                 ? "Industrial Automation Specialist"
                 : "Business Owner",
-            location: data.location || "Not Set",
-            phone: data.phone || phone,
-            email: data.email,
-            id: String(data.id || "IND-88219"),
-            skills: data.skills || [],
-            bankAccountNumber: data.bank_account_number || "",
-            ifscCode: data.ifsc_code || "",
-            accountHolderName: data.account_holder_name || "",
+            location: p.location || "Not Set",
+            phone: p.phone || phone,
+            email: p.email,
+            id: String(p.id || "IND-88219"),
+            skills: p.skills || [],
+            bankAccountNumber: p.bank_account_number || p.bankAccountNumber || "",
+            ifscCode: p.ifsc_code || p.bankIfsc || "",
+            accountHolderName: p.bank_account_name || p.account_holder_name || p.bankAccountName || "",
           });
-          setFirstName(data.first_name || "");
-          setLastName(data.last_name || "");
-          setPhone(data.phone || "");
-          setDob(data.dob || "");
-          setExtraInfo(data.organization || "");
-          setLocation(data.location || "");
-          if (data.location && data.location.includes(", ")) {
-            const [city, state] = data.location.split(", ");
+          setBankDetailsForm({
+            accountHolderName: p.bank_account_name || p.account_holder_name || p.bankAccountName || "",
+            bankAccountNumber: p.bank_account_number || p.bankAccountNumber || "",
+            ifscCode: p.ifsc_code || p.bankIfsc || "",
+          });
+          setFirstName(p.first_name || "");
+          setLastName(p.last_name || "");
+          setPhone(p.phone || "");
+          setDob(p.dob || "");
+          setExtraInfo(p.organization || "");
+          setLocation(p.location || "");
+          if (p.location && p.location.includes(", ")) {
+            const [city, state] = p.location.split(", ");
             setSelectedCity(city);
             setSelectedState(state);
           }
-          setTaxId(data.tax_id || "");
-          setUserPhoto(data.photo_url || null);
-          setIsVerified(data.is_verified || false);
-          if (data.service_radius) setServiceRadius(data.service_radius);
-          setOriginalData(data);
+          setTaxId(p.tax_id || "");
+          setUserPhoto(p.photo_url || null);
+          setIsVerified(p.is_verified || false);
+          if (p.service_radius) setServiceRadius(p.service_radius);
+          setOriginalData(p);
         } catch (err) {
           console.error("Failed to load profile", err);
           // Potential reason: missing table columns in DB, check schema.sql
@@ -1466,7 +1491,22 @@ function App() {
     const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
     if (user?.id) newSocket.emit('identify', user.id);
 
-    newSocket.on('notification', (notif) => setNotifications((prev) => [notif, ...prev]));
+    newSocket.on('notification', (notif) => {
+      setNotifications((prev) => {
+        const mapped = {
+          id: notif.id || Date.now(),
+          title: notif.title || 'Notification',
+          message: notif.message || notif.msg || '',
+          msg: notif.message || notif.msg || '',
+          time: notif.time || 'Just now',
+          timestamp: Date.now(),
+          read: false,
+        };
+        const updated = [mapped, ...prev].slice(0, 20);
+        localStorage.setItem('origiNode_notifications', JSON.stringify(updated));
+        return updated;
+      });
+    });
 
     newSocket.on('invoice_received', (data) => {
       handlePayment(`₹${data.amount}`, data.message || 'Expert Service Invoice', data.requestId);
@@ -1529,12 +1569,15 @@ function App() {
         // Map backend to frontend schema
         const mapped = res.data.map((n) => ({
           id: n.id,
-          type: n.type || "info",
-          msg: n.message || n.title,
+          type: n.type || 'info',
+          title: n.title || 'Notification',
+          message: n.message || n.title || '',
+          msg: n.message || n.title || '',
           time: new Date(n.created_at).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
+            hour: '2-digit',
+            minute: '2-digit',
           }),
+          timestamp: new Date(n.created_at).getTime(),
           read: n.is_read,
         }));
         setNotifications(mapped);
@@ -1567,19 +1610,28 @@ function App() {
     setNotifications((prev) => {
       const newNotif = {
         id: Date.now().toString() + Math.random().toString(),
-        title,
-        message,
-        time: "Just now",
+        title: title || 'Notification',
+        message: message || '',
+        msg: message || '',
+        time: 'Just now',
         timestamp: Date.now(),
         read: false,
       };
-      return [newNotif, ...prev].slice(0, 20); // max 20
+      const updated = [newNotif, ...prev].slice(0, 20);
+      localStorage.setItem('origiNode_notifications', JSON.stringify(updated));
+      return updated;
     });
     setToast({
       message: title ? `${title}: ${message}` : message,
       type: "info",
     });
   };
+
+  useEffect(() => {
+    if (authenticated) {
+      fetchNotifications();
+    }
+  }, [authenticated]);
 
   const handleMarkNotifRead = (id) => {
     setNotifications((prev) =>
@@ -2117,10 +2169,23 @@ function App() {
       const userStr = localStorage.getItem("user");
       const user =
         userStr && userStr !== "undefined" ? JSON.parse(userStr) : null;
-      if (user && data.senderId === user.id) return; // Don't notify own messages
+      if (user && data.senderId === user.id) return;
       const fromName =
         data.senderName || (role === "consumer" ? "Expert" : "Consumer");
-      addNotification("New Message", `New message from ${fromName}.`);
+
+      // Sanitize message preview — don't show raw JSON payloads
+      let preview = data.text || data.message || '';
+      if (preview.startsWith('[INVOICE]:')) {
+        preview = 'Sent you an invoice';
+      } else if (preview.startsWith('[QUOTE]:')) {
+        preview = 'Sent you a repair quote';
+      } else if (preview.startsWith('{') || preview.startsWith('[')) {
+        preview = 'Sent you a message';
+      } else {
+        preview = preview.substring(0, 50);
+      }
+
+      addNotification('New Message', `${fromName}: ${preview}`);
     };
 
     const onPaymentSuccess = (data) =>
@@ -2603,10 +2668,10 @@ function App() {
 
     setBankDetailsErrors({});
     try {
-      await api.put("/profile/bank-details", {
-        accountHolderName: bankDetailsForm.accountHolderName,
-        bankAccountNumber: accountNumberDigits,
-        ifscCode: bankDetailsForm.ifscCode,
+      await api.put("/profile/update", {
+        bank_account_name: bankDetailsForm.accountHolderName,
+        bank_account_number: accountNumberDigits,
+        ifsc_code: bankDetailsForm.ifscCode,
       });
 
       setProfileData((prev) => ({
@@ -3046,7 +3111,7 @@ function App() {
       setEarningsStats(statsRes.data);
       setHistoryLoading(true); const histRes = await api.get("/finance/history");
       const histRows = Array.isArray(histRes.data) ? histRes.data : [];
-      setTransactionHistory(histRows.map(mapFinanceRowForFleet)); setHistoryLoading(false);
+      setTransactionHistory(histRows.map(mapServiceHistoryRow)); setHistoryLoading(false);
       try {
         const chartRes = await api.get("/finance/chart-data");
         if (chartRes?.data) setChartData(chartRes.data);
@@ -3270,6 +3335,8 @@ function App() {
       if (myJobs.length > 0) {
         const chatList = myJobs.map((job) => ({
           id: job.id,
+          provider_id: job.other_party_id,
+          consumer_id: job.other_party_id,
           name: `${job.other_party || "Client"} — ${job.machine_name || "Machine"}`,
           avatar: (job.other_party || "CL").substring(0, 2).toUpperCase(),
           lastMsg:
@@ -3278,11 +3345,27 @@ function App() {
           time: new Date(job.created_at).toLocaleDateString(),
           unread: 0,
           status: job.status,
-          expertId: job.expert_id || `exp-${job.id}`,
+          other_party_id: job.other_party_id,
+          expertId: job.other_party_id,
         }));
         setProducerChats(chatList);
+
+        // FIX 1 — populate activeJobs from DB so it survives refresh
+        const activeFromDB = myJobs
+          .filter(j => ['accepted', 'in_progress', 'started'].includes(j.status))
+          .map(j => ({
+            id: j.id,
+            machine_name: j.machine_name,
+            issue_description: j.issue_description,
+            status: j.status,
+            progressStage: j.status === 'in_progress' ? 'in_progress' : 'accepted',
+            other_party: j.other_party,
+            created_at: j.created_at,
+          }));
+        setActiveJobs(activeFromDB);
       } else {
         setProducerChats([]);
+        setActiveJobs([]);
       }
     } catch (err) {
       console.error("Failed to load producer chat list:", err);
@@ -3611,7 +3694,8 @@ function App() {
           const statsRes = await api.get("/finance/stats");
           setEarningsStats(statsRes.data);
           const historyRes = await api.get("/finance/history");
-          setTransactionHistory(historyRes.data);
+          const rows = Array.isArray(historyRes.data) ? historyRes.data : [];
+          setTransactionHistory(rows.map(mapServiceHistoryRow));
         } catch (err) {
           console.error("Failed to load financial data", err);
         }
@@ -3690,8 +3774,34 @@ function App() {
     setShowExpertProfileModal(true);
 
     try {
-      const expertId =
-        chat.provider_id || chat.expertId || chat.userId || chat.id;
+      const expertId = chat.provider_id || chat.expertId || chat.other_party_id;
+      
+      // FIX 3 — Validate UUID before calling API
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!expertId || !uuidRegex.test(expertId)) {
+        const nameFromChat = (chat.name || '').split('(')[1]?.replace(')', '').trim() || 'Expert';
+        setSelectedExpert({
+          loading: false,
+          error: false,
+          name: nameFromChat,
+          specialization: 'Repair Expert',
+          rating: '5.0',
+          level: 'Starter',
+          experience: 'N/A',
+          city: 'N/A',
+          jobsCompleted: 0,
+          badge: 'Verified Expert',
+          machines: 'Industrial Machinery',
+          qualification: 'Certified Technician',
+          responseTime: 'N/A',
+          memberSince: 'Recently',
+          online: false,
+          avatar: nameFromChat.substring(0, 2).toUpperCase(),
+        });
+        setShowExpertProfileModal(true);
+        return;
+      }
+      
       const res = await api.get(`/providers/${expertId}`);
       const data = res.data;
 
@@ -3736,7 +3846,8 @@ function App() {
   };
 
   const handlePayment = (amountStr, desc, requestId = null) => {
-    const providerPrice = parseInt(String(amountStr).replace(/[^0-9]/g, "")) || 5000;
+    const checkoutAmount = parseInt(String(amountStr).replace(/[^0-9]/g, "")) || 5000;
+    const providerPrice = checkoutAmount;
     const commissionPercentage = parseFloat(import.meta.env.VITE_PLATFORM_COMMISSION_PERCENTAGE || "10");
     const commission = (providerPrice * commissionPercentage) / 100;
     const gst = commission * 0.18;
@@ -3746,6 +3857,7 @@ function App() {
       // Simulate payment — show checkout modal with demo flag, skip Razorpay
       setCheckoutDesc(desc || "Invoice Payment");
       setCheckoutDetails({
+        checkoutAmount,
         providerPrice,
         commissionPercentage,
         commission: Math.round(commission * 100) / 100,
@@ -3760,6 +3872,7 @@ function App() {
 
     setCheckoutDesc(desc || "Invoice Payment");
     setCheckoutDetails({
+      checkoutAmount,
       providerPrice,
       commissionPercentage,
       commission: Math.round(commission * 100) / 100,
@@ -3786,7 +3899,12 @@ function App() {
           text: successText,
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         }]);
-        setPaidInvoices((prev) => [...prev, `${checkoutDesc}_${checkoutDetails.providerPrice}`]);
+        const paidInvoiceKey = `${checkoutDesc}_${checkoutDetails.checkoutAmount}`;
+        setPaidInvoices((prev) => {
+          const updated = [...prev, paidInvoiceKey];
+          localStorage.setItem('paidInvoices', JSON.stringify(updated));
+          return updated;
+        });
         setChats((prev) => prev.map((c) =>
           String(c.id) === String(activeChatId) ? { ...c, status: "payment_pending" } : c
         ));
@@ -3861,10 +3979,12 @@ function App() {
               }
 
               // Mark invoice as paid (using desc and amount as unique key for mock)
-              setPaidInvoices((prev) => [
-                ...prev,
-                `${checkoutDesc}_${checkoutDetails.providerPrice}`,
-              ]);
+              const paidInvoiceKey = `${checkoutDesc}_${checkoutDetails.checkoutAmount}`;
+              setPaidInvoices((prev) => {
+                const updated = [...prev, paidInvoiceKey];
+                localStorage.setItem('paidInvoices', JSON.stringify(updated));
+                return updated;
+              });
 
               if (socket) {
                 const userStr = localStorage.getItem("user");
@@ -6170,7 +6290,7 @@ function App() {
                 setActiveChatId={setActiveChatId}
                 chatHistory={messages}
                 onSendMessage={handleSendMessage}
-                currentUser={{ id: "user", name: firstName }}
+                currentUser={{ id: role === 'producer' ? 'expert' : 'consumer', role, name: firstName }}
                 onViewProfile={handleViewExpertProfile}
                 paidInvoices={paidInvoices}
                 onProcessPayment={handlePayment}
@@ -6201,11 +6321,13 @@ function App() {
               <MachinesView
                 loading={machinesLoading}
                 machines={machines}
+                activeRequests={activeRequests}
+                setActiveTab={setActiveTab}
                 setShowAddMachineModal={handleOpenAddMachine}
                 onViewMachine={(m) => {
                   /* Optional: could handle detailed view if established */
                 }}
-                setActiveJobMachine={() => {}}
+                setActiveJobMachine={setActiveJobMachine}
                 setShowReportIssueModal={handleOpenDiagnosisModal}
               />
             );
@@ -6257,7 +6379,14 @@ function App() {
           case "help":
           case "support":
             return <SupportView user={{ firstName, lastName, email, name: `${firstName} ${lastName}`.trim() }} />;
-          // Settings page removed per user request
+          case "settings":
+            return (
+              <SettingsView
+                role={role}
+                user={getStoredUser()}
+                onLogout={handleLogout}
+              />
+            );
           default:
             return (
               <FleetView
@@ -6414,7 +6543,14 @@ function App() {
           case "help":
           case "support":
             return <SupportView user={{ firstName, lastName, email, name: `${firstName} ${lastName}`.trim() }} />;
-          // Settings page removed per user request
+          case "settings":
+            return (
+              <SettingsView
+                role={role}
+                user={getStoredUser()}
+                onLogout={handleLogout}
+              />
+            );
           default:
             return (
               <ProducerDashboard

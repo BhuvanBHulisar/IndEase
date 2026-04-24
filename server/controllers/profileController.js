@@ -225,7 +225,10 @@ export const updateProfileData = async (req, res) => {
             return res.json({ success: true, user: req.user });
         }
         
-        const { first_name, last_name, company, phone, city, state, pincode } = req.body;
+        const {
+            first_name, last_name, company, phone, city, state, pincode,
+            bank_account_name, bank_account_number, ifsc_code
+        } = req.body;
         
         // Use direct assignment (not COALESCE) so users can clear fields
         await db.query(
@@ -249,6 +252,25 @@ export const updateProfileData = async (req, res) => {
                 userId
             ]
         );
+
+        if (req.user.role === 'producer') {
+            await db.query(
+                `INSERT INTO producer_profiles (user_id, account_holder_name, bank_account_number, account_number, ifsc_code)
+                 VALUES ($1, $2, $3, $3, $4)
+                 ON CONFLICT (user_id) DO UPDATE
+                 SET account_holder_name = COALESCE($2, producer_profiles.account_holder_name),
+                     bank_account_number = COALESCE($3, producer_profiles.bank_account_number),
+                     account_number = COALESCE($3, producer_profiles.account_number),
+                     ifsc_code = COALESCE($4, producer_profiles.ifsc_code),
+                     updated_at = CURRENT_TIMESTAMP`,
+                [
+                    userId,
+                    bank_account_name || null,
+                    bank_account_number || null,
+                    ifsc_code || null
+                ]
+            );
+        }
         
         const result = await db.query(
             'SELECT id, email, role, first_name, last_name, organization, phone, city, state, pincode, photo_url FROM users WHERE id = $1',

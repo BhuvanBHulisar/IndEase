@@ -1,132 +1,231 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-/**
- * Generates and downloads a professional PDF invoice for a maintenance record.
- * @param {Object} record - The maintenance record data.
- */
 export const generateInvoicePDF = (record) => {
-  const doc = new jsPDF();
-  
-  // Color Palette
-  const colors = {
-    primary: [37, 99, 235],    // #0d9488 - Brand Blue
-    secondary: [100, 116, 139], // #64748B - Slate
-    dark: [15, 23, 42],        // #0F172A - Navy
-    light: [241, 245, 249],     // #F1F5F9 - Gray
-    success: [22, 163, 74]      // #16A34A - Green
-  };
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const W = 210;
 
-  // Helper: Clean amount for calculations
-  const cleanAmount = (val) => {
-    if (!val) return 0;
-    return parseInt(String(val).replace(/[^0-9]/g, '')) || 0;
-  };
+  const teal = [13, 148, 136];
+  const tealDark = [8, 80, 65];
+  const slate = [71, 85, 105];
+  const dark = [15, 23, 42];
+  const light = [248, 250, 252];
+  const border = [226, 232, 240];
+  const white = [255, 255, 255];
+  const green = [22, 163, 74];
+  const amber = [180, 117, 23];
 
-  const baseAmount = cleanAmount(record.amount || record.cost);
-  const platformFee = 150;
-  const gst = Math.floor(baseAmount * 0.18);
-  const totalAmount = baseAmount + platformFee + gst;
+  const clean = (v) => parseInt(String(v || 0).replace(/[^0-9]/g, "")) || 0;
+  const fmt = (n) => "Rs. " + Number(n).toLocaleString("en-IN");
 
-  // Header Section
-  doc.setFontSize(26);
-  doc.setTextColor(...colors.primary);
+  const base = clean(record.amount || record.cost);
+  const fee = Math.round(base * 0.10);
+  const gst = Math.round((base + fee) * 0.18);
+  const total = base + fee + gst;
+  const invId = (record.id || "").toString().substring(0, 8).toUpperCase();
+  const dateStr = record.date
+    ? new Date(record.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const status = (record.status || "PAID").toUpperCase();
+  const statusColor = status === "PAID" ? green : status === "PENDING" ? amber : slate;
+
+  doc.setFillColor(...teal);
+  doc.rect(0, 0, W, 38, "F");
+
+  doc.setFillColor(...white);
+  doc.roundedRect(14, 8, 20, 20, 3, 3, "F");
+  doc.setFillColor(...teal);
+  doc.setDrawColor(...tealDark);
+  doc.setLineWidth(0);
+  doc.setFillColor(...tealDark);
+  doc.triangle(20, 11, 26, 11, 22, 18, "F");
+  doc.triangle(22, 18, 28, 18, 24, 25, "F");
+
   doc.setFont("helvetica", "bold");
-  doc.text("ORIGINODE", 105, 25, { align: "center" });
-  
+  doc.setFontSize(22);
+  doc.setTextColor(...white);
+  doc.text("IndEase", 40, 20);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(180, 230, 225);
+  doc.text("Industrial Machine Service Platform", 40, 26);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...white);
+  doc.text("SERVICE INVOICE", W - 14, 20, { align: "right" });
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(...colors.secondary);
+  doc.setTextColor(180, 230, 225);
+  doc.text(`#INV-${invId}`, W - 14, 27, { align: "right" });
+
+  doc.setFillColor(...light);
+  doc.rect(0, 38, W, 42, "F");
+  doc.setDrawColor(...border);
+  doc.setLineWidth(0.3);
+  doc.line(0, 80, W, 80);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...slate);
+  doc.text("BILL TO", 14, 48);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...dark);
+  doc.text(record.consumerName || record.consumer || "Fleet Operator", 14, 55);
+
   doc.setFont("helvetica", "normal");
-  doc.text("INDUSTRIAL NODE MAINTENANCE & SERVICE PORTAL", 105, 32, { align: "center" });
-  
-  // Top Line
-  doc.setDrawColor(...colors.light);
-  doc.setLineWidth(0.5);
-  doc.line(20, 40, 190, 40);
-  
-  // Invoice Metadata
+  doc.setFontSize(9);
+  doc.setTextColor(...slate);
+  doc.text(record.consumerEmail || record.email || "customer@indease.com", 14, 61);
+  doc.text(record.consumerPhone || record.phone || "", 14, 67);
+
+  doc.setDrawColor(...border);
+  doc.line(W / 2, 42, W / 2, 78);
+
+  const metaX = W / 2 + 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...slate);
+  doc.text("INVOICE DATE", metaX, 48);
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.setTextColor(...colors.secondary);
-  doc.text("BILL TO:", 20, 55);
-  doc.setTextColor(...colors.dark);
-  doc.setFont("helvetica", "bold");
-  doc.text("Authorized Industrial Operator", 20, 60);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...colors.secondary);
-  doc.text("Enterprise Fleet Division", 20, 65);
+  doc.setTextColor(...dark);
+  doc.text(dateStr, metaX, 55);
 
-  doc.text("INVOICE INFO:", 140, 55);
-  doc.setTextColor(...colors.dark);
   doc.setFont("helvetica", "bold");
-  doc.text(`ID: #INV-${record.id?.toString().substring(0, 8) || 'N/A'}`, 140, 60);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Date: ${record.date || new Date().toLocaleDateString()}`, 140, 65);
-  doc.setTextColor(...colors.success);
-  doc.text(`Status: ${record.status || 'PAID'}`, 140, 70);
+  doc.setFontSize(7);
+  doc.setTextColor(...slate);
+  doc.text("STATUS", metaX + 50, 48);
+  doc.setFillColor(...statusColor);
+  doc.roundedRect(metaX + 48, 50, 28, 8, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...white);
+  doc.text(status, metaX + 62, 55, { align: "center" });
 
-  // Table Data
-  const tableRows = [
-    ["Machine Identifier", record.machine || "Industrial Unit"],
-    ["Service Classification", record.service || record.action || "General Maintenance"],
-    ["Technical Specialist", record.expert?.replace(" (You)", "") || "Assigned Expert"],
-    ["Base Service Cost", `INR ${baseAmount.toLocaleString()}`],
-    ["Network Platform Fee", `INR ${platformFee.toLocaleString()}`],
-    ["GST (Industrial Levy 18%)", `INR ${gst.toLocaleString()}`]
-  ];
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...slate);
+  doc.text("SERVICE EXPERT", metaX, 65);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...dark);
+  const expertName = (record.expert || "Assigned Expert").replace(" (You)", "");
+  doc.text(expertName, metaX, 72);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...slate);
+  doc.text("SERVICE DETAILS", 14, 92);
+  doc.setDrawColor(...teal);
+  doc.setLineWidth(1);
+  doc.line(14, 94, 50, 94);
 
   autoTable(doc, {
-    startY: 85,
-    head: [["Service Item", "Description & Valuation"]],
-    body: tableRows,
-    theme: 'grid',
-    headStyles: { 
-      fillColor: colors.primary, 
-      textColor: [255, 255, 255], 
-      fontSize: 11,
-      fontStyle: 'bold',
-      halign: 'left'
+    startY: 98,
+    margin: { left: 14, right: 14 },
+    head: [["Description", "Details"]],
+    body: [
+      ["Machine", record.machine || "Industrial Unit"],
+      ["Service Type", record.service || record.action || "Machine Repair & Maintenance"],
+      ["Service Request ID", `#SR-${(record.serviceRequestId || record.id || "").toString().substring(0, 8).toUpperCase()}`],
+      ["Work Performed", record.workDescription || record.notes || "Repair and maintenance as per service request"],
+    ],
+    theme: "plain",
+    headStyles: {
+      fillColor: teal,
+      textColor: white,
+      fontSize: 9,
+      fontStyle: "bold",
+      cellPadding: { top: 5, bottom: 5, left: 6, right: 6 },
     },
-    bodyStyles: { 
-      fontSize: 10, 
-      cellPadding: 6,
-      textColor: colors.dark 
+    bodyStyles: {
+      fontSize: 9,
+      textColor: dark,
+      cellPadding: { top: 5, bottom: 5, left: 6, right: 6 },
     },
-    columnStyles: { 
-      0: { fontStyle: 'bold', width: 60, fillColor: [250, 250, 250] },
-      1: { halign: 'right' }
+    columnStyles: {
+      0: { fontStyle: "bold", fillColor: light, cellWidth: 55 },
+      1: { cellWidth: "auto" },
     },
-    margin: { left: 20, right: 20 }
+    alternateRowStyles: { fillColor: white },
   });
 
-  // Final Summary
-  const finalY = doc.lastAutoTable.finalY + 15;
-  
-  // Summary Box
-  doc.setFillColor(...colors.light);
-  doc.roundedRect(120, finalY, 70, 25, 3, 3, 'F');
-  
-  doc.setFontSize(10);
-  doc.setTextColor(...colors.secondary);
-  doc.setFont("helvetica", "bold");
-  doc.text("TOTAL PAYABLE", 125, finalY + 10);
-  
-  doc.setFontSize(16);
-  doc.setTextColor(...colors.primary);
-  doc.text(`INR ${totalAmount.toLocaleString()}`, 125, finalY + 20);
+  const tableEnd = doc.lastAutoTable.finalY + 8;
 
-  // Footer / Verification Section
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(...colors.secondary);
+  doc.setTextColor(...slate);
+  doc.text("PAYMENT BREAKDOWN", 14, tableEnd);
+  doc.setDrawColor(...teal);
+  doc.setLineWidth(1);
+  doc.line(14, tableEnd + 2, 62, tableEnd + 2);
+
+  autoTable(doc, {
+    startY: tableEnd + 6,
+    margin: { left: 14, right: 14 },
+    body: [
+      ["Base Service Cost", fmt(base)],
+      ["Platform Fee (10%)", fmt(fee)],
+      ["GST @ 18%", fmt(gst)],
+    ],
+    theme: "plain",
+    bodyStyles: {
+      fontSize: 9,
+      textColor: slate,
+      cellPadding: { top: 4, bottom: 4, left: 6, right: 6 },
+    },
+    columnStyles: {
+      0: { cellWidth: 130 },
+      1: { halign: "right", cellWidth: 52 },
+    },
+  });
+
+  const totalY = doc.lastAutoTable.finalY + 2;
+  doc.setFillColor(...teal);
+  doc.roundedRect(14, totalY, 182, 16, 3, 3, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...white);
+  doc.text("TOTAL PAYABLE", 22, totalY + 10);
+  doc.setFontSize(13);
+  doc.text(fmt(total), W - 14, totalY + 10, { align: "right" });
+
+  const noteY = totalY + 24;
+  doc.setFillColor(240, 253, 250);
+  doc.setDrawColor(...teal);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, noteY, 182, 14, 3, 3, "FD");
   doc.setFont("helvetica", "normal");
-  doc.text("DIGITALLY VERIFIED INVOICE", 105, 270, { align: "center" });
-  doc.line(80, 272, 130, 272);
-  
+  doc.setFontSize(8);
+  doc.setTextColor(...tealDark);
+  doc.text(
+    `Expert receives ${fmt(base)} after platform fee deduction. Payment secured via Razorpay.`,
+    105, noteY + 8, { align: "center" }
+  );
+
+  doc.setFillColor(...dark);
+  doc.rect(0, 272, W, 25, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...white);
+  doc.text("IndEase", 14, 281);
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("This document is generated by the origiNode Industrial Maintenance Network.", 105, 278, { align: "center" });
-  doc.text("All payments are secured via node-to-node encrypted protocols.", 105, 282, { align: "center" });
-  
-  // Download the PDF
-  const fileName = `Invoice_#${record.id?.toString().substring(0, 6) || 'NA'}_${record.machine?.replace(/\s+/g, '_') || 'Unit'}.pdf`;
+  doc.setTextColor(148, 163, 184);
+  doc.text("Industrial Machine Service Platform", 14, 286);
+  doc.text("support: originode7@gmail.com", 14, 291);
+
+  doc.setFontSize(7);
+  doc.setTextColor(148, 163, 184);
+  doc.text("This is a digitally generated invoice from IndEase.", W - 14, 281, { align: "right" });
+  doc.text("All transactions are secured via Razorpay payment gateway.", W - 14, 286, { align: "right" });
+  doc.text(`© ${new Date().getFullYear()} IndEase. All rights reserved.`, W - 14, 291, { align: "right" });
+
+  const fileName = `IndEase_Invoice_${invId}_${(record.machine || "Service").replace(/\s+/g, "_")}.pdf`;
   doc.save(fileName);
 };
-

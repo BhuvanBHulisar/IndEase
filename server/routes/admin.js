@@ -16,6 +16,7 @@ import {
   getAllTickets,
   updateTicketStatus,
 } from "../controllers/supportController.js";
+import * as notificationController from "../controllers/notificationController.js";
 
 const router = express.Router();
 
@@ -814,6 +815,13 @@ router.post("/payments/release-salary", async (req, res) => {
         read: false,
       });
     }
+    await notificationController.createNotification(
+      expertId,
+      "Salary Credited",
+      `Your monthly salary of ₹${amount} has been credited to your bank account.`,
+      "payment",
+      null
+    );
 
     res.json({
       success: true,

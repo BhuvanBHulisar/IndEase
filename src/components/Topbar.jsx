@@ -180,7 +180,8 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
                                <AlertCircle size={16} className={primaryText} />
                             </div>
                             <div className="flex flex-col gap-0.5 flex-1">
-                               <p className="text-xs text-slate-700 font-bold leading-tight tracking-tight">{n.message}</p>
+                               <p className="text-xs text-slate-700 font-bold leading-tight tracking-tight">{n.title || 'Notification'}</p>
+                               <p className="text-[11px] text-slate-500 mt-0.5 leading-tight">{n.message || n.msg || ''}</p>
                                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{getTimeAgo(n.timestamp)}</p>
                             </div>
                          </div>

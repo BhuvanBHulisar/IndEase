@@ -3,7 +3,13 @@ import { Plus, HardDrive, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { SkeletonMachineCard } from './ui/Skeleton';
 
-const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine, setActiveJobMachine, setShowReportIssueModal }) => {
+const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine, setActiveJobMachine, setShowReportIssueModal, activeRequests = [], setActiveTab }) => {
+  const machineHasActiveRequest = (machineId) =>
+    activeRequests.some(
+      (r) =>
+        r.machine_id === machineId &&
+        ['pending', 'broadcast', 'accepted', 'in_progress'].includes(r.status)
+    );
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -66,16 +72,28 @@ const MachinesView = ({ machines, loading, setShowAddMachineModal, onViewMachine
             </div>
 
             <div className="pt-6 border-t border-[#E5E7EB] flex items-center justify-between">
-              <button 
-                className="h-10 px-4 rounded-[10px] bg-[#0d9488] text-white text-xs font-medium hover:bg-teal-700 transition-colors z-10 relative"
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  if(typeof setActiveJobMachine === 'function') setActiveJobMachine(m);
-                  if(typeof setShowReportIssueModal === 'function') setShowReportIssueModal(true); 
-                }}
-              >
-                Request Service
-              </button>
+              {machineHasActiveRequest(m.id || m._id) ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (typeof setActiveTab === 'function') setActiveTab('my-requests');
+                  }}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+                >
+                  View Request →
+                </button>
+              ) : (
+                <button
+                  className="h-10 px-4 rounded-[10px] bg-[#0d9488] text-white text-xs font-medium hover:bg-teal-700 transition-colors z-10 relative"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if(typeof setActiveJobMachine === 'function') setActiveJobMachine(m);
+                    if(typeof setShowReportIssueModal === 'function') setShowReportIssueModal(true);
+                  }}
+                >
+                  Request Service
+                </button>
+              )}
               <div className="flex items-center gap-2 text-slate-300">
                 <ArrowUpRight size={18} className="group-hover:text-[#0d9488] transition-colors" />
               </div>
