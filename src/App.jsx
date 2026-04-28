@@ -2279,6 +2279,61 @@ function App() {
     setNewMessage("");
   };
 
+  // FIX 3 — Handle appointment action (Accept/Decline/Reschedule)
+  const handleAppointmentAction = async (originalMsg, action, prefillCallback) => {
+    // Parse original appointment data
+    const msgText = typeof originalMsg === 'string'
+      ? originalMsg
+      : (originalMsg.text || originalMsg.message || '');
+    
+    if (!msgText.startsWith('[APPOINTMENT]:')) return;
+    
+    try {
+      const data = JSON.parse(msgText.replace('[APPOINTMENT]:', ''));
+      
+      // Update the appointment status
+      const updatedData = { ...data, status: action };
+      const updatedText = `[APPOINTMENT]:${JSON.stringify(updatedData)}`;
+      
+      // Send a new message with updated status
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      if (socket) {
+        socket.emit('send_message', {
+          requestId: activeChatId,
+          senderId: user.id,
+          senderName: user.first_name || 'User',
+          text: updatedText,
+        });
+      }
+      
+      // Send notification to other party
+      const actionLabel = action === 'accepted'
+        ? 'accepted your appointment'
+        : action === 'declined'
+          ? 'declined your appointment'
+          : 'requested to reschedule';
+      
+      addNotification(
+        'Appointment Update',
+        `${user.first_name || 'User'} ${actionLabel} for ${data.date} at ${data.time}`
+      );
+      
+      // If reschedule — call prefill callback to open form with data
+      if (action === 'rescheduled' && prefillCallback) {
+        prefillCallback({
+          date: data.date,
+          time: data.time,
+          type: data.type,
+          note: 'Rescheduled — please pick a new time'
+        });
+      }
+      
+    } catch (err) {
+      console.error('Failed to handle appointment action:', err);
+    }
+  };
+
   // [ADDED] Demo Data for Service History -> [MODIFIED] Now State
   const [historyData, setHistoryData] = useState([
     {
@@ -3450,7 +3505,22 @@ function App() {
       setActiveChatId(jobId);
       setActiveTab("messages");
     } catch (err) {
-      alert("Failed to accept job: " + (err.response?.data?.message || err.message));
+      // PROMPT 2 — Improved error handling for race condition
+      const msg = err.response?.data?.message || '';
+      if (msg.includes('no longer available') || err.response?.status === 400) {
+        // Show friendly message — another expert was faster
+        setToast({ 
+          message: 'This request was just accepted by another expert. Check for other requests.', 
+          type: 'warning' 
+        });
+        // Refresh radar jobs to remove this one
+        fetchRadarJobs();
+      } else {
+        setToast({ 
+          message: 'Failed to accept request. Please try again.', 
+          type: 'error' 
+        });
+      }
     } finally {
       setAcceptingJobId(null);
     }
@@ -6296,6 +6366,7 @@ function App() {
                 onProcessPayment={handlePayment}
                 jobStatus={chats.find((c) => c.id === activeChatId)?.status}
                 loading={chatsLoading}
+                onAppointmentAction={handleAppointmentAction}
               />
             );
           case "history":
@@ -6461,6 +6532,7 @@ function App() {
                 onStartWork={handleExpertStartWork}
                 onMarkComplete={handleExpertMarkComplete}
                 loading={chatsLoading}
+                onAppointmentAction={handleAppointmentAction}
               />
             );
           case "history":

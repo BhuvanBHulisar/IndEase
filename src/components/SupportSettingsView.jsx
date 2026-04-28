@@ -133,7 +133,7 @@ export function SupportView({ user }) {
            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Help & Support</h2>
            <p className="text-sm font-medium text-slate-500 max-w-2xl">
              Submit a support request and our team will get back to you via email. You can also reach us directly at{' '}
-             <a href={`mailto:${SUPPORT_EMAIL}`} className="text-teal-600 hover:underline font-medium">{SUPPORT_EMAIL}</a>.
+             <a href={`mailto:${SUPPORT_EMAIL}`} className="text-teal-600 hover:underline font-medium">IndEase Support</a>.
            </p>
         </div>
         
@@ -233,7 +233,7 @@ export function SupportView({ user }) {
           <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-6 shadow-sm space-y-6 relative overflow-hidden group">
             <h3 className="text-lg font-semibold text-slate-900 leading-tight">Contact Us Directly</h3>
             <div className="space-y-4">
-              <ContactItem icon={Mail} label="Support Email" value={SUPPORT_EMAIL} href={`mailto:${SUPPORT_EMAIL}`} />
+              <ContactItem icon={Mail} label="IndEase Support" value={SUPPORT_EMAIL} href={`mailto:${SUPPORT_EMAIL}`} />
               <ContactItem icon={Phone} label="Support Hours" value="Monday – Saturday, 9 AM – 6 PM IST" />
               <ContactItem icon={MessagesSquare} label="Response Time" value="Within 24 hours" />
             </div>

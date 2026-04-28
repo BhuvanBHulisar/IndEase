@@ -249,6 +249,60 @@ async function startServer() {
         if (deleted > 0) console.log(`[Cleanup] Deleted ${deleted} old video(s)`);
       });
 
+      // PROMPT 1 — Every 30 minutes — escalate unaccepted requests
+      cron.schedule('*/30 * * * *', async () => {
+        try {
+          // Find requests broadcast for more than 2 hours with no expert
+          const result = await db.query(`
+            SELECT sr.id, sr.consumer_id, sr.issue_description,
+                   m.name as machine_name, u.first_name as consumer_name
+            FROM service_requests sr
+            JOIN machines m ON sr.machine_id = m.id
+            JOIN users u ON sr.consumer_id = u.id
+            WHERE sr.status = 'broadcast'
+            AND sr.is_demo = false
+            AND sr.first_broadcast_at < NOW() - INTERVAL '2 hours'
+            AND sr.admin_escalated IS NOT TRUE
+          `);
+
+          for (const job of result.rows) {
+            // Mark as escalated so we don't repeat
+            await db.query(
+              `UPDATE service_requests SET admin_escalated = true WHERE id = $1`,
+              [job.id]
+            );
+
+            // Notify consumer
+            await db.query(
+              `INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
+               VALUES ($1, $2, $3, $4, false, NOW())`,
+              [
+                job.consumer_id,
+                'Finding Expert',
+                `We are manually assigning an expert for your ${job.machine_name} request. You will be notified shortly.`,
+                'system'
+              ]
+            );
+
+            // Notify admin via socket
+            const io = global.io;
+            if (io) {
+              io.emit('admin_escalation', {
+                jobId: job.id,
+                machineName: job.machine_name,
+                consumerName: job.consumer_name,
+                issue: job.issue_description,
+                message: `No expert accepted request for ${job.machine_name} in 2 hours. Manual assignment needed.`
+              });
+            }
+
+            console.log(`[Escalation] Job ${job.id} escalated to admin after 2 hours`);
+          }
+        } catch (err) {
+          console.error('[Escalation Cron] Error:', err.message);
+        }
+      });
+
       console.log("[DB] Connected and schemas verified ✓");
       return;
     } catch (error) {

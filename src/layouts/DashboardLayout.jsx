@@ -51,7 +51,7 @@ const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTa
               <p className="text-xs text-slate-400 font-medium">
                 Need help? Contact us at{' '}
                 <a href="mailto:originode7@gmail.com" className="text-teal-500 hover:underline font-bold">
-                  originode7@gmail.com
+                  IndEase Support
                 </a>
               </p>
             </div>

@@ -73,20 +73,25 @@ export default function SupportRequests() {
     setLoading(true);
     setError(null);
     try {
+      // FIX 3 — Add error logging
       const res = await api.get("/admin/support");
-      setTickets(res.data || []);
+      console.log('[Support] Fetched tickets:', res.data?.length);
+      setTickets(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
+      console.error('[Support] Fetch error:', err.response?.status, err.response?.data);
       setError(
-        err.response?.data?.error ||
-          `Something went wrong. Please contact support at ${SUPPORT_EMAIL}`
+        `Failed to load tickets: ${err.response?.data?.error || err.message}`
       );
     } finally {
       setLoading(false);
     }
   };
 
+  // FIX 4 — Add auto-refresh every 30 seconds
   useEffect(() => {
-    fetchTickets();
+    fetchTickets(); // Initial load
+    const interval = setInterval(fetchTickets, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
   }, []);
 
   const handleStatusChange = async (id, newStatus) => {

@@ -5,6 +5,7 @@ import { cn } from './ui/base';
 
 const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, onSearch, searchResults = [], onResultClick, isDemo, onMenuClick }) => {
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [showAllNotif, setShowAllNotif] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
@@ -194,7 +195,12 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
                  </div>
                  {notifications.length > 0 && (
                     <div className="p-3 border-t border-[#E5E7EB] text-center bg-slate-50">
-                       <button className="text-[11px] text-slate-500 hover:text-teal-600 font-semibold uppercase tracking-widest">View all</button>
+                       <button 
+                         onClick={() => { setShowAllNotif(true); setShowNotif(false); }}
+                         className="text-[11px] text-slate-500 hover:text-teal-600 font-semibold uppercase tracking-widest"
+                       >
+                         View All Notifications →
+                       </button>
                     </div>
                  )}
               </motion.div>
@@ -214,6 +220,124 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
           <ChevronDown size={14} className="hidden sm:block text-slate-400 group-hover:text-slate-900 transition-colors" />
         </button>
       </div>
+
+      {/* PROMPT 4 — View All Notifications Slide-over Panel */}
+      {showAllNotif && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowAllNotif(false)}
+            style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.3)', zIndex:200}}
+          />
+          {/* Panel */}
+          <div style={{
+            position:'fixed', top:0, right:0, height:'100vh',
+            width:'420px', background:'white', zIndex:201,
+            boxShadow:'-4px 0 24px rgba(0,0,0,0.12)',
+            display:'flex', flexDirection:'column'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding:'20px 24px', borderBottom:'1px solid #F1F5F9',
+              display:'flex', justifyContent:'space-between', alignItems:'center'
+            }}>
+              <div>
+                <h2 style={{fontSize:'16px', fontWeight:700, color:'#0f172a', margin:0}}>Notifications</h2>
+                <p style={{fontSize:'12px', color:'#94a3b8', margin:'2px 0 0'}}>
+                  {notifications.filter(n => !n.read).length} unread
+                </p>
+              </div>
+              <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
+                <button
+                  onClick={onMarkAllRead}
+                  style={{fontSize:'12px', color:'#0d9488', fontWeight:600, background:'none', border:'none', cursor:'pointer'}}
+                >
+                  Mark all read
+                </button>
+                <button
+                  onClick={() => setShowAllNotif(false)}
+                  style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', fontSize:'20px', lineHeight:1}}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* Notification list */}
+            <div style={{flex:1, overflowY:'auto', padding:'8px 0'}}>
+              {notifications.length === 0 ? (
+                <div style={{textAlign:'center', padding:'60px 24px', color:'#94a3b8'}}>
+                  <div style={{fontSize:'32px', marginBottom:'12px'}}>🔔</div>
+                  <p style={{fontSize:'14px', fontWeight:500}}>No notifications yet</p>
+                  <p style={{fontSize:'12px', marginTop:'4px'}}>You will be notified about service updates, messages, and payments.</p>
+                </div>
+              ) : (
+                notifications.map((n, i) => (
+                  <div
+                    key={n.id || i}
+                    onClick={() => onMarkAsRead && onMarkAsRead(n.id)}
+                    style={{
+                      padding:'14px 24px',
+                      borderBottom:'1px solid #F8FAFC',
+                      background: n.read ? 'white' : '#F0FDFA',
+                      cursor:'pointer',
+                      transition:'background 0.15s',
+                      display:'flex', gap:'12px', alignItems:'flex-start'
+                    }}
+                  >
+                    {/* Icon */}
+                    <div style={{
+                      width:'36px', height:'36px', borderRadius:'10px', flexShrink:0,
+                      background: n.read ? '#F1F5F9' : '#CCFBF1',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:'16px'
+                    }}>
+                      {n.type === 'payment' ? '💳'
+                        : n.type === 'message' ? '💬'
+                        : n.type === 'new_request' ? '🔧'
+                        : n.type === 'achievement' ? '⭐'
+                        : n.type === 'system' ? '⚙️'
+                        : '🔔'}
+                    </div>
+                    {/* Content */}
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{
+                        fontSize:'13px', fontWeight: n.read ? 500 : 700,
+                        color:'#0f172a', marginBottom:'3px'
+                      }}>
+                        {n.title || 'Notification'}
+                      </div>
+                      <div style={{
+                        fontSize:'12px', color:'#64748b', lineHeight:'1.5',
+                        wordBreak:'break-word'
+                      }}>
+                        {n.message || n.msg || ''}
+                      </div>
+                      <div style={{fontSize:'11px', color:'#94a3b8', marginTop:'4px'}}>
+                        {getTimeAgo(n.timestamp)}
+                      </div>
+                    </div>
+                    {/* Unread dot */}
+                    {!n.read && (
+                      <div style={{
+                        width:'8px', height:'8px', borderRadius:'50%',
+                        background:'#0d9488', flexShrink:0, marginTop:'4px'
+                      }} />
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{padding:'16px 24px', borderTop:'1px solid #F1F5F9', background:'#FAFAFA'}}>
+              <p style={{fontSize:'11px', color:'#94a3b8', textAlign:'center', margin:0}}>
+                Notifications are stored for 30 days
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </header>
   );
 };

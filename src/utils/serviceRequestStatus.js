@@ -4,7 +4,7 @@ export const SERVICE_STEPS = ['Pending', 'Expert Found', 'In Progress', 'Complet
 
 /** Sent in chat when expert marks a job completed (consumer + expert). */
 export const SERVICE_COMPLETION_MESSAGE =
-  'This service request has been marked as completed. Thank you for using origiNode.';
+  'This service request has been marked as completed. Thank you for using IndEase.';
 
 /**
  * @param {string} raw — e.g. broadcast, accepted, payment_pending, in_progress, completed

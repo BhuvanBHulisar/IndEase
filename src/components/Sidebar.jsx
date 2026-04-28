@@ -167,15 +167,6 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
 
       {/* User Session Footer */}
       <div className="p-6 border-t border-[#E5E7EB] bg-white">
-        <div className="flex items-center gap-3 mb-6 px-2">
-           <div className={`w-10 h-10 rounded-xl ${primaryBg} border ${isExpert ? 'border-indigo-100' : 'border-teal-100'} flex items-center justify-center ${primaryText} font-bold text-xs shadow-sm`}>
-             {firstName[0].toUpperCase()}
-           </div>
-           <div className="flex flex-col min-w-0">
-             <span className="text-xs font-bold text-slate-900 truncate tracking-tight">{firstName}</span>
-             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate mt-0.5">{displayRole}</span>
-           </div>
-        </div>
         {isDemo ? (
           <div className="space-y-2">
             <button
@@ -183,7 +174,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
               className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-all font-semibold text-[10px] uppercase tracking-widest border border-slate-200"
             >
               <LogOut size={14} strokeWidth={2} />
-              <span>Exit Session</span>
+              <span>Logout</span>
             </button>
             <button
               onClick={onClearData}
@@ -198,7 +189,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
             className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all font-semibold text-[10px] uppercase tracking-widest"
           >
             <LogOut size={14} strokeWidth={2} />
-            <span>Exit Session</span>
+            <span>Logout</span>
           </button>
         )}
       </div>

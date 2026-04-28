@@ -49,7 +49,8 @@ export default function MessagesView({
   jobStatus,
   onStartWork,
   onMarkComplete,
-  loading = false
+  loading = false,
+  onAppointmentAction
 }) {
   const navigate = useNavigate();
   const [msgInput, setMsgInput] = useState('');
@@ -58,6 +59,12 @@ export default function MessagesView({
   const [invoiceAmount, setInvoiceAmount] = useState('');
   const [invoiceDesc, setInvoiceDesc] = useState('');
   const [invoiceError, setInvoiceError] = useState('');
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [appointmentType, setAppointmentType] = useState('On-site Visit');
+  const [appointmentNote, setAppointmentNote] = useState('');
+  const [appointmentError, setAppointmentError] = useState('');
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
 
@@ -81,6 +88,20 @@ export default function MessagesView({
     // Call the modal handler passed via props
     if (onViewProfile) {
       onViewProfile(activeChat);
+    }
+  };
+
+  // FIX 5 — Wrapper to handle appointment action with prefill for reschedule
+  const handleAppointmentActionWithPrefill = (msg, action) => {
+    if (onAppointmentAction) {
+      onAppointmentAction(msg, action, (prefillData) => {
+        // Prefill callback for reschedule
+        setAppointmentDate(prefillData.date);
+        setAppointmentTime(prefillData.time);
+        setAppointmentType(prefillData.type);
+        setAppointmentNote(prefillData.note);
+        setShowAppointmentForm(true);
+      });
     }
   };
 
@@ -280,6 +301,7 @@ export default function MessagesView({
                        onProcessPayment={onProcessPayment}
                        paidInvoices={paidInvoices}
                        currentUser={currentUser}
+                       onAppointmentAction={handleAppointmentActionWithPrefill}
                      />
                    );
                  });
@@ -343,6 +365,89 @@ export default function MessagesView({
               </div>
             )}
 
+            {/* PROMPT 3 — Appointment Form Popover */}
+            {isExpertView && showAppointmentForm && (
+              <div className="p-4 bg-white border-t border-[#E5E7EB] shrink-0 space-y-3">
+                 <div className="flex items-center justify-between">
+                   <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">📅 Schedule Visit</h4>
+                   <button onClick={() => setShowAppointmentForm(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+                 </div>
+                 {appointmentError && <p className="text-red-500 text-xs font-medium">{appointmentError}</p>}
+                 <div className="grid grid-cols-2 gap-3">
+                   <div>
+                     <label className="text-xs font-medium text-slate-600 mb-1 block">Date</label>
+                     <input 
+                       type="date" 
+                       min={new Date().toISOString().split('T')[0]}
+                       value={appointmentDate}
+                       onChange={e => { setAppointmentDate(e.target.value); setAppointmentError(''); }}
+                       className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
+                     />
+                   </div>
+                   <div>
+                     <label className="text-xs font-medium text-slate-600 mb-1 block">Time</label>
+                     <input 
+                       type="time" 
+                       value={appointmentTime}
+                       onChange={e => { setAppointmentTime(e.target.value); setAppointmentError(''); }}
+                       className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
+                     />
+                   </div>
+                 </div>
+                 <div>
+                   <label className="text-xs font-medium text-slate-600 mb-1 block">Type</label>
+                   <select 
+                     value={appointmentType}
+                     onChange={e => setAppointmentType(e.target.value)}
+                     className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
+                   >
+                     <option>On-site Visit</option>
+                     <option>Video Call</option>
+                     <option>Phone Call</option>
+                   </select>
+                 </div>
+                 <div>
+                   <label className="text-xs font-medium text-slate-600 mb-1 block">Note (optional)</label>
+                   <input 
+                     type="text" 
+                     placeholder="e.g. Will bring tools"
+                     value={appointmentNote}
+                     onChange={e => setAppointmentNote(e.target.value)}
+                     className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
+                   />
+                 </div>
+                 <button 
+                   type="button"
+                   onClick={() => {
+                     if (!appointmentDate) {
+                       setAppointmentError("Please select a date");
+                       return;
+                     }
+                     if (!appointmentTime) {
+                       setAppointmentError("Please select a time");
+                       return;
+                     }
+                     setAppointmentError('');
+                     const payload = JSON.stringify({ 
+                       date: appointmentDate, 
+                       time: appointmentTime, 
+                       type: appointmentType, 
+                       note: appointmentNote 
+                     });
+                     onSendMessage(`[APPOINTMENT]:${payload}`);
+                     setAppointmentDate('');
+                     setAppointmentTime('');
+                     setAppointmentType('On-site Visit');
+                     setAppointmentNote('');
+                     setShowAppointmentForm(false);
+                   }}
+                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm h-10 rounded-lg shadow-sm transition-all"
+                 >
+                   Schedule Appointment
+                 </button>
+              </div>
+            )}
+
             {/* Input Area */}
             <div className="p-6 bg-[#F9FAFB] border-t border-[#E5E7EB] shrink-0">
                <form 
@@ -378,13 +483,28 @@ export default function MessagesView({
                   {isExpertView && (
                     <button 
                       type="button" 
-                      onClick={() => setShowInvoiceForm(!showInvoiceForm)}
+                      onClick={() => {
+                        setShowInvoiceForm(!showInvoiceForm);
+                        setShowAppointmentForm(false);
+                      }}
                       className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100 flex items-center justify-center transition-all shadow-sm shrink-0"
                       title="Send Invoice"
                     >
                       <CreditCard size={18} />
                     </button>
                   )}
+                  {/* FIX 4 — Appointment button visible to BOTH consumer and expert */}
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setShowAppointmentForm(!showAppointmentForm);
+                      setShowInvoiceForm(false);
+                    }}
+                    className={`w-11 h-11 rounded-xl ${isExpertView ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-100' : 'bg-teal-50 text-teal-600 hover:bg-teal-100 border-teal-100'} border flex items-center justify-center transition-all shadow-sm shrink-0`}
+                    title="Schedule Appointment"
+                  >
+                    📅
+                  </button>
                   <button 
                     type="submit"
                     disabled={!msgInput.trim()} 
@@ -411,11 +531,148 @@ export default function MessagesView({
   );
 }
 
-function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], currentUser }) {
+function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], currentUser, onAppointmentAction }) {
   const isExpertView = currentUser?.id === 'expert' || currentUser?.role === 'producer';
   const renderMessageContent = () => {
     // Handle message format (string vs object)
     let messageText = typeof msg === 'string' ? msg : (msg.text || msg.message || '');
+    
+    // PROMPT 3 — Detect appointment messages
+    if (typeof messageText === 'string' && messageText.startsWith('[APPOINTMENT]:')) {
+      const jsonStr = messageText.replace('[APPOINTMENT]:', '').trim();
+      try {
+        const data = JSON.parse(jsonStr);
+        const sentByMe = isMine;
+        
+        // Status from data (default: pending)
+        const apptStatus = data.status || 'pending';
+        
+        let cardTitle, cardSubtitle, statusColor, cardBg, cardBorder;
+        if (apptStatus === 'accepted') {
+          cardTitle = 'Appointment Confirmed';
+          cardSubtitle = '✓ Confirmed';
+          statusColor = '#16a34a';
+          cardBg = '#F0FDF4';
+          cardBorder = '#BBF7D0';
+        } else if (apptStatus === 'declined') {
+          cardTitle = 'Appointment Declined';
+          cardSubtitle = '✗ Declined';
+          statusColor = '#dc2626';
+          cardBg = '#FEF2F2';
+          cardBorder = '#FECACA';
+        } else if (apptStatus === 'rescheduled') {
+          cardTitle = 'Reschedule Requested';
+          cardSubtitle = '⟳ Reschedule requested';
+          statusColor = '#d97706';
+          cardBg = '#FFFBEB';
+          cardBorder = '#FED7AA';
+        } else {
+          cardTitle = sentByMe
+            ? (isExpertView ? 'Appointment Scheduled' : 'Visit Requested')
+            : (isExpertView ? 'Visit Requested by Consumer' : 'Expert Scheduled a Visit');
+          cardSubtitle = sentByMe ? 'Awaiting response' : 'Action required';
+          statusColor = '#0d9488';
+          cardBg = '#F0FDF4';
+          cardBorder = '#BBF7D0';
+        }
+        
+        // Show action buttons only to the RECEIVER (not sender) and only when pending
+        const showActions = !sentByMe && apptStatus === 'pending';
+        
+        return (
+          <div style={{
+            background: cardBg,
+            border: `1px solid ${cardBorder}`,
+            borderRadius: '12px',
+            padding: '14px 16px',
+            maxWidth: '300px',
+            minWidth: '240px'
+          }}>
+            {/* Header */}
+            <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px'}}>
+              <div style={{
+                background: apptStatus === 'declined' ? '#dc2626' : apptStatus === 'accepted' ? '#16a34a' : '#16a34a',
+                borderRadius:'8px', padding:'6px', fontSize:'16px'
+              }}>📅</div>
+              <div>
+                <div style={{fontWeight:600, fontSize:'13px', color:'#14532d'}}>{cardTitle}</div>
+                <div style={{fontSize:'11px', color: statusColor}}>{data.type}</div>
+              </div>
+            </div>
+            
+            {/* Date & Time */}
+            <div style={{fontSize:'13px', color:'#374151', marginBottom:'4px'}}>
+              📅 {new Date(data.date).toLocaleDateString('en-IN', {
+                weekday:'short', day:'numeric', month:'short', year:'numeric'
+              })}
+            </div>
+            <div style={{fontSize:'13px', color:'#374151', marginBottom:'4px'}}>
+              🕐 {data.time}
+            </div>
+            
+            {/* Note */}
+            {data.note && (
+              <div style={{
+                fontSize:'12px', color:'#6B7280',
+                marginTop:'6px', borderTop:'1px solid #D1FAE5',
+                paddingTop:'6px'
+              }}>
+                {data.note}
+              </div>
+            )}
+            
+            {/* Status badge */}
+            <div style={{
+              fontSize:'11px', color: statusColor,
+              marginTop:'6px', fontWeight:500
+            }}>
+              {cardSubtitle}
+            </div>
+            
+            {/* Action buttons — only for receiver when pending */}
+            {showActions && (
+              <div style={{
+                display:'flex', gap:'6px', marginTop:'10px',
+                borderTop:'1px solid #D1FAE5', paddingTop:'10px'
+              }}>
+                <button
+                  onClick={() => onAppointmentAction && onAppointmentAction(msg, 'accepted')}
+                  style={{
+                    flex:1, padding:'6px 0', borderRadius:'8px',
+                    background:'#16a34a', color:'white', border:'none',
+                    fontSize:'12px', fontWeight:600, cursor:'pointer'
+                  }}
+                >
+                  ✓ Accept
+                </button>
+                <button
+                  onClick={() => onAppointmentAction && onAppointmentAction(msg, 'rescheduled')}
+                  style={{
+                    flex:1, padding:'6px 0', borderRadius:'8px',
+                    background:'#f59e0b', color:'white', border:'none',
+                    fontSize:'12px', fontWeight:600, cursor:'pointer'
+                  }}
+                >
+                  ⟳ Reschedule
+                </button>
+                <button
+                  onClick={() => onAppointmentAction && onAppointmentAction(msg, 'declined')}
+                  style={{
+                    flex:1, padding:'6px 0', borderRadius:'8px',
+                    background:'#dc2626', color:'white', border:'none',
+                    fontSize:'12px', fontWeight:600, cursor:'pointer'
+                  }}
+                >
+                  ✗ Decline
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      } catch (e) {
+        return <span className="text-sm text-slate-700">{messageText}</span>;
+      }
+    }
     
     // 1. Detect invoice messages
     if (typeof messageText === 'string' && messageText.startsWith('[INVOICE]:')) {

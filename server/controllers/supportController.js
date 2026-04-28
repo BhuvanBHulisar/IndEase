@@ -69,6 +69,9 @@ export const createTicket = async (req, res) => {
 
         const ticket = result.rows[0];
 
+        // FIX 2 — Add debug log to confirm DB save
+        console.log('[Support] Ticket saved to DB:', ticket.id, '| Subject:', ticketSubject);
+
         // Send email to support (non-blocking)
         sendSupportEmail({
             name: resolvedName,
@@ -82,17 +85,10 @@ export const createTicket = async (req, res) => {
             ticketId: ticket?.id || 'ref-' + Date.now()
         });
     } catch (err) {
-        console.error('[Support] Ticket creation failure:', err);
-        // Fallback: still try to send email even if DB fails
-        sendSupportEmail({
-            name: resolvedName,
-            email: resolvedEmail,
-            subject: ticketSubject,
-            message: ticketMessage
-        }).catch(() => {});
-        return res.status(201).json({
-            message: 'Your request has been sent. Our team will contact you soon.',
-            ticketId: 'ref-' + Date.now()
+        // FIX 1 — Remove silent DB failure fallback
+        console.error('[Support] Ticket creation failure:', err.message);
+        return res.status(500).json({ 
+            message: 'Failed to submit support request. Please email us at originode7@gmail.com'
         });
     }
 };
