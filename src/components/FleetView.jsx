@@ -314,8 +314,8 @@ const FleetView = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E5E7EB]">
-                  {transactionHistory && transactionHistory.length > 0 ? transactionHistory.slice(0, 4).map(tx => (
-                    <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                  {transactionHistory && transactionHistory.length > 0 ? transactionHistory.slice(0, 4).map((tx, idx) => (
+                    <tr key={`${tx.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
                         <span className="text-sm font-semibold text-slate-900 tracking-tight">INV-{2020 + tx.id}</span>
                       </td>

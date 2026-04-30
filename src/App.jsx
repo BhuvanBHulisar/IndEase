@@ -2487,15 +2487,9 @@ function App() {
 
     if (view !== "forgot") {
       if (!isLogin) {
-        // Strict validation only for Sign Up
-        const passwordRegex =
-          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!passwordRegex.test(password)) {
-          tempErrors.password =
-            "Must be 8+ chars with Upper, Lower, Number, and Special Char.";
-        }
-        if (password !== confirmPassword) {
-          tempErrors.confirmPassword = "Passwords do not match.";
+        // Simple password validation for Sign Up (to avoid blocking legitimate users during demo)
+        if (!password || password.length < 6) {
+          tempErrors.password = "Password must be at least 6 characters.";
         }
       } else {
         // Simple validation for Login
@@ -2506,15 +2500,16 @@ function App() {
     }
 
     if (!isLogin && signupStep === 1) {
-      if (!firstName) tempErrors.firstName = "First name required.";
-      if (!lastName) tempErrors.lastName = "Last name required.";
-      if (!phone || phone.length < 10)
-        tempErrors.phone = "Valid 10-digit phone number required.";
-      if (!dob) tempErrors.dob = "Date of birth required.";
+      if (!firstName) tempErrors.firstName = "Full name required.";
+    }
+
+    const errorKeys = Object.keys(tempErrors);
+    if (errorKeys.length > 0) {
+      tempErrors.server = tempErrors[errorKeys[0]]; // Display the first validation error
     }
 
     setErrors(tempErrors);
-    return Object.keys(tempErrors).length === 0;
+    return errorKeys.length === 0;
   };
 
   // [NEW] REPORT DOWNLOAD LOGIC

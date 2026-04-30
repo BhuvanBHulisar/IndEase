@@ -16,7 +16,7 @@ router.post('/diagnose', protect, async (req, res) => {
     const { machineName, machineType, machineYear, manufacturer, issueDescription, videoPath } = req.body;
 
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
         let parts = [];
 
@@ -78,7 +78,7 @@ router.post('/match-expert', protect, async (req, res) => {
     try {
         // Fetch available experts
         const experts = await db.query(`
-            SELECT u.id, u.name,
+            SELECT u.id, u.first_name || ' ' || u.last_name as name,
                    pp.specialization, pp.skills,
                    pp.level, pp.service_city,
                    pp.years_experience,
@@ -95,7 +95,7 @@ router.post('/match-expert', protect, async (req, res) => {
             return res.json({ success: false, message: 'No experts available currently' });
         }
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
         const result = await model.generateContent(`
 You are an expert matching system for industrial machine repairs.

@@ -13,7 +13,9 @@ export const adminOnly = (req, res, next) => {
         req.user = payload; // attach for downstream use
         next();
     } catch (err) {
-        console.error('Admin auth error:', err);
-        return res.status(401).json({ error: 'Invalid token' });
+        if (err.name !== 'TokenExpiredError') {
+            console.error('Admin auth error:', err.message);
+        }
+        return res.status(401).json({ error: 'Invalid or expired token' });
     }
 };
