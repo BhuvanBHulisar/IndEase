@@ -39,7 +39,7 @@ export const sendVerificationEmail = async (email, token) => {
  */
 export const sendPasswordResetEmail = async (email, token) => {
     const transporter = await createTransporter();
-    const url = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+    const url = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
 
     const htmlTemplate = `
         <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 8px;">

@@ -461,7 +461,7 @@ export default function ProducerDashboard({
         </div>
       </section>
 
-      <div className="space-y-6 pt-2">
+      <div id="incoming-requests-section" className="space-y-6 pt-2 scroll-mt-8">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-semibold leading-tight text-slate-900">Incoming Requests</h3>

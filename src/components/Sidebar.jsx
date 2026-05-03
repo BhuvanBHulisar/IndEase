@@ -11,7 +11,8 @@ import {
   Shield,
   Activity,
   Briefcase,
-  ClipboardList
+  ClipboardList,
+  Radio
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -20,11 +21,12 @@ import { cn } from './ui/base';
 const getMainMenuItems = (role) => {
   if (role === 'producer') {
     return [
-      { id: 'fleet',       label: 'Dashboard',      icon: LayoutDashboard },
-      { id: 'performance', label: 'My Performance',  icon: Activity },
-      { id: 'active-jobs', label: 'Active Jobs',     icon: Briefcase, badge: true },
-      { id: 'messages',    label: 'Messages',        icon: MessageSquare },
-      { id: 'history',     label: 'Service Logs',    icon: History },
+      { id: 'fleet',              label: 'Dashboard',           icon: LayoutDashboard },
+      { id: 'incoming-requests',  label: 'Incoming Requests',   icon: Radio, badge: true, badgeKey: 'newRequests' },
+      { id: 'performance',        label: 'My Performance',      icon: Activity },
+      { id: 'active-jobs',        label: 'Active Jobs',         icon: Briefcase, badge: true },
+      { id: 'messages',           label: 'Messages',            icon: MessageSquare },
+      { id: 'history',            label: 'Service Logs',        icon: History },
     ];
   }
   return [
@@ -42,7 +44,7 @@ const generalItems = [
   { id: 'support', label: 'Help & Support', icon: HelpCircle },
 ];
 
-const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user, role, activeJobsCount = 0, activeRequestsCount = 0, isOpen, setIsOpen }) => {
+const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user, role, activeJobsCount = 0, activeRequestsCount = 0, newRequestsCount = 0, isOpen, setIsOpen }) => {
   const firstName = user?.firstName || 'User';
   const displayRole = role === 'consumer' ? 'Fleet Operator' : 'Service Expert';
   const isExpert = role === 'producer';
@@ -120,9 +122,15 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
                         {activeRequestsCount}
                       </span>
                     )}
-                    {item.badge && item.badgeKey !== 'activeRequests' && activeJobsCount > 0 && (
+                    {item.badge && item.badgeKey !== 'activeRequests' && item.badgeKey !== 'newRequests' && activeJobsCount > 0 && (
                       <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center">
                         {activeJobsCount}
+                      </span>
+                    )}
+                    {item.badge && item.badgeKey === 'newRequests' && newRequestsCount > 0 && (
+                      <span className="relative min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        {newRequestsCount}
+                        <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-60" />
                       </span>
                     )}
                     {isActive && <div className={`w-1 h-5 bg-${primaryColor} rounded-l-full`} />}

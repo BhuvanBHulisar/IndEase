@@ -6,12 +6,12 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './ui/base';
 
-const STEPS = ['Submitted', 'Expert Found', 'In Progress', 'Completed'];
+const STEPS = ['Submitted', 'Quote Received', 'In Progress', 'Completed'];
 
 function statusToStep(rawStatus) {
   const s = (rawStatus || '').toLowerCase();
   if (s === 'broadcast' || s === 'pending') return 0;
-  if (s === 'accepted') return 1;
+  if (s === 'quote_submitted' || s === 'quote_approved' || s === 'accepted') return 1;
   if (s === 'in_progress' || s === 'payment_pending') return 2;
   if (s === 'completed') return 3;
   return 0;
@@ -53,13 +53,18 @@ function StatusStepper({ currentStep }) {
   );
 }
 
-function RequestCard({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateExpert, ratedJobIds }) {
+function RequestCard({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateExpert, onViewQuotes, onRaiseFollowUp, ratedJobIds }) {
   const step = statusToStep(req.rawStatus || req.status);
   const status = (req.rawStatus || req.status || '').toLowerCase();
   const isPending = status === 'broadcast' || status === 'pending' || step === 0;
+  const isQuoteReceived = status === 'quote_submitted';
   const isActive = step === 1 || step === 2;
   const isCompleted = step === 3 || status === 'completed';
   const isAlreadyRated = ratedJobIds?.has(String(req.id));
+
+  // Follow-up window: within 7 days of completion and not yet raised
+  const followUpDeadline = req.follow_up_deadline ? new Date(req.follow_up_deadline) : null;
+  const canRaiseFollowUp = isCompleted && followUpDeadline && followUpDeadline > new Date() && !req.follow_up_raised;
 
   return (
     <motion.div
@@ -87,11 +92,12 @@ function RequestCard({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateEx
           <span className={cn(
             'text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full',
             isPending ? 'bg-amber-50 text-amber-700' :
+            isQuoteReceived ? 'bg-indigo-50 text-indigo-700' :
             isActive ? 'bg-blue-50 text-blue-700' :
             isCompleted ? 'bg-emerald-50 text-emerald-700' :
             'bg-slate-50 text-slate-600'
           )}>
-            {isPending ? 'Searching' : isActive ? 'Active' : isCompleted ? 'Completed' : 'Unknown'}
+            {isPending ? 'Searching' : isQuoteReceived ? 'Quote Ready' : isActive ? 'Active' : isCompleted ? 'Completed' : 'Unknown'}
           </span>
         </div>
       </div>
@@ -143,7 +149,15 @@ function RequestCard({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateEx
             Cancel Request
           </button>
         )}
-        {isActive && (
+        {isQuoteReceived && (
+          <button
+            onClick={() => onViewQuotes && onViewQuotes(req.id)}
+            className="flex-1 h-9 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 flex items-center justify-center gap-1.5 transition-all shadow-sm"
+          >
+            View Quotes
+          </button>
+        )}
+        {isActive && !isQuoteReceived && (
           <button
             onClick={() => onOpenChat && onOpenChat(req.id)}
             className="flex-1 h-9 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 flex items-center justify-center gap-1.5 transition-all shadow-sm"
@@ -170,6 +184,18 @@ function RequestCard({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateEx
           </>
         )}
       </div>
+      {/* 7-day follow-up button */}
+      {canRaiseFollowUp && (
+        <button
+          onClick={() => {
+            const desc = window.prompt('Describe the follow-up issue:');
+            if (desc) onRaiseFollowUp && onRaiseFollowUp(req.id, desc);
+          }}
+          className="w-full h-9 mt-1 rounded-xl border border-orange-200 text-orange-600 text-xs font-semibold hover:bg-orange-50 transition-all"
+        >
+          Raise Follow-up Issue (within 7 days)
+        </button>
+      )}
     </motion.div>
   );
 }
@@ -181,6 +207,8 @@ export default function MyRequestsView({
   onCancelRequest,
   onViewInvoice,
   onRateExpert,
+  onViewQuotes,
+  onRaiseFollowUp,
   onGoToMachines,
   ratedJobIds,
 }) {
@@ -272,6 +300,8 @@ export default function MyRequestsView({
                 onCancelRequest={onCancelRequest}
                 onViewInvoice={onViewInvoice}
                 onRateExpert={onRateExpert}
+                onViewQuotes={onViewQuotes}
+                onRaiseFollowUp={onRaiseFollowUp}
                 ratedJobIds={ratedJobIds}
               />
             ))}

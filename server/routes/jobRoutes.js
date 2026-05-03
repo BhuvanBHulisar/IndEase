@@ -23,16 +23,28 @@ router.get('/radar', auth, roleCheck(['producer']), jobController.getRadarJobs);
 // @desc    Get expert dashboard statistics
 router.get('/producer-stats', auth, roleCheck(['producer']), jobController.getProducerStats);
 
-// @route   PATCH api/jobs/:id/accept
-// @desc    Expert accepts the assignment
-router.patch('/:id/accept', auth, roleCheck(['producer']), jobController.acceptJob);
+// @route   POST api/jobs/:id/quote
+// @desc    Expert submits a quote (replaces direct accept)
+router.post('/:id/quote', auth, roleCheck(['producer']), jobController.submitQuote);
+
+// @route   GET api/jobs/:id/quotes
+// @desc    Consumer views all quotes for their request
+router.get('/:id/quotes', auth, roleCheck(['consumer']), jobController.getQuotes);
+
+// @route   POST api/jobs/:id/quotes/:quoteId/approve
+// @desc    Consumer approves a specific expert's quote
+router.post('/:id/quotes/:quoteId/approve', auth, roleCheck(['consumer']), jobController.approveQuote);
+
+// @route   POST api/jobs/:id/follow-up
+// @desc    Consumer raises a follow-up issue within 7-day window
+router.post('/:id/follow-up', auth, roleCheck(['consumer']), jobController.raiseFollowUp);
 
 // @route   PATCH api/jobs/:id/decline
 // @desc    Expert declines / skips a broadcast job
 router.patch('/:id/decline', auth, roleCheck(['producer']), jobController.declineJob);
 
 // @route   PATCH api/jobs/:id/start-work
-// @desc    Expert marks repair as in progress
+// @desc    Expert marks repair as in progress (requires quote_approved status)
 router.patch('/:id/start-work', auth, roleCheck(['producer']), jobController.startWork);
 
 // @route   PATCH api/jobs/:id/complete-work
@@ -59,7 +71,7 @@ router.patch('/:id/cancel', auth, roleCheck(['consumer']), async (req, res) => {
         const result = await db.query(
             `UPDATE service_requests 
              SET status = 'cancelled' 
-             WHERE id = $1 AND consumer_id = $2 AND status = 'pending'
+             WHERE id = $1 AND consumer_id = $2 AND status IN ('pending', 'broadcast')
              RETURNING *`,
             [id, userId]
         );

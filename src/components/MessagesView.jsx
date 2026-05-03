@@ -80,7 +80,7 @@ export default function MessagesView({
   const canMarkComplete =
     isExpertView &&
     typeof onMarkComplete === 'function' &&
-    jobSt === 'in_progress';
+    (jobSt === 'in_progress' || jobSt === 'accepted' || jobSt === 'payment_pending');
   const showCompletedBadge =
     isExpertView && jobSt === 'completed';
 
@@ -309,142 +309,230 @@ export default function MessagesView({
                <div ref={chatEndRef} />
             </div>
 
-            {/* Invoice Form Popover */}
+            {/* Invoice Modal */}
             {isExpertView && showInvoiceForm && (
-              <div className="p-4 bg-white border-t border-[#E5E7EB] shrink-0 space-y-3">
-                 <div className="flex items-center justify-between">
-                   <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2"><CreditCard size={16} className="text-indigo-600"/> Create Invoice</h4>
-                   <button onClick={() => setShowInvoiceForm(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
-                 </div>
-                 {invoiceError && <p className="text-red-500 text-xs font-medium">{invoiceError}</p>}
-                 <div className="flex items-center gap-3">
-                   <div className="relative flex-1">
-                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-semibold text-sm">₹</span>
-                     <input 
-                       type="number" 
-                       placeholder="Amount" 
-                       value={invoiceAmount}
-                       onChange={e => { setInvoiceAmount(e.target.value); setInvoiceError(''); }}
-                       className="w-full h-10 pl-8 pr-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
-                     />
-                   </div>
-                   <input 
-                     type="text" 
-                     placeholder="Description (e.g. Valve Replacement)" 
-                     value={invoiceDesc}
-                     onChange={e => { setInvoiceDesc(e.target.value); setInvoiceError(''); }}
-                     className="flex-[2] h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
-                   />
-                   <button 
-                     type="button"
-                     onClick={() => {
-                       if (!invoiceAmount) {
-                         setInvoiceError("Please enter amount");
-                         return;
-                       }
-                       if (isNaN(invoiceAmount) || Number(invoiceAmount) <= 0) {
-                         setInvoiceError("Enter valid amount");
-                         return;
-                       }
-                       if (!invoiceDesc) {
-                         setInvoiceError("Please enter description");
-                         return;
-                       }
-                       setInvoiceError('');
-                       const payload = JSON.stringify({ amount: invoiceAmount, desc: invoiceDesc });
-                       onSendMessage(`[INVOICE]:${payload}`);
-                       setInvoiceAmount('');
-                       setInvoiceDesc('');
-                       setShowInvoiceForm(false);
-                     }}
-                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 h-10 rounded-lg shadow-sm transition-all"
-                   >
-                     Send
-                   </button>
-                 </div>
+              <div
+                className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                onClick={(e) => { if (e.target === e.currentTarget) { setShowInvoiceForm(false); setInvoiceError(''); } }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 24, scale: 0.97 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 py-5 border-b border-[#E5E7EB]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
+                        <CreditCard size={17} className="text-indigo-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 leading-tight">Create Invoice</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">Send payment request to consumer</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setShowInvoiceForm(false); setInvoiceError(''); }}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="px-6 py-5 space-y-4">
+                    {invoiceError && (
+                      <p className="text-red-500 text-xs font-semibold bg-red-50 border border-red-100 rounded-xl px-3 py-2">{invoiceError}</p>
+                    )}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block">Amount</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">₹</span>
+                        <input
+                          type="number"
+                          placeholder="e.g. 4500"
+                          value={invoiceAmount}
+                          onChange={e => { setInvoiceAmount(e.target.value); setInvoiceError(''); }}
+                          className="w-full h-12 pl-9 pr-4 rounded-xl border border-[#E5E7EB] text-sm font-semibold text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block">Description</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Valve Seal Replacement"
+                        value={invoiceDesc}
+                        onChange={e => { setInvoiceDesc(e.target.value); setInvoiceError(''); }}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E5E7EB] text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-6 pb-6 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowInvoiceForm(false); setInvoiceError(''); }}
+                      className="flex-1 h-11 rounded-xl border border-[#E5E7EB] text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!invoiceAmount) {
+                          setInvoiceError("Please enter amount");
+                          return;
+                        }
+                        if (isNaN(invoiceAmount) || Number(invoiceAmount) <= 0) {
+                          setInvoiceError("Enter valid amount");
+                          return;
+                        }
+                        if (!invoiceDesc) {
+                          setInvoiceError("Please enter description");
+                          return;
+                        }
+                        setInvoiceError('');
+                        const payload = JSON.stringify({ amount: invoiceAmount, desc: invoiceDesc });
+                        onSendMessage(`[INVOICE]:${payload}`);
+                        setInvoiceAmount('');
+                        setInvoiceDesc('');
+                        setShowInvoiceForm(false);
+                      }}
+                      className="flex-1 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-all"
+                    >
+                      Send Invoice
+                    </button>
+                  </div>
+                </motion.div>
               </div>
             )}
 
-            {/* PROMPT 3 — Appointment Form Popover */}
-            {isExpertView && showAppointmentForm && (
-              <div className="p-4 bg-white border-t border-[#E5E7EB] shrink-0 space-y-3">
-                 <div className="flex items-center justify-between">
-                   <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">📅 Schedule Visit</h4>
-                   <button onClick={() => setShowAppointmentForm(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
-                 </div>
-                 {appointmentError && <p className="text-red-500 text-xs font-medium">{appointmentError}</p>}
-                 <div className="grid grid-cols-2 gap-3">
-                   <div>
-                     <label className="text-xs font-medium text-slate-600 mb-1 block">Date</label>
-                     <input 
-                       type="date" 
-                       min={new Date().toISOString().split('T')[0]}
-                       value={appointmentDate}
-                       onChange={e => { setAppointmentDate(e.target.value); setAppointmentError(''); }}
-                       className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
-                     />
-                   </div>
-                   <div>
-                     <label className="text-xs font-medium text-slate-600 mb-1 block">Time</label>
-                     <input 
-                       type="time" 
-                       value={appointmentTime}
-                       onChange={e => { setAppointmentTime(e.target.value); setAppointmentError(''); }}
-                       className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
-                     />
-                   </div>
-                 </div>
-                 <div>
-                   <label className="text-xs font-medium text-slate-600 mb-1 block">Type</label>
-                   <select 
-                     value={appointmentType}
-                     onChange={e => setAppointmentType(e.target.value)}
-                     className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
-                   >
-                     <option>On-site Visit</option>
-                     <option>Video Call</option>
-                     <option>Phone Call</option>
-                   </select>
-                 </div>
-                 <div>
-                   <label className="text-xs font-medium text-slate-600 mb-1 block">Note (optional)</label>
-                   <input 
-                     type="text" 
-                     placeholder="e.g. Will bring tools"
-                     value={appointmentNote}
-                     onChange={e => setAppointmentNote(e.target.value)}
-                     className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none"
-                   />
-                 </div>
-                 <button 
-                   type="button"
-                   onClick={() => {
-                     if (!appointmentDate) {
-                       setAppointmentError("Please select a date");
-                       return;
-                     }
-                     if (!appointmentTime) {
-                       setAppointmentError("Please select a time");
-                       return;
-                     }
-                     setAppointmentError('');
-                     const payload = JSON.stringify({ 
-                       date: appointmentDate, 
-                       time: appointmentTime, 
-                       type: appointmentType, 
-                       note: appointmentNote 
-                     });
-                     onSendMessage(`[APPOINTMENT]:${payload}`);
-                     setAppointmentDate('');
-                     setAppointmentTime('');
-                     setAppointmentType('On-site Visit');
-                     setAppointmentNote('');
-                     setShowAppointmentForm(false);
-                   }}
-                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm h-10 rounded-lg shadow-sm transition-all"
-                 >
-                   Schedule Appointment
-                 </button>
+            {/* Appointment Modal */}
+            {showAppointmentForm && (
+              <div
+                className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                onClick={(e) => { if (e.target === e.currentTarget) { setShowAppointmentForm(false); setAppointmentError(''); } }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 24, scale: 0.97 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 py-5 border-b border-[#E5E7EB]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-teal-50 rounded-xl flex items-center justify-center text-lg">
+                        📅
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 leading-tight">Schedule Visit</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">Set an appointment with the other party</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setShowAppointmentForm(false); setAppointmentError(''); }}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="px-6 py-5 space-y-4">
+                    {appointmentError && (
+                      <p className="text-red-500 text-xs font-semibold bg-red-50 border border-red-100 rounded-xl px-3 py-2">{appointmentError}</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block">Date</label>
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          value={appointmentDate}
+                          onChange={e => { setAppointmentDate(e.target.value); setAppointmentError(''); }}
+                          className="w-full h-12 px-3 rounded-xl border border-[#E5E7EB] text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block">Time</label>
+                        <input
+                          type="time"
+                          value={appointmentTime}
+                          onChange={e => { setAppointmentTime(e.target.value); setAppointmentError(''); }}
+                          className="w-full h-12 px-3 rounded-xl border border-[#E5E7EB] text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block">Visit Type</label>
+                      <select
+                        value={appointmentType}
+                        onChange={e => setAppointmentType(e.target.value)}
+                        className="w-full h-12 px-3 rounded-xl border border-[#E5E7EB] text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                      >
+                        <option>On-site Visit</option>
+                        <option>Video Call</option>
+                        <option>Phone Call</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block">Note <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Will bring tools"
+                        value={appointmentNote}
+                        onChange={e => setAppointmentNote(e.target.value)}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E5E7EB] text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-6 pb-6 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowAppointmentForm(false); setAppointmentError(''); }}
+                      className="flex-1 h-11 rounded-xl border border-[#E5E7EB] text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!appointmentDate) {
+                          setAppointmentError("Please select a date");
+                          return;
+                        }
+                        if (!appointmentTime) {
+                          setAppointmentError("Please select a time");
+                          return;
+                        }
+                        setAppointmentError('');
+                        const payload = JSON.stringify({
+                          date: appointmentDate,
+                          time: appointmentTime,
+                          type: appointmentType,
+                          note: appointmentNote
+                        });
+                        onSendMessage(`[APPOINTMENT]:${payload}`);
+                        setAppointmentDate('');
+                        setAppointmentTime('');
+                        setAppointmentType('On-site Visit');
+                        setAppointmentNote('');
+                        setShowAppointmentForm(false);
+                      }}
+                      className="flex-1 h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold shadow-sm transition-all"
+                    >
+                      Schedule Appointment
+                    </button>
+                  </div>
+                </motion.div>
               </div>
             )}
 

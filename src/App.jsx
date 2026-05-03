@@ -80,6 +80,7 @@ import ProfileView from "./components/ProfileView";
 import SettingsView from "./components/SettingsView";
 import { SupportView } from "./components/SupportSettingsView";
 import ProducerDashboard from "./components/ProducerDashboard";
+import IncomingRequestsView from "./components/IncomingRequestsView";
 import MachineDetailView from "./components/MachineDetailView";
 import ActiveJobsView from "./components/ActiveJobsView";
 import MyRequestsView from "./components/MyRequestsView";
@@ -764,6 +765,16 @@ function App() {
   const [broadcastInProgress, setBroadcastInProgress] = useState(false);
   const [videoFile, setVideoFile] = useState(null);
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState(null);
+
+  // [NEW] URGENCY & PREFERRED TIME STATES
+  const [urgencyLevel, setUrgencyLevel] = useState('normal');
+  const [preferredDate, setPreferredDate] = useState('');
+  const [preferredTimeSlot, setPreferredTimeSlot] = useState('morning');
+
+  // [NEW] QUOTES MODAL STATES
+  const [showQuotesModal, setShowQuotesModal] = useState(false);
+  const [quotesForRequest, setQuotesForRequest] = useState([]);
+  const [selectedRequestForQuotes, setSelectedRequestForQuotes] = useState(null);
 
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [diagnosisResults, setDiagnosisResults] = useState([]);
@@ -3013,6 +3024,10 @@ function App() {
         aiMachineType: aiDiagnosis?.type || null,
         aiIssueSummary: aiDiagnosis?.issue || null,
         aiConfidence: aiDiagnosis?.confidence || null,
+        // Urgency & preference
+        urgencyLevel,
+        preferredDate: preferredDate || null,
+        preferredTimeSlot,
       });
       const serverJob = broadcastRes.data;
       finalizeRequest(serverJob);
@@ -3248,6 +3263,9 @@ function App() {
           String(c.id) === String(rid) ? { ...c, status: st } : c,
         ),
       );
+      if (low === "in_progress" && role === "consumer") {
+        fetchConsumerChatsList().catch(() => {});
+      }
     };
     socket.on("request_status_updated", onReqStatus);
     return () => socket.off("request_status_updated", onReqStatus);
@@ -3605,6 +3623,55 @@ function App() {
     setSelectedJobDetails(null);
   };
 
+  // [NEW] Expert submits a quote
+  const handleSubmitQuote = async (jobId, quoteData) => {
+    try {
+      await api.post(`/jobs/${jobId}/quote`, quoteData);
+      setToast({ message: 'Quote sent! Waiting for consumer approval.', type: 'success' });
+      setShowJobDetailsModal(false);
+    } catch (err) {
+      throw err; // let the modal handle the error display
+    }
+  };
+
+  // [NEW] Consumer views quotes for a request
+  const handleViewQuotes = async (requestId) => {
+    try {
+      const res = await api.get(`/jobs/${requestId}/quotes`);
+      setQuotesForRequest(res.data);
+      setSelectedRequestForQuotes(requestId);
+      setShowQuotesModal(true);
+    } catch (err) {
+      setToast({ message: 'Failed to load quotes.', type: 'error' });
+    }
+  };
+
+  // [NEW] Consumer approves an expert quote and triggers payment
+  const handleApproveQuote = async (quoteId) => {
+    try {
+      await api.post(`/jobs/${selectedRequestForQuotes}/quotes/${quoteId}/approve`);
+      setShowQuotesModal(false);
+      setToast({ message: 'Expert confirmed! Please proceed to payment.', type: 'success' });
+      await fetchConsumerChatsList();
+      const approvedQuote = quotesForRequest.find(q => q.id === quoteId);
+      if (approvedQuote) {
+        handlePayment(approvedQuote.amount, 'Expert Service Escrow Payment', selectedRequestForQuotes);
+      }
+    } catch (err) {
+      setToast({ message: 'Failed to approve quote.', type: 'error' });
+    }
+  };
+
+  // [NEW] Consumer raises a 7-day post-completion follow-up
+  const handleRaiseFollowUp = async (requestId, description) => {
+    try {
+      await api.post(`/jobs/${requestId}/follow-up`, { description });
+      setToast({ message: 'Follow-up raised. Expert has been notified.', type: 'success' });
+    } catch (err) {
+      setToast({ message: 'Failed to raise follow-up.', type: 'error' });
+    }
+  };
+
   const handleOpenChatFromActiveJob = (jobId) => {
     // jobId here is the activeJob.id which is demo-chat-${originalId} or a real UUID
     const chat = producerChats.find((c) => c.id === jobId || c.jobId === jobId);
@@ -3838,12 +3905,21 @@ function App() {
     setSelectedExpert({ loading: true, name: chat.name, online: chat.online });
     setShowExpertProfileModal(true);
 
+    const timeout = setTimeout(() => {
+      setSelectedExpert(prev =>
+        prev?.loading
+          ? { ...prev, loading: false, error: false, specialization: 'Expert', rating: 'N/A' }
+          : prev
+      );
+    }, 10000);
+
     try {
       const expertId = chat.provider_id || chat.expertId || chat.other_party_id;
       
       // FIX 3 — Validate UUID before calling API
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!expertId || !uuidRegex.test(expertId)) {
+        clearTimeout(timeout);
         const nameFromChat = (chat.name || '').split('(')[1]?.replace(')', '').trim() || 'Expert';
         setSelectedExpert({
           loading: false,
@@ -3868,6 +3944,7 @@ function App() {
       }
       
       const res = await api.get(`/providers/${expertId}`);
+      clearTimeout(timeout);
       const data = res.data;
 
       let badgeLabel = "Verified Expert";
@@ -3906,6 +3983,7 @@ function App() {
         error: false,
       });
     } catch (err) {
+      clearTimeout(timeout);
       setSelectedExpert({ loading: false, error: true });
     }
   };
@@ -5065,6 +5143,59 @@ function App() {
                         value={faultLocation}
                         onChange={(e) => setFaultLocation(e.target.value)}
                       />
+                    </div>
+
+                    {/* Urgency Level */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 ml-1">Urgency Level</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { value: 'low', label: '🟢 Low', sub: 'Within a week' },
+                          { value: 'normal', label: '🟡 Normal', sub: 'Within 2-3 days' },
+                          { value: 'critical', label: '🔴 Critical', sub: 'Factory stopped' }
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setUrgencyLevel(opt.value)}
+                            className={`p-3 rounded-xl border text-left transition-all ${
+                              urgencyLevel === opt.value
+                                ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{opt.label}</div>
+                            <div className="text-[10px] text-slate-500 mt-0.5">{opt.sub}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Preferred Visit Time */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-700 ml-1">Preferred Date</label>
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          value={preferredDate}
+                          onChange={e => setPreferredDate(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-700 ml-1">Time Slot</label>
+                        <select
+                          value={preferredTimeSlot}
+                          onChange={e => setPreferredTimeSlot(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none transition-all text-sm"
+                        >
+                          <option value="morning">Morning (8am–12pm)</option>
+                          <option value="afternoon">Afternoon (12pm–5pm)</option>
+                          <option value="evening">Evening (5pm–8pm)</option>
+                          <option value="anytime">Any time</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                   <button
@@ -6414,6 +6545,8 @@ function App() {
                 onRateExpert={(req) => {
                   setActiveTab('history');
                 }}
+                onViewQuotes={handleViewQuotes}
+                onRaiseFollowUp={handleRaiseFollowUp}
                 onGoToMachines={() => setActiveTab('machines')}
               />
             );
@@ -6489,6 +6622,17 @@ function App() {
                   photo: userPhoto,
                   id: profileData.id,
                 }}
+                onAcceptJob={handleAcceptJob}
+                onDeclineJob={handleDeclineJob}
+                onJoinWaitlist={handleJoinWaitlist}
+                onViewDetails={handleViewJobDetails}
+              />
+            );
+          case "incoming-requests":
+            return (
+              <IncomingRequestsView
+                loading={requestsLoading}
+                radarJobs={radarJobs}
                 onAcceptJob={handleAcceptJob}
                 onDeclineJob={handleDeclineJob}
                 onJoinWaitlist={handleJoinWaitlist}
@@ -6706,6 +6850,7 @@ function App() {
         onSearchResultClick={handleSearchResultClick}
         isDemo={isDemo}
         activeJobsCount={activeJobs.length}
+        newRequestsCount={role === 'producer' ? radarJobs.length : 0}
         activeRequestsCount={activeRequests.filter(r => {
           const s = (r.rawStatus || r.status || '').toLowerCase();
           return s !== 'completed';
@@ -6732,8 +6877,53 @@ function App() {
             job={selectedJobDetails}
             onAcceptAndChat={handleAcceptFromModal}
             onDecline={handleDeclineFromModal}
+            onSubmitQuote={handleSubmitQuote}
             onClose={() => { setShowJobDetailsModal(false); setSelectedJobDetails(null); }}
           />
+        )}
+
+        {/* [NEW] Consumer Quotes Modal */}
+        {showQuotesModal && (
+          <div className="fixed inset-0 z-[300] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-900">Expert Quotes</h3>
+                <button onClick={() => setShowQuotesModal(false)} className="text-slate-400 hover:text-slate-700">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {quotesForRequest.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-8">No quotes yet. Experts are reviewing your request.</p>
+                ) : quotesForRequest.map(q => (
+                  <div key={q.id} className="border border-slate-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600 text-sm">
+                          {q.first_name?.[0] || 'E'}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900 text-sm">{q.first_name}</p>
+                          <p className="text-[11px] text-slate-500">⭐ {Number(q.rating || 5).toFixed(1)} · {q.level || 'Starter'} · {q.jobs_completed || 0} jobs</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-slate-900">₹{Number(q.amount).toLocaleString('en-IN')}</p>
+                        {q.estimated_hours && <p className="text-[11px] text-slate-500">~{q.estimated_hours}h</p>}
+                      </div>
+                    </div>
+                    {q.note && <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2">"{q.note}"</p>}
+                    <button
+                      onClick={() => handleApproveQuote(q.id)}
+                      className="w-full h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-semibold transition-colors"
+                    >
+                      Approve & Pay ₹{Number(q.amount).toLocaleString('en-IN')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
         <AnimatePresence>
           {toast && (

@@ -86,9 +86,10 @@ export const verifyPayment = async (req, res) => {
 
             const requestId = txResult.rows[0].request_id;
 
-            // 3. Update job status to completed & Fetch producer ID
+            // 3. Move job to in_progress and hold in escrow (expert completes → releases)
             const jobUpdateResult = await db.query(
-                "UPDATE service_requests SET status = 'completed' WHERE id = $1 RETURNING producer_id, consumer_id, quoted_cost",
+                `UPDATE service_requests SET status = 'in_progress', escrow_status = 'held'
+                 WHERE id = $1 RETURNING producer_id, consumer_id, quoted_cost`,
                 [requestId]
             );
 
@@ -113,8 +114,8 @@ export const verifyPayment = async (req, res) => {
             const io = req.app.get('socketio');
             if (io) {
                 io.emit(`status_update_${requestId}`, {
-                    status: 'completed',
-                    message: "Payment received! Job finalized."
+                    status: 'in_progress',
+                    message: "Payment received! Work in progress."
                 });
                 io.to(`user_${req.user.id}`).emit('finance_chart_update');
                 if (consumerId) {
@@ -124,7 +125,7 @@ export const verifyPayment = async (req, res) => {
                     });
                     io.to(`user_${consumerId}`).emit('request_status_updated', {
                         requestId,
-                        status: 'completed'
+                        status: 'in_progress'
                     });
                     io.to(`user_${consumerId}`).emit('finance_chart_update');
                 }
@@ -235,6 +236,7 @@ export const getHistory = async (req, res) => {
                 LEFT JOIN producer_profiles pp ON sr.producer_id = pp.user_id
                 LEFT JOIN transactions t ON t.request_id = sr.id
                 WHERE sr.producer_id = $1
+                AND (sr.quoted_cost IS NOT NULL OR sr.status IN ('completed', 'payment_pending', 'in_progress'))
                 ORDER BY sr.created_at DESC
             `;
         } else {

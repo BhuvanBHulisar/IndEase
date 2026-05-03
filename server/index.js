@@ -228,6 +228,31 @@ async function startServer() {
       await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ai_confidence INTEGER`);
       console.log('[DB] AI analysis columns verified ✓');
 
+      // [NEW] Quote-first workflow columns
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS urgency_level VARCHAR(20) DEFAULT 'normal'`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS preferred_date DATE`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS preferred_time_slot VARCHAR(20)`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS preferred_note TEXT`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS escrow_status VARCHAR(20) DEFAULT 'none'`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS follow_up_deadline TIMESTAMPTZ`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS follow_up_raised BOOLEAN DEFAULT FALSE`);
+
+      // [NEW] job_quotes table — expert sends quote before consumer accepts
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS job_quotes (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          request_id UUID REFERENCES service_requests(id) ON DELETE CASCADE,
+          expert_id UUID REFERENCES users(id) ON DELETE CASCADE,
+          amount NUMERIC(10,2) NOT NULL,
+          estimated_hours NUMERIC(4,1),
+          note TEXT,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(request_id, expert_id)
+        )
+      `);
+      console.log('[DB] Quote workflow schema verified ✓');
+
       startExpertPerformanceCron();
 
       // Daily cron: delete orphaned videos older than 7 days
