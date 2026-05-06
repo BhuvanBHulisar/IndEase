@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, ChevronDown, UserCircle, Command, Sparkles, AlertCircle, HardDrive } from 'lucide-react';
+import { Bell, ChevronDown, UserCircle, Sparkles, AlertCircle, Settings, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './ui/base';
 
-const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, onSearch, searchResults = [], onResultClick, isDemo, onMenuClick }) => {
+const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, isDemo, onMenuClick, setActiveTab, onLogout }) => {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [showAllNotif, setShowAllNotif] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
@@ -24,22 +25,15 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
     return `${Math.floor(hours / 24)} days ago`;
   };
   const [showNotif, setShowNotif] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  const handleSearchChange = (e) => {
-    const val = e.target.value;
-    setSearchQuery(val);
-    if(onSearch) onSearch(val);
-  };
   const notifRef = useRef(null);
+  const profileRef = useRef(null);
+  const profileMenuRef = useRef(null);
   const unreadCount = notifications.filter(n => !n.read).length;
   const firstName = user?.firstName || 'User';
   const initial = firstName.charAt(0).toUpperCase();
   const isExpert = role === 'producer';
   const primaryColor = isExpert ? 'indigo-600' : '[#0d9488]';
   const primaryText = isExpert ? 'text-indigo-600' : 'text-[#0d9488]';
-  const primaryRing = isExpert ? 'indigo-500/10' : 'teal-500/10';
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -48,6 +42,28 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      const clickedButton = profileRef.current && profileRef.current.contains(e.target);
+      const clickedMenu = profileMenuRef.current && profileMenuRef.current.contains(e.target);
+      if (!clickedButton && !clickedMenu) setShowProfile(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleProfileNav = (tab) => {
+    setActiveTab?.(tab);
+    setShowProfile(false);
+  };
+
+  const handleLogoutClick = () => {
+    if (window.confirm('Are you sure you want to sign out?')) {
+      setShowProfile(false);
+      onLogout?.();
+    }
+  };
 
   return (
     <header className="h-16 sm:h-20 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-4 sm:px-6 lg:px-10 sticky top-0 z-[50]">
@@ -62,61 +78,6 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-
-        {/* Smart Search Bar */}
-        <div className="relative group w-full max-w-[200px] sm:max-w-xs md:max-w-md">
-        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-          <Search size={16} className={cn("transition-colors", isSearchFocused ? primaryText : "text-slate-400")} />
-        </div>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={handleSearchChange}
-          onFocus={() => setIsSearchFocused(true)}
-          onBlur={(e) => {
-             // Delay blur to allow clicking a result
-             setTimeout(() => setIsSearchFocused(false), 200);
-          }}
-          placeholder="Search..."
-          className={cn(
-            "w-full h-10 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl pl-10 pr-4 text-slate-900 font-semibold text-sm transition-all focus:bg-white focus:outline-none focus:ring-4 placeholder:text-slate-400",
-            isSearchFocused ? `border-${isExpert ? 'indigo-600' : '[#0d9488]'} ring-${primaryRing}` : ""
-          )}
-        />
-        
-        <AnimatePresence>
-          {searchQuery && isSearchFocused && (
-            <motion.div 
-               initial={{ opacity: 0, y: 10 }}
-               animate={{ opacity: 1, y: 0 }}
-               exit={{ opacity: 0, y: 10 }}
-               className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-[#E5E7EB] shadow-lg overflow-y-auto z-50 max-h-80"
-            >
-               {searchResults.length > 0 ? searchResults.map((res, i) => (
-                  <div 
-                    key={res.id || i} 
-                    onMouseDown={() => {
-                        setSearchQuery('');
-                        if(onSearch) onSearch('');
-                        if (onResultClick) onResultClick(res);
-                    }} 
-                    className="p-3 hover:bg-slate-50 cursor-pointer flex items-center gap-3 border-b border-[#E5E7EB] last:border-0 transition-colors"
-                  >
-                     <div className={`p-2 rounded-lg bg-teal-50 text-teal-600 shrink-0 flex items-center justify-center`}>
-                       {res.icon === 'machine' ? <HardDrive size={16} /> : <AlertCircle size={16} />}
-                     </div>
-                     <div className="flex flex-col">
-                        <div className="text-sm font-bold text-slate-800 leading-tight">{res.title}</div>
-                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest">{res.subtitle}</div>
-                     </div>
-                  </div>
-               )) : (
-                  <div className="p-6 text-center text-slate-500 font-medium text-sm">No results found</div>
-               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
       </div>
 
       {/* Action Cluster */}
@@ -209,16 +170,61 @@ const Topbar = ({ user, notifications = [], role, onMarkAsRead, onMarkAllRead, o
         </div>
 
         {/* User Identity Segment */}
-        <button aria-label={`Account menu for ${firstName}`} className="flex items-center gap-2 lg:gap-3 pl-3 sm:pl-4 lg:pl-6 border-l border-[#E5E7EB] h-10 group shrink-0">
-          <div className={`w-8 h-8 rounded-lg bg-${isExpert ? 'indigo-600' : '[#0d9488]'} flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm`}>
-            {initial}
-          </div>
-          <div className="hidden lg:flex flex-col text-left">
-            <span className="text-sm font-bold text-slate-900 leading-none tracking-tight">{firstName}</span>
-            <span className={`text-[10px] font-bold ${isExpert ? 'text-indigo-600' : 'text-[#0d9488]'} uppercase tracking-widest mt-1.5`}>{isExpert ? 'Service Expert' : 'Fleet Operator'}</span>
-          </div>
-          <ChevronDown size={14} className="hidden sm:block text-slate-400 group-hover:text-slate-900 transition-colors" />
-        </button>
+        <div className="relative">
+          <button
+            ref={profileRef}
+            aria-label={`Account menu for ${firstName}`}
+            onClick={() => setShowProfile(s => !s)}
+            className="flex items-center gap-2 lg:gap-3 pl-3 sm:pl-4 lg:pl-6 border-l border-[#E5E7EB] h-10 group shrink-0"
+          >
+            <div className={`w-8 h-8 rounded-lg bg-${isExpert ? 'indigo-600' : '[#0d9488]'} flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm`}>
+              {initial}
+            </div>
+            <div className="hidden lg:flex flex-col text-left">
+              <span className="text-sm font-bold text-slate-900 leading-none tracking-tight">{firstName}</span>
+              <span className={`text-[10px] font-bold ${isExpert ? 'text-indigo-600' : 'text-[#0d9488]'} uppercase tracking-widest mt-1.5`}>{isExpert ? 'Service Expert' : 'Fleet Operator'}</span>
+            </div>
+            <ChevronDown size={14} className={cn(
+              "hidden sm:block text-slate-400 group-hover:text-slate-900 transition-all",
+              showProfile ? "rotate-180 text-slate-900" : ""
+            )} />
+          </button>
+
+          <AnimatePresence>
+            {showProfile && (
+              <motion.div
+                ref={profileMenuRef}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute right-0 mt-2 w-56 bg-white border border-[#E5E7EB] rounded-xl shadow-lg overflow-hidden z-50"
+              >
+                <button
+                  onClick={() => handleProfileNav('profile')}
+                  className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors text-sm font-semibold text-slate-700"
+                >
+                  <UserCircle size={16} className="text-slate-400" />
+                  My Profile
+                </button>
+                <button
+                  onClick={() => handleProfileNav('settings')}
+                  className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors text-sm font-semibold text-slate-700"
+                >
+                  <Settings size={16} className="text-slate-400" />
+                  Settings
+                </button>
+                <div className="border-t border-[#E5E7EB]" />
+                <button
+                  onClick={handleLogoutClick}
+                  className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-red-50 transition-colors text-sm font-semibold text-red-600"
+                >
+                  <LogOut size={16} />
+                  Sign Out
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* PROMPT 4 — View All Notifications Slide-over Panel */}

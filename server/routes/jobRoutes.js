@@ -106,12 +106,12 @@ router.patch('/:id/cancel', auth, roleCheck(['consumer']), async (req, res) => {
 router.patch('/:id/progress', auth, roleCheck(['producer']), async (req, res) => {
     try {
         const { stage, note } = req.body;
-        const validStages = ['accepted', 'diagnosing', 'repairing', 'testing', 'completed'];
+        const validStages = ['en_route', 'arrived', 'accepted', 'in_progress', 'diagnosing', 'repairing', 'testing', 'completed'];
         if (!validStages.includes(stage)) {
             return res.status(400).json({ error: 'Invalid stage' });
         }
         await db.query(
-            `UPDATE service_requests SET progress_stage = $1, progress_note = $2, updated_at = NOW()
+            `UPDATE service_requests SET progress_stage = $1, progress_note = $2
              WHERE id = $3 AND producer_id = $4`,
             [stage, note || null, req.params.id, req.user.id]
         );
@@ -127,6 +127,7 @@ router.patch('/:id/progress', auth, roleCheck(['producer']), async (req, res) =>
         }
         res.json({ success: true });
     } catch (err) {
+        console.error('[Progress] FULL ERROR:', err.stack || err);
         res.status(500).json({ error: err.message });
     }
 });

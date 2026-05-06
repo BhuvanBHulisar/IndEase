@@ -136,91 +136,86 @@ export const broadcastJob = async (req, res) => {
 // @desc    Retrieve all active broadcasts in sector (Expert)
 // @route   GET /api/jobs/radar
 export const getRadarJobs = async (req, res) => {
-    const isDemo = !!req.user.is_demo;
-    const expertCity = req.user.city || null;
-    try {
-        let rows = [];
+  const expertCity = req.user.city || null;
+  const expertState = req.user.state || null;
+  const expertPincode = req.user.pincode || null;
+  const expertLat = req.user.latitude || null;
+  const expertLng = req.user.longitude || null;
+  const isDemo = !!req.user.is_demo;
+  const declinedSubquery = `SELECT request_id FROM declined_jobs WHERE user_id = $1`;
 
-        // Tier 1: jobs from same city (always try first)
-        if (expertCity) {
-            const nearbyResult = await db.query(`
-                SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
-                       u.first_name as client_name, u.city as client_city,
-                       true as is_nearby
-                FROM service_requests jr
-                JOIN machines m ON jr.machine_id = m.id
-                JOIN users u ON jr.consumer_id = u.id
-                WHERE jr.status = 'broadcast'
-                AND jr.is_demo = $1
-                AND LOWER(u.city) = LOWER($2)
-                AND jr.id NOT IN (
-                    SELECT request_id FROM declined_jobs WHERE user_id = $3
-                )
-                ORDER BY jr.created_at DESC
-            `, [isDemo, expertCity, req.user.id]);
-            rows = nearbyResult.rows;
-        }
+  try {
+    const baseSelect = `
+      SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
+             u.first_name as client_name, u.city as client_city,
+             u.pincode as client_pincode, u.latitude as client_lat, u.longitude as client_lng
+      FROM service_requests jr
+      JOIN machines m ON jr.machine_id = m.id
+      JOIN users u ON jr.consumer_id = u.id
+      WHERE jr.status = 'broadcast'
+      AND jr.is_demo = $2
+      AND jr.id NOT IN (${declinedSubquery})
+    `;
 
-        // Tier 2: jobs older than 10 minutes (no-one accepted yet) — show to all experts
-        const globalResult = await db.query(`
-            SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
-                   u.first_name as client_name, u.city as client_city,
-                   false as is_nearby
-            FROM service_requests jr
-            JOIN machines m ON jr.machine_id = m.id
-            JOIN users u ON jr.consumer_id = u.id
-            WHERE jr.status = 'broadcast'
-            AND jr.is_demo = $1
-            AND (jr.first_broadcast_at IS NULL OR jr.first_broadcast_at < NOW() - INTERVAL '10 minutes')
-            AND jr.id NOT IN (
-                SELECT request_id FROM declined_jobs WHERE user_id = $2
-            )
-            AND jr.id NOT IN (${rows.map((_, i) => `$${i + 3}`).join(',') || 'NULL'})
-            ORDER BY jr.created_at DESC
-        `, [isDemo, req.user.id, ...rows.map(r => r.id)]);
+    let tier1 = [], tier2 = [], tier3 = [];
+    const seenIds = new Set();
 
-        // If no city set, also fetch ALL broadcast jobs
-        if (!expertCity) {
-            const allResult = await db.query(`
-                SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
-                       u.first_name as client_name, u.city as client_city,
-                       false as is_nearby
-                FROM service_requests jr
-                JOIN machines m ON jr.machine_id = m.id
-                JOIN users u ON jr.consumer_id = u.id
-                WHERE jr.status = 'broadcast'
-                AND jr.is_demo = $1
-                AND jr.id NOT IN (
-                    SELECT request_id FROM declined_jobs WHERE user_id = $2
-                )
-                ORDER BY jr.created_at DESC
-            `, [isDemo, req.user.id]);
-            rows = allResult.rows;
-        } else {
-            rows = [...rows, ...globalResult.rows];
-        }
-
-        res.json(rows);
-        if (rows.length > 0) {
-            console.log('[VideoDebug] job video_url from DB:', rows.map(r => ({ id: r.id, video_url: r.video_url })));
-        }
-    } catch (err) {
-        // fallback — return all broadcast jobs without city filtering
-        try {
-            const result = await db.query(`
-                SELECT jr.*, m.name as machine_name, m.oem, m.machine_type,
-                       u.first_name as client_name, false as is_nearby
-                FROM service_requests jr
-                JOIN machines m ON jr.machine_id = m.id
-                JOIN users u ON jr.consumer_id = u.id
-                WHERE jr.status = 'broadcast' AND jr.is_demo = $1
-                ORDER BY jr.created_at DESC
-            `, [isDemo]);
-            res.json(result.rows);
-        } catch (innerErr) {
-            res.json([]);
-        }
+    // Tier 1: GPS within 15km (if expert has coordinates)
+    if (expertLat && expertLng) {
+      const r = await db.query(`
+        ${baseSelect}
+        AND u.latitude IS NOT NULL AND u.longitude IS NOT NULL
+        AND (
+          6371 * acos(
+            cos(radians($3)) * cos(radians(u.latitude)) *
+            cos(radians(u.longitude) - radians($4)) +
+            sin(radians($3)) * sin(radians(u.latitude))
+          )
+        ) <= 15
+        ORDER BY jr.created_at DESC
+      `, [req.user.id, isDemo, expertLat, expertLng]);
+      tier1 = r.rows.map(j => ({ ...j, match_tier: 1, match_label: 'Nearby' }));
+      tier1.forEach(j => seenIds.add(j.id));
     }
+
+    // Tier 2: same city OR pincode prefix match (after 5 mins)
+    if (expertCity || expertPincode) {
+      const pincodePrefix = expertPincode ? expertPincode.substring(0, 3) : null;
+      const r = await db.query(`
+        ${baseSelect}
+        AND jr.id NOT IN (${tier1.map((_, i) => `$${i + 5}`).join(',') || 'NULL'})
+        AND (
+          ${expertCity ? `LOWER(u.city) = LOWER($3)` : 'false'}
+          ${pincodePrefix ? `OR u.pincode LIKE $4` : ''}
+        )
+        AND (jr.first_broadcast_at IS NULL OR jr.first_broadcast_at < NOW() - INTERVAL '5 minutes')
+        ORDER BY jr.created_at DESC
+      `, [req.user.id, isDemo, expertCity || '', pincodePrefix ? `${pincodePrefix}%` : '', ...tier1.map(j => j.id)]);
+      tier2 = r.rows
+        .filter(j => !seenIds.has(j.id))
+        .map(j => ({ ...j, match_tier: 2, match_label: 'In your city' }));
+      tier2.forEach(j => seenIds.add(j.id));
+    }
+
+    // Tier 3: same state fallback (after 10 mins)
+    if (expertState) {
+      const r = await db.query(`
+        ${baseSelect}
+        AND LOWER(u.state) = LOWER($3)
+        AND (jr.first_broadcast_at IS NULL OR jr.first_broadcast_at < NOW() - INTERVAL '10 minutes')
+        ORDER BY jr.created_at DESC
+      `, [req.user.id, isDemo, expertState]);
+      tier3 = r.rows
+        .filter(j => !seenIds.has(j.id))
+        .map(j => ({ ...j, match_tier: 3, match_label: 'Remote possible' }));
+    }
+
+    const rows = [...tier1, ...tier2, ...tier3];
+    res.json(rows);
+  } catch (err) {
+    console.error('[Jobs] getRadarJobs error:', err);
+    res.json([]);
+  }
 };
 
 // @desc    Get expert dashboard statistics
@@ -397,7 +392,7 @@ export const completeWork = async (req, res) => {
     const result = await db.query(
       `UPDATE service_requests SET status='pending_confirmation', pending_confirmation_at=NOW(),
        completion_summary=$1, parts_actually_used=$2, quoted_cost=COALESCE($3, quoted_cost)
-       WHERE id=$4 AND producer_id=$5 AND status IN ('in_progress','en_route','accepted','payment_pending')
+       WHERE id=$4 AND producer_id=$5 AND status IN ('in_progress','en_route','accepted','payment_pending','quote_approved','started')
        RETURNING *`,
       [completionSummary||null, partsActuallyUsed||null, finalAmount||null, jobId, req.user.id]
     );
@@ -871,6 +866,11 @@ export const approveQuote = async (req, res) => {
       io.to(`user_${quote.expert_id}`).emit('quote_approved', { requestId, amount: quote.amount, message: 'Your quote was approved!' });
       io.to(`user_${quote.expert_id}`).emit('request_status_updated', { requestId, status: 'quote_approved' });
     }
+    const jobRow = await db.query(`SELECT consumer_id FROM service_requests WHERE id=$1`, [requestId]);
+    const consumerId = jobRow.rows[0]?.consumer_id;
+    if (io && consumerId) {
+      io.to(`user_${consumerId}`).emit('request_status_updated', { requestId, status: 'quote_approved' });
+    }
     await notificationController.createNotification(quote.expert_id, 'Quote Approved! 🎉', `Your quote of ₹${quote.amount} was selected. Consumer is paying now.`, 'job_update', null);
     const rejected = await db.query(`SELECT expert_id FROM job_quotes WHERE request_id=$1 AND status='rejected'`, [requestId]);
     for (const row of rejected.rows) {
@@ -892,7 +892,7 @@ export const markArrived = async (req, res) => {
     if (!uuidRegex.test(jobId)) return res.json({ id: jobId, status: 'en_route' });
     const result = await db.query(
       `UPDATE service_requests SET status='en_route', arrived_at=NOW()
-       WHERE id=$1 AND producer_id=$2 AND status IN ('quote_approved','accepted','payment_pending')
+       WHERE id=$1 AND producer_id=$2 AND status IN ('quote_approved','accepted','payment_pending','in_progress','started','en_route')
        RETURNING *`,
       [jobId, req.user.id]
     );
@@ -934,7 +934,47 @@ export const consumerConfirmComplete = async (req, res) => {
       io.to(`user_${row.producer_id}`).emit('request_status_updated', { requestId: jobId, status: 'completed' });
       io.to(`user_${row.producer_id}`).emit('escrow_released', { requestId: jobId, amount: row.quoted_cost, message: 'Payment released!' });
     }
-    await notificationController.createNotification(row.producer_id, '💰 Payment Released!', `Consumer confirmed. ₹${row.quoted_cost} released to your account.`, 'payment', null);
+    const txnRes = await db.query(
+      `SELECT * FROM transactions WHERE request_id = $1 AND status = 'escrow' LIMIT 1`,
+      [jobId]
+    );
+    if (txnRes.rows.length > 0) {
+      const txn = txnRes.rows[0];
+      const immediateAmount = +(txn.expert_amount * 0.5).toFixed(2);
+      const holdAmount = +(txn.expert_amount * 0.5).toFixed(2);
+
+      await db.query(
+        `INSERT INTO expert_wallets (expert_id, balance, pending_balance)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (expert_id)
+         DO UPDATE SET balance = expert_wallets.balance + $2,
+                       pending_balance = expert_wallets.pending_balance + $3,
+                       updated_at = NOW()`,
+        [txn.expert_id, immediateAmount, holdAmount]
+      );
+      await db.query(
+        `UPDATE transactions
+         SET status = 'partial_released',
+             immediate_release = $1,
+             hold_amount = $2,
+             hold_release_at = NOW() + INTERVAL '7 days'
+         WHERE id = $3`,
+        [immediateAmount, holdAmount, txn.id]
+      );
+      if (io) {
+        io.to(`user_${txn.expert_id}`).emit('escrow_released', {
+          requestId: jobId,
+          amount: immediateAmount,
+          holdAmount,
+          message: `₹${immediateAmount} credited now. ₹${holdAmount} releases in 7 days.`
+        });
+      }
+      await notificationController.createNotification(
+        txn.expert_id, '💰 50% Payment Credited!',
+        `₹${immediateAmount} in your wallet now. ₹${holdAmount} releases automatically in 7 days.`,
+        'payment', null
+      );
+    }
     await notificationController.createNotification(row.consumer_id, 'Job Closed ✅', 'Payment released. You have 7 days to raise any issues.', 'job_update', null);
     res.json({ success: true });
   } catch (err) {

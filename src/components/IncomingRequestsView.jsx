@@ -84,15 +84,14 @@ const JobCard = React.forwardRef(({ job, onAccept, onDecline, onJoinWaitlist, on
                   : 'Just now'}
               </span>
             </div>
-            {job.is_nearby && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                Nearby
-              </span>
-            )}
-            {!job.is_nearby && job.client_city && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-50 text-slate-500 border border-slate-200">
-                {job.client_city}
+            {job.match_label && (
+              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                job.match_tier === 1 ? 'bg-teal-100 text-teal-700' :
+                job.match_tier === 2 ? 'bg-blue-100 text-blue-700' :
+                'bg-slate-100 text-slate-500'
+              }`}>
+                {job.match_tier === 1 && <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse inline-block" />}
+                {job.match_label}
               </span>
             )}
           </div>

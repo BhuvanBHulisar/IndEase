@@ -28,6 +28,7 @@ import supportRoutes from "./routes/supportRoutes.js";
 import { ensureExpertPerformanceSchema } from "./services/expertPerformanceSchema.js";
 import { ensurePaymentSchema } from "./services/paymentSchema.js";
 import { startExpertPerformanceCron } from "./services/expertPerformanceService.js";
+import { releaseMaturedHolds } from './services/holdReleaseScheduler.js';
 import { ensureDemoSchema, ensureDemoAccounts, seedDemoData } from "./services/demoService.js";
 import demoRoutes from "./routes/demoRoutes.js";
 import healthRouter from './routes/healthRoutes.js';
@@ -299,6 +300,13 @@ async function startServer() {
 
       console.log('[DB] New workflow columns verified ✓');
 
+      const progressTrackingSql = fs.readFileSync(
+        path.join(__dirname, 'migrations', 'add_progress_tracking.sql'),
+        'utf8',
+      );
+      await db.query(progressTrackingSql);
+      console.log('[DB] Progress tracking schema verified');
+
       startExpertPerformanceCron();
 
       // Daily cron: delete orphaned videos older than 7 days
@@ -375,6 +383,8 @@ async function startServer() {
       });
 
       console.log("[DB] Connected and schemas verified ✓");
+      setInterval(releaseMaturedHolds, 60 * 60 * 1000); // every hour
+      releaseMaturedHolds(); // run once on startup
       return;
     } catch (error) {
       retries--;

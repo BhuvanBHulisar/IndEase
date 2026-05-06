@@ -19,9 +19,12 @@ export const generateInvoicePDF = (record) => {
   const fmt = (n) => "Rs. " + Number(n).toLocaleString("en-IN");
 
   const base = clean(record.amount || record.cost);
-  const fee = Math.round(base * 0.10);
-  const gst = Math.round((base + fee) * 0.18);
-  const total = base + fee + gst;
+  const consumerFee = +(base * 0.05).toFixed(2);
+  const consumerGst = +(consumerFee * 0.18).toFixed(2);
+  const expertFee = +(base * 0.10).toFixed(2);
+  const expertGst = +(expertFee * 0.18).toFixed(2);
+  const expertReceives = +(base - expertFee - expertGst).toFixed(2);
+  const consumerTotal = +(base + consumerFee + consumerGst).toFixed(2);
   const invId = (record.id || "").toString().substring(0, 8).toUpperCase();
   const dateStr = record.date
     ? new Date(record.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
@@ -168,9 +171,15 @@ export const generateInvoicePDF = (record) => {
     startY: tableEnd + 6,
     margin: { left: 14, right: 14 },
     body: [
-      ["Base Service Cost", fmt(base)],
-      ["Platform Fee (10%)", fmt(fee)],
-      ["GST @ 18%", fmt(gst)],
+      ['Base Service Cost', fmt(base)],
+      ['Booking Fee (5%) — platform charge', fmt(consumerFee)],
+      ['GST on booking fee (18%)', fmt(consumerGst)],
+      ['Total Charged to Consumer', fmt(consumerTotal)],
+      ['', ''],
+      ['Expert quoted amount', fmt(base)],
+      ['Service Fee (10%) — platform deduction', `− ${fmt(expertFee)}`],
+      ['GST on service fee (18%)', `− ${fmt(expertGst)}`],
+      ['Expert receives', fmt(expertReceives)],
     ],
     theme: "plain",
     bodyStyles: {
@@ -192,7 +201,7 @@ export const generateInvoicePDF = (record) => {
   doc.setTextColor(...white);
   doc.text("TOTAL PAYABLE", 22, totalY + 10);
   doc.setFontSize(13);
-  doc.text(fmt(total), W - 14, totalY + 10, { align: "right" });
+  doc.text(fmt(consumerTotal), W - 14, totalY + 10, { align: "right" });
 
   const noteY = totalY + 24;
   doc.setFillColor(240, 253, 250);
@@ -203,7 +212,7 @@ export const generateInvoicePDF = (record) => {
   doc.setFontSize(8);
   doc.setTextColor(...tealDark);
   doc.text(
-    `Expert receives ${fmt(base)} after platform fee deduction. Payment secured via Razorpay.`,
+    `Expert receives ${fmt(expertReceives)} after platform deduction. Platform earns ${fmt(+(consumerFee + expertFee).toFixed(2))}. Payment secured via Razorpay.`,
     105, noteY + 8, { align: "center" }
   );
 

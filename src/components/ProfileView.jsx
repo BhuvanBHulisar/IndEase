@@ -90,7 +90,9 @@ export default function ProfileView({
     bankAccountNumber:  user?.bankAccountNumber  || '',
     ifscCode:           user?.ifscCode           || '',
     accountHolderName:  user?.accountHolderName  || '',
-    email:              user?.email || ''
+    email:              user?.email || '',
+    latitude:           user?.latitude || null,
+    longitude:          user?.longitude || null
   });
 
   // Cities available for selected state
@@ -133,6 +135,16 @@ export default function ProfileView({
       }
     };
     loadProfile();
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setFormData(prev => ({
+          ...prev,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude
+        }));
+      }, () => console.warn('GPS denied or failed'));
+    }
   }, []);
 
   const fileInputRef = useRef(null);
@@ -147,6 +159,8 @@ export default function ProfileView({
         state:      formData.state,
         city:       formData.city,
         pincode:    formData.pincode,
+        latitude:   formData.latitude,
+        longitude:  formData.longitude
       });
       if (res.data.success) {
         // Use the server's returned user object as the source of truth

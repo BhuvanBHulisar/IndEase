@@ -11,10 +11,14 @@ import { initiateJobTransfer } from "../services/razorpayService.js";
  */
 function calculateEscrow(baseAmount) {
   const amount = Number(baseAmount);
-  const platformFee = +(amount * 0.1).toFixed(2);
-  const gst = +(platformFee * 0.18).toFixed(2);
-  const expertAmount = +(amount - platformFee - gst).toFixed(2);
-  return { platformFee, gst, expertAmount };
+  const consumerFee = +(amount * 0.05).toFixed(2);
+  const consumerGst = +(consumerFee * 0.18).toFixed(2);
+  const consumerTotal = +(amount + consumerFee + consumerGst).toFixed(2);
+  const expertFee = +(amount * 0.10).toFixed(2);
+  const expertGst = +(expertFee * 0.18).toFixed(2);
+  const expertAmount = +(amount - expertFee - expertGst).toFixed(2);
+  const platformProfit = +(consumerFee + expertFee).toFixed(2);
+  return { consumerFee, consumerGst, consumerTotal, expertFee, expertGst, expertAmount, platformProfit };
 }
 
 // ─── CREATE PAYMENT (escrow) ─────────────────────────────────────────────
@@ -29,7 +33,7 @@ export const createPayment = async (req, res) => {
     }
 
     const baseAmount = Number(amount);
-    const { platformFee, gst, expertAmount } = calculateEscrow(baseAmount);
+    const { consumerFee, consumerGst, consumerTotal, expertFee, expertGst, expertAmount, platformProfit } = calculateEscrow(baseAmount);
 
     const result = await db.query(
       `INSERT INTO transactions
@@ -37,20 +41,28 @@ export const createPayment = async (req, res) => {
                  expert_id,
                  base_amount, platform_fee, expert_amount,
                  provider_price, provider_payout,
-                 transaction_ref, status, amount, type)
+                 transaction_ref, status, amount, type,
+                 consumer_fee, consumer_gst, expert_fee, expert_gst, platform_profit)
              VALUES ($1,
                      $2,
                      $3, $4, $5,
                      $3, $5,
-                     $6, 'escrow', $3, 'payment')
+                     $6, 'escrow', $7, 'payment',
+                     $8, $9, $10, $11, $12)
              RETURNING *`,
       [
         job_id || null,
         expert_id || null,
         baseAmount,
-        platformFee,
+        consumerFee + consumerGst,
         expertAmount,
         payment_ref || null,
+        consumerTotal,
+        consumerFee,
+        consumerGst,
+        expertFee,
+        expertGst,
+        platformProfit
       ],
     );
 
@@ -67,7 +79,7 @@ export const createPayment = async (req, res) => {
     res.status(201).json({
       success: true,
       transaction,
-      breakdown: { baseAmount, platformFee, gst, expertAmount },
+      breakdown: { baseAmount, consumerFee, consumerGst, consumerTotal, expertFee, expertGst, expertAmount, platformProfit },
     });
   } catch (err) {
     console.error("[Escrow] Payment creation failed:", err);

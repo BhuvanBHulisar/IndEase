@@ -25,7 +25,17 @@ const DashboardLayout = ({ children, user, notifications, activeTab, setActiveTa
       />
       
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <Topbar user={user} notifications={notifications} role={role} onMarkAsRead={onMarkAsRead} onMarkAllRead={onMarkAllRead} onSearch={onSearch} searchResults={searchResults} onResultClick={onSearchResultClick} isDemo={isDemo} onMenuClick={() => setSidebarOpen(true)} />
+        <Topbar
+          user={user}
+          notifications={notifications}
+          role={role}
+          onMarkAsRead={onMarkAsRead}
+          onMarkAllRead={onMarkAllRead}
+          isDemo={isDemo}
+          onMenuClick={() => setSidebarOpen(true)}
+          setActiveTab={setActiveTab}
+          onLogout={onLogout}
+        />
         
         <main className="flex-1 overflow-y-auto bg-slate-50 relative custom-scrollbar">
           {socketReconnecting ? (

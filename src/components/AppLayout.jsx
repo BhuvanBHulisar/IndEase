@@ -22,7 +22,12 @@ const AppLayout = ({
       
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <Topbar user={user} notifications={notifications} />
+        <Topbar
+          user={user}
+          notifications={notifications}
+          setActiveTab={setActiveTab}
+          onLogout={onLogout}
+        />
         
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="max-w-[1200px] mx-auto py-10 px-8 w-full animate-fade-in">

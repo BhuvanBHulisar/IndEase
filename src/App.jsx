@@ -3088,6 +3088,7 @@ function App() {
       setShowQuotesModal(false);
       setToast({ message: '✅ Expert confirmed! Proceeding to payment...', type: 'success' });
       await fetchConsumerChatsList();
+      await fetchConsumerActiveRequests();
       if (quote?.amount) handlePayment(`${quote.amount}`, 'Expert Service Payment', selectedRequestForQuotes);
     } catch {
       setToast({ message: 'Failed to approve quote', type: 'error' });
@@ -3497,13 +3498,15 @@ function App() {
 
         // FIX 1 — populate activeJobs from DB so it survives refresh
         const activeFromDB = myJobs
-          .filter(j => ['accepted', 'in_progress', 'started'].includes(j.status))
+          .filter(j => ['accepted', 'in_progress', 'started', 'quote_approved', 'en_route', 'payment_pending'].includes(j.status))
           .map(j => ({
             id: j.id,
             machine_name: j.machine_name,
             issue_description: j.issue_description,
             status: j.status,
-            progressStage: j.status === 'in_progress' ? 'in_progress' : 'accepted',
+            progressStage: ['in_progress', 'started'].includes(j.status) ? 'in_progress'
+              : j.status === 'en_route' ? 'en_route'
+                : 'accepted',
             other_party: j.other_party,
             created_at: j.created_at,
           }));
@@ -4006,7 +4009,7 @@ function App() {
   const handlePayment = (amountStr, desc, requestId = null) => {
     const checkoutAmount = Number(parseFloat(String(amountStr).replace(/[^0-9.]/g, ""))) || 5000;
     const providerPrice = checkoutAmount;
-    const commissionPercentage = parseFloat(import.meta.env.VITE_PLATFORM_COMMISSION_PERCENTAGE || "10");
+    const commissionPercentage = 5; // consumer pays 5% booking fee
     const commission = (providerPrice * commissionPercentage) / 100;
     const gst = commission * 0.18;
     const totalPayable = providerPrice + commission + gst;
@@ -4066,6 +4069,7 @@ function App() {
         setChats((prev) => prev.map((c) =>
           String(c.id) === String(activeChatId) ? { ...c, status: "payment_pending" } : c
         ));
+        fetchConsumerActiveRequests();
         const ratingJobId = String(checkoutDetails.requestId || activeChatId);
         if (!ratedJobIds.has(ratingJobId)) {
           setPostPaymentRatingContext({

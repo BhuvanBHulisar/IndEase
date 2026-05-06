@@ -83,7 +83,8 @@ export const updateProfile = async (req, res) => {
     const { 
         first_name, last_name, phone, dob, photo_url, organization, location, tax_id, 
         skills, service_radius, status, 
-        bank_account_number, ifsc_code, account_holder_name 
+        bank_account_number, ifsc_code, account_holder_name,
+        latitude, longitude
     } = req.body;
     const userId = req.user.id;
     const role = req.user.role;
@@ -119,9 +120,11 @@ export const updateProfile = async (req, res) => {
                  photo_url = COALESCE($5, photo_url),
                  organization = COALESCE($6, organization),
                  location = COALESCE($7, location),
-                 tax_id = COALESCE($8, tax_id)
-             WHERE id = $9`,
-            [toNull(first_name), toNull(last_name), toNull(phone), toNull(dob), toNull(photo_url), toNull(organization), toNull(location), toNull(tax_id), userId]
+                 tax_id = COALESCE($8, tax_id),
+                 latitude = COALESCE($9, latitude),
+                 longitude = COALESCE($10, longitude)
+             WHERE id = $11`,
+            [toNull(first_name), toNull(last_name), toNull(phone), toNull(dob), toNull(photo_url), toNull(organization), toNull(location), toNull(tax_id), latitude || null, longitude || null, userId]
         );
 
         // 2. Update producer_profiles if role is producer
@@ -227,7 +230,7 @@ export const updateProfileData = async (req, res) => {
         
         const {
             first_name, last_name, company, phone, city, state, pincode,
-            bank_account_name, bank_account_number, ifsc_code
+            bank_account_name, bank_account_number, ifsc_code, latitude, longitude
         } = req.body;
         
         // Use direct assignment (not COALESCE) so users can clear fields
@@ -239,8 +242,10 @@ export const updateProfileData = async (req, res) => {
                 phone = $4,
                 city = $5,
                 state = $6,
-                pincode = $7
-             WHERE id = $8`,
+                pincode = $7,
+                latitude = COALESCE($8, latitude),
+                longitude = COALESCE($9, longitude)
+             WHERE id = $10`,
             [
                 first_name  || null,
                 last_name   || null,
@@ -249,6 +254,8 @@ export const updateProfileData = async (req, res) => {
                 city        || null,
                 state       || null,
                 pincode     || null,
+                latitude    || null,
+                longitude   || null,
                 userId
             ]
         );
