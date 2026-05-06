@@ -6,14 +6,16 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './ui/base';
 
-const STEPS = ['Submitted', 'Quote Received', 'In Progress', 'Completed'];
+const STEPS = ['Submitted', 'Quote Ready', 'In Progress', 'Confirm', 'Done'];
 
 function statusToStep(rawStatus) {
   const s = (rawStatus || '').toLowerCase();
   if (s === 'broadcast' || s === 'pending') return 0;
-  if (s === 'quote_submitted' || s === 'quote_approved' || s === 'accepted') return 1;
+  if (s === 'quote_submitted') return 1;
+  if (s === 'quote_approved' || s === 'en_route' || s === 'accepted') return 2;
   if (s === 'in_progress' || s === 'payment_pending') return 2;
-  if (s === 'completed') return 3;
+  if (s === 'pending_confirmation') return 3;
+  if (s === 'completed') return 4;
   return 0;
 }
 
@@ -53,7 +55,7 @@ function StatusStepper({ currentStep }) {
   );
 }
 
-function RequestCard({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateExpert, onViewQuotes, onRaiseFollowUp, ratedJobIds }) {
+const RequestCard = React.forwardRef(({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateExpert, onViewQuotes, onRaiseFollowUp, onConfirmComplete, ratedJobIds }, ref) => {
   const step = statusToStep(req.rawStatus || req.status);
   const status = (req.rawStatus || req.status || '').toLowerCase();
   const isPending = status === 'broadcast' || status === 'pending' || step === 0;
@@ -68,6 +70,7 @@ function RequestCard({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateEx
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -140,65 +143,76 @@ function RequestCard({ req, onOpenChat, onCancelRequest, onViewInvoice, onRateEx
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-3 pt-1">
-        {isPending && (
-          <button
-            onClick={() => onCancelRequest && onCancelRequest(req.id)}
-            className="flex-1 h-9 rounded-xl border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 transition-all"
-          >
+      <div className="space-y-2 pt-1">
+        {/* Broadcast/pending — cancel */}
+        {(status === 'broadcast' || status === 'pending') && (
+          <button onClick={() => onCancelRequest && onCancelRequest(req.id)}
+            className="w-full h-9 rounded-xl border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50">
             Cancel Request
           </button>
         )}
-        {isQuoteReceived && (
-          <button
-            onClick={() => onViewQuotes && onViewQuotes(req.id)}
-            className="flex-1 h-9 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 flex items-center justify-center gap-1.5 transition-all shadow-sm"
-          >
-            View Quotes
+
+        {/* Quote submitted — view quotes button (pulsing) */}
+        {status === 'quote_submitted' && (
+          <button onClick={() => onViewQuotes && onViewQuotes(req.id)}
+            className="w-full h-10 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 flex items-center justify-center gap-2 shadow-sm">
+            📋 View Expert Quotes
           </button>
         )}
-        {isActive && !isQuoteReceived && (
-          <button
-            onClick={() => onOpenChat && onOpenChat(req.id)}
-            className="flex-1 h-9 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 flex items-center justify-center gap-1.5 transition-all shadow-sm"
-          >
+
+        {/* Active — open chat */}
+        {(status === 'quote_approved' || status === 'en_route' || status === 'in_progress' || status === 'accepted' || status === 'payment_pending') && (
+          <button onClick={() => onOpenChat && onOpenChat(req.id)}
+            className="w-full h-10 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 flex items-center justify-center gap-1.5">
             <MessageSquare size={13} /> Open Chat
           </button>
         )}
-        {isCompleted && (
-          <>
-            <button
-              onClick={() => onViewInvoice && onViewInvoice(req)}
-              className="flex-1 h-9 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-all"
-            >
-              <FileText size={13} /> View Invoice
+
+        {/* Pending confirmation — confirm or raise issue */}
+        {status === 'pending_confirmation' && (
+          <div className="space-y-2">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-medium">
+              ⏳ Expert has completed the repair. Please confirm to release payment.
+              {req.completion_summary && <p className="mt-1 text-slate-600 italic">"{req.completion_summary}"</p>}
+            </div>
+            <button onClick={() => onConfirmComplete && onConfirmComplete(req.id)}
+              className="w-full h-11 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm">
+              ✅ Confirm & Release Payment
             </button>
-            {!isAlreadyRated && (
-              <button
-                onClick={() => onRateExpert && onRateExpert(req)}
-                className="flex-1 h-9 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 flex items-center justify-center gap-1.5 transition-all shadow-sm"
-              >
-                <Star size={13} /> Rate Expert
+            <button onClick={() => { const d = prompt('Describe the issue:'); if (d) onRaiseFollowUp && onRaiseFollowUp(req.id, d); }}
+              className="w-full h-9 rounded-xl border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50">
+              ⚠️ Raise an Issue Instead
+            </button>
+          </div>
+        )}
+
+        {/* Completed — invoice, rate, follow-up */}
+        {status === 'completed' && (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <button onClick={() => onViewInvoice && onViewInvoice(req)}
+                className="flex-1 h-9 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 flex items-center justify-center gap-1.5">
+                <FileText size={13} /> Invoice
+              </button>
+              {!isAlreadyRated && (
+                <button onClick={() => onRateExpert && onRateExpert(req)}
+                  className="flex-1 h-9 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 flex items-center justify-center gap-1.5">
+                  <Star size={13} /> Rate Expert
+                </button>
+              )}
+            </div>
+            {req.follow_up_deadline && !req.follow_up_raised && new Date() < new Date(req.follow_up_deadline) && (
+              <button onClick={() => { const d = prompt('Describe the issue with the repair:'); if (d) onRaiseFollowUp && onRaiseFollowUp(req.id, d); }}
+                className="w-full h-9 rounded-xl border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-50">
+                ⚠️ Raise Follow-up ({Math.ceil((new Date(req.follow_up_deadline)-new Date())/(1000*60*60*24))} days left)
               </button>
             )}
-          </>
+          </div>
         )}
       </div>
-      {/* 7-day follow-up button */}
-      {canRaiseFollowUp && (
-        <button
-          onClick={() => {
-            const desc = window.prompt('Describe the follow-up issue:');
-            if (desc) onRaiseFollowUp && onRaiseFollowUp(req.id, desc);
-          }}
-          className="w-full h-9 mt-1 rounded-xl border border-orange-200 text-orange-600 text-xs font-semibold hover:bg-orange-50 transition-all"
-        >
-          Raise Follow-up Issue (within 7 days)
-        </button>
-      )}
     </motion.div>
   );
-}
+});
 
 export default function MyRequestsView({
   requests = [],
@@ -209,6 +223,7 @@ export default function MyRequestsView({
   onRateExpert,
   onViewQuotes,
   onRaiseFollowUp,
+  onConfirmComplete,
   onGoToMachines,
   ratedJobIds,
 }) {
@@ -218,9 +233,9 @@ export default function MyRequestsView({
     const step = statusToStep(req.rawStatus || req.status);
     const status = (req.rawStatus || req.status || '').toLowerCase();
     if (filter === 'All') return true;
-    if (filter === 'Active') return step === 1 || step === 2;
+    if (filter === 'Active') return step === 1 || step === 2 || step === 3;
     if (filter === 'Pending') return status === 'broadcast' || status === 'pending' || step === 0;
-    if (filter === 'Completed') return step === 3;
+    if (filter === 'Completed') return step === 4;
     return true;
   });
 
@@ -302,6 +317,7 @@ export default function MyRequestsView({
                 onRateExpert={onRateExpert}
                 onViewQuotes={onViewQuotes}
                 onRaiseFollowUp={onRaiseFollowUp}
+                onConfirmComplete={onConfirmComplete}
                 ratedJobIds={ratedJobIds}
               />
             ))}

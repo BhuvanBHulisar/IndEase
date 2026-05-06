@@ -36,7 +36,7 @@ const deleteJobVideo = async (jobId) => {
 // @route   POST /api/jobs/broadcast
 export const broadcastJob = async (req, res) => {
     const { machineId, issueDescription, priority, videoUrl, aiMachineType, aiIssueSummary, aiConfidence,
-            urgencyLevel, preferredDate, preferredTimeSlot } = req.body;
+            urgencyLevel, preferredDate, preferredTimeSlot, consumerBudgetHint } = req.body;
     const io = req.app.get('socketio') || global.io;
     try {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,12 +52,12 @@ export const broadcastJob = async (req, res) => {
             const result = await db.query(
                 `INSERT INTO service_requests
                     (machine_id, consumer_id, issue_description, priority, video_url, status, is_demo, first_broadcast_at,
-                     ai_machine_type, ai_issue_summary, ai_confidence, urgency_level, preferred_date, preferred_time_slot)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, $11, $12, $13)
+                     ai_machine_type, ai_issue_summary, ai_confidence, urgency_level, preferred_date, preferred_time_slot, consumer_budget_hint)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, $11, $12, $13, $14)
                  RETURNING *`,
                 [machineId, req.user.id, issueDescription, priority || 'normal', videoUrl, 'broadcast', !!req.user.is_demo,
                  aiMachineType || null, aiIssueSummary || null, aiConfidence || null,
-                 urgencyLevel || 'normal', preferredDate || null, preferredTimeSlot || 'anytime']
+                 urgencyLevel || 'normal', preferredDate || null, preferredTimeSlot || 'anytime', consumerBudgetHint || null]
             );
 
             const newJob = result.rows[0];
@@ -333,8 +333,8 @@ export const startWork = async (req, res) => {
     try {
         if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
             const result = await db.query(
-                `UPDATE service_requests SET status = $1
-                 WHERE id = $2 AND producer_id = $3 AND status IN ('accepted', 'payment_pending')
+                `UPDATE service_requests SET status = $1, work_started_at=NOW()
+                 WHERE id = $2 AND producer_id = $3 AND status IN ('accepted', 'payment_pending', 'quote_approved', 'en_route')
                  RETURNING *`,
                 ['in_progress', jobId, req.user.id]
             );
@@ -385,84 +385,35 @@ export const startWork = async (req, res) => {
 // @desc    Expert marks repair work as completed
 // @route   PATCH /api/jobs/:id/complete-work
 export const completeWork = async (req, res) => {
-    const jobId = req.params.id;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const io = req.app.get('socketio') || global.io;
-    try {
-        if (uuidRegex.test(jobId) && uuidRegex.test(req.user.id)) {
-            const result = await db.query(
-                `UPDATE service_requests SET status = $1, completed_at = CURRENT_TIMESTAMP
-                 WHERE id = $2 AND producer_id = $3 AND status IN ('in_progress', 'accepted', 'payment_pending')
-                 RETURNING *`,
-                ['completed', jobId, req.user.id]
-            );
-
-            if (result.rows.length === 0) {
-                return res.status(400).json({ message: 'Unable to complete this request' });
-            }
-
-            const row = result.rows[0];
-            const completedWithinTwentyFourHours = wasCompletedUnderTwentyFourHours(
-                row.accepted_at || row.created_at,
-                row.completed_at
-            );
-            await updateExpertPoints(req.user.id, 20, 'Job completed');
-            if (completedWithinTwentyFourHours) {
-                await updateExpertPoints(req.user.id, 10, 'Job completed under 24 hours');
-            }
-
-            // Auto-delete consumer video now that job is done
-            await deleteJobVideo(jobId);
-
-            // Set follow-up deadline (7 days) and release escrow
-            await db.query(
-                `UPDATE service_requests SET follow_up_deadline = NOW() + INTERVAL '7 days', escrow_status = 'released' WHERE id = $1`,
-                [jobId]
-            );
-
-            if (io) {
-                io.emit(`status_update_${jobId}`, { status: 'completed' });
-                io.emit('service_completed', { requestId: jobId });
-                if (row.consumer_id) {
-                    io.to(`user_${row.consumer_id}`).emit('request_status_updated', {
-                        requestId: jobId,
-                        status: 'completed'
-                    });
-                    io.to(`user_${row.consumer_id}`).emit('request_completed', { requestId: jobId });
-                }
-                // Notify expert that escrow is released
-                io.to(`user_${req.user.id}`).emit('escrow_released', {
-                    requestId: jobId,
-                    message: 'Job completed — payment released from escrow.'
-                });
-            }
-            // Notify consumer job is done
-            await notificationController.createNotification(
-                row.consumer_id,
-                'Service Completed',
-                `Your machine repair has been completed. Please rate your experience.`,
-                'job_update',
-                null
-            );
-            // Notify expert
-            await notificationController.createNotification(
-                req.user.id,
-                'Job Completed',
-                `Job marked as complete. +20 points added to your profile.`,
-                'achievement',
-                null
-            );
-            return res.json(row);
-        }
-        if (io) {
-            io.emit(`status_update_${jobId}`, { status: 'completed' });
-            io.emit('service_completed', { requestId: jobId });
-        }
-        return res.json({ id: jobId, status: 'completed' });
-    } catch (err) {
-        console.error('[Jobs] completeWork failure:', err);
-        res.status(500).json({ message: 'Internal failure' });
+  const jobId = req.params.id;
+  const { completionSummary, partsActuallyUsed, finalAmount } = req.body;
+  const io = req.app.get('socketio') || global.io;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  try {
+    if (!uuidRegex.test(jobId) || !uuidRegex.test(req.user.id)) {
+      if (io) { io.emit(`status_update_${jobId}`, { status: 'pending_confirmation' }); io.emit('request_status_updated', { requestId: jobId, status: 'pending_confirmation' }); }
+      return res.json({ id: jobId, status: 'pending_confirmation' });
     }
+    const result = await db.query(
+      `UPDATE service_requests SET status='pending_confirmation', pending_confirmation_at=NOW(),
+       completion_summary=$1, parts_actually_used=$2, quoted_cost=COALESCE($3, quoted_cost)
+       WHERE id=$4 AND producer_id=$5 AND status IN ('in_progress','en_route','accepted','payment_pending')
+       RETURNING *`,
+      [completionSummary||null, partsActuallyUsed||null, finalAmount||null, jobId, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ message: 'Cannot complete this job' });
+    const row = result.rows[0];
+    if (io) {
+      io.emit(`status_update_${jobId}`, { status: 'pending_confirmation' });
+      io.to(`user_${row.consumer_id}`).emit('request_status_updated', { requestId: jobId, status: 'pending_confirmation' });
+      io.to(`user_${row.consumer_id}`).emit('job_pending_confirmation', { requestId: jobId, summary: completionSummary, parts: partsActuallyUsed, amount: finalAmount || row.quoted_cost });
+    }
+    await notificationController.createNotification(row.consumer_id, 'Repair Complete — Please Confirm ✅', 'Your expert finished the repair. Please confirm to release payment.', 'job_update', null);
+    res.json(row);
+  } catch (err) {
+    console.error('[Jobs] completeWork failed:', err);
+    res.status(500).json({ message: 'Internal failure' });
+  }
 };
 
 // @desc    Decline / skip a job (Expert)
@@ -820,185 +771,195 @@ export const getServiceHistory = async (req, res) => {
 // @desc    Expert submits a quote for a broadcast job
 // @route   POST /api/jobs/:id/quote
 export const submitQuote = async (req, res) => {
-    const { id: requestId } = req.params;
-    const { amount, estimatedHours, note } = req.body;
-    const expertId = req.user.id;
-    const io = req.app.get('socketio') || global.io;
-
-    try {
-        const jobRes = await db.query(
-            `SELECT * FROM service_requests WHERE id = $1 AND status IN ('broadcast', 'quote_submitted')`,
-            [requestId]
-        );
-        if (jobRes.rows.length === 0) {
-            return res.status(400).json({ message: 'Job is no longer available for quotes' });
-        }
-
-        const quoteRes = await db.query(
-            `INSERT INTO job_quotes (request_id, expert_id, amount, estimated_hours, note, status)
-             VALUES ($1, $2, $3, $4, $5, 'pending')
-             ON CONFLICT (request_id, expert_id) DO UPDATE
-             SET amount = $3, estimated_hours = $4, note = $5, status = 'pending'
-             RETURNING *`,
-            [requestId, expertId, amount, estimatedHours || null, note || null]
-        );
-
-        // Advance status to quote_submitted if still on broadcast
-        await db.query(
-            `UPDATE service_requests SET status = 'quote_submitted' WHERE id = $1 AND status = 'broadcast'`,
-            [requestId]
-        );
-
-        const job = jobRes.rows[0];
-        const expertRes = await db.query('SELECT first_name FROM users WHERE id = $1', [expertId]);
-        const expertName = expertRes.rows[0]?.first_name || 'An expert';
-
-        if (io) {
-            io.to(`user_${job.consumer_id}`).emit('quote_received', {
-                requestId,
-                quoteId: quoteRes.rows[0].id,
-                expertId,
-                expertName,
-                amount,
-                note
-            });
-            io.to(`user_${job.consumer_id}`).emit('request_status_updated', {
-                requestId,
-                status: 'quote_submitted'
-            });
-        }
-
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (uuidRegex.test(job.consumer_id)) {
-            await notificationController.createNotification(
-                job.consumer_id,
-                'Quote Received',
-                `${expertName} sent a quote of ₹${amount} for your service request.`,
-                'quote',
-                null
-            );
-        }
-
-        res.json(quoteRes.rows[0]);
-    } catch (err) {
-        console.error('[Jobs] submitQuote failed:', err);
-        res.status(500).json({ message: 'Failed to submit quote' });
+  const { id: requestId } = req.params;
+  const { amount, labourCost, partsCost, partsIncluded, estimatedHours, diagnosisNote, scopeOfWork, availableDate, availableSlot, visitType, note } = req.body;
+  const expertId = req.user.id;
+  const io = req.app.get('socketio') || global.io;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  try {
+    if (!uuidRegex.test(requestId) || !uuidRegex.test(expertId)) {
+      return res.json({ id: requestId, status: 'quote_submitted', message: 'Demo quote submitted' });
     }
+    const jobRes = await db.query(
+      `SELECT *, (SELECT COUNT(*) FROM job_quotes WHERE request_id = $1 AND status = 'pending') as quote_count
+       FROM service_requests WHERE id = $1 AND status IN ('broadcast', 'quote_submitted')`,
+      [requestId]
+    );
+    if (jobRes.rows.length === 0) return res.status(400).json({ message: 'Job no longer available for quotes' });
+    if (Number(jobRes.rows[0].quote_count) >= 2) {
+      return res.status(400).json({ message: 'This job already has 2 quotes. Quote window is closed.' });
+    }
+    const existing = await db.query(`SELECT id FROM job_quotes WHERE request_id=$1 AND expert_id=$2`, [requestId, expertId]);
+    if (existing.rows.length > 0) {
+      await db.query(
+        `UPDATE job_quotes SET amount=$1,labour_cost=$2,parts_cost=$3,parts_included=$4,estimated_hours=$5,
+         diagnosis_note=$6,scope_of_work=$7,available_date=$8,available_slot=$9,visit_type=$10,note=$11,status='pending'
+         WHERE request_id=$12 AND expert_id=$13`,
+        [amount,labourCost||null,partsCost||null,partsIncluded!==false,estimatedHours||null,
+         diagnosisNote||null,scopeOfWork||null,availableDate||null,availableSlot||null,
+         visitType||'onsite',note||null,requestId,expertId]
+      );
+      return res.json({ message: 'Quote updated' });
+    }
+    const quoteRes = await db.query(
+      `INSERT INTO job_quotes (request_id,expert_id,amount,labour_cost,parts_cost,parts_included,
+       estimated_hours,diagnosis_note,scope_of_work,available_date,available_slot,visit_type,note,status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending') RETURNING *`,
+      [requestId,expertId,amount,labourCost||null,partsCost||null,partsIncluded!==false,
+       estimatedHours||null,diagnosisNote||null,scopeOfWork||null,availableDate||null,
+       availableSlot||null,visitType||'onsite',note||null]
+    );
+    await db.query(`UPDATE service_requests SET status='quote_submitted' WHERE id=$1 AND status='broadcast'`, [requestId]);
+    const job = jobRes.rows[0];
+    const newQuoteCount = Number(job.quote_count) + 1;
+    const expertNameRes = await db.query('SELECT first_name FROM users WHERE id=$1', [expertId]);
+    const expertName = expertNameRes.rows[0]?.first_name || 'An expert';
+    if (io) {
+      io.to(`user_${job.consumer_id}`).emit('quote_received', { requestId, expertName, amount, quoteCount: newQuoteCount });
+      io.to(`user_${job.consumer_id}`).emit('request_status_updated', { requestId, status: 'quote_submitted', quoteCount: newQuoteCount });
+    }
+    await notificationController.createNotification(
+      job.consumer_id, 'Quote Received',
+      `${expertName} sent a quote of ₹${amount}. ${newQuoteCount === 2 ? 'Quote window closed — please choose an expert.' : '1 quote slot remaining.'}`,
+      'quote', null
+    );
+    res.json(quoteRes.rows[0]);
+  } catch (err) {
+    console.error('[Jobs] submitQuote failed:', err);
+    res.status(500).json({ message: 'Failed to submit quote' });
+  }
 };
 
-// @desc    Consumer fetches all pending quotes for their job
-// @route   GET /api/jobs/:id/quotes
 export const getQuotes = async (req, res) => {
-    const { id: requestId } = req.params;
-    try {
-        const result = await db.query(
-            `SELECT q.*, u.first_name, u.photo_url, pp.rating, pp.level, pp.points, pp.jobs_completed
-             FROM job_quotes q
-             JOIN users u ON q.expert_id = u.id
-             LEFT JOIN producer_profiles pp ON pp.user_id = q.expert_id
-             WHERE q.request_id = $1 AND q.status = 'pending'
-             ORDER BY pp.rating DESC NULLS LAST, q.amount ASC`,
-            [requestId]
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error('[Jobs] getQuotes failed:', err);
-        res.status(500).json({ message: 'Failed to fetch quotes' });
-    }
+  const { id: requestId } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT q.*,
+              u.first_name, u.photo_url,
+              COALESCE(pp.rating, 5.0) as rating,
+              COALESCE(pp.level, 'Starter') as level,
+              COALESCE(pp.points, 0) as points,
+              (SELECT COUNT(*) FROM service_requests sr WHERE sr.producer_id = q.expert_id AND sr.status = 'completed') as jobs_completed
+       FROM job_quotes q
+       JOIN users u ON q.expert_id = u.id
+       LEFT JOIN producer_profiles pp ON pp.user_id = q.expert_id
+       WHERE q.request_id = $1 AND q.status = 'pending'
+       ORDER BY pp.rating DESC NULLS LAST, q.amount ASC`,
+      [requestId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[Jobs] getQuotes failed:', err);
+    res.status(500).json({ message: 'Failed to fetch quotes' });
+  }
 };
 
-// @desc    Consumer approves a specific expert's quote
-// @route   POST /api/jobs/:id/quotes/:quoteId/approve
 export const approveQuote = async (req, res) => {
-    const { id: requestId, quoteId } = req.params;
-    const io = req.app.get('socketio') || global.io;
-
-    try {
-        const quoteRes = await db.query(
-            `SELECT * FROM job_quotes WHERE id = $1 AND request_id = $2 AND status = 'pending'`,
-            [quoteId, requestId]
-        );
-        if (quoteRes.rows.length === 0) {
-            return res.status(404).json({ message: 'Quote not found or already processed' });
-        }
-        const quote = quoteRes.rows[0];
-
-        await db.query(`UPDATE job_quotes SET status = 'approved' WHERE id = $1`, [quoteId]);
-        await db.query(
-            `UPDATE job_quotes SET status = 'rejected' WHERE request_id = $1 AND id != $2`,
-            [requestId, quoteId]
-        );
-        await db.query(
-            `UPDATE service_requests
-             SET status = 'quote_approved', producer_id = $1, quoted_cost = $2, accepted_at = NOW()
-             WHERE id = $3`,
-            [quote.expert_id, quote.amount, requestId]
-        );
-
-        if (io) {
-            io.to(`user_${quote.expert_id}`).emit('quote_approved', {
-                requestId,
-                amount: quote.amount,
-                message: 'Your quote was approved! Consumer will now pay into escrow.'
-            });
-            io.to(`user_${quote.expert_id}`).emit('request_status_updated', {
-                requestId,
-                status: 'quote_approved'
-            });
-        }
-
-        const rejectedRes = await db.query(
-            `SELECT expert_id FROM job_quotes WHERE request_id = $1 AND status = 'rejected'`,
-            [requestId]
-        );
-        for (const row of rejectedRes.rows) {
-            if (io) io.to(`user_${row.expert_id}`).emit('quote_rejected', { requestId });
-        }
-
-        res.json({ success: true, expertId: quote.expert_id, amount: quote.amount });
-    } catch (err) {
-        console.error('[Jobs] approveQuote failed:', err);
-        res.status(500).json({ message: 'Failed to approve quote' });
+  const { id: requestId, quoteId } = req.params;
+  const io = req.app.get('socketio') || global.io;
+  try {
+    const quoteRes = await db.query(`SELECT * FROM job_quotes WHERE id=$1 AND request_id=$2 AND status='pending'`, [quoteId, requestId]);
+    if (quoteRes.rows.length === 0) return res.status(404).json({ message: 'Quote not found' });
+    const quote = quoteRes.rows[0];
+    await db.query(`UPDATE job_quotes SET status='approved' WHERE id=$1`, [quoteId]);
+    await db.query(`UPDATE job_quotes SET status='rejected' WHERE request_id=$1 AND id!=$2`, [requestId, quoteId]);
+    await db.query(
+      `UPDATE service_requests SET status='quote_approved', producer_id=$1, quoted_cost=$2, escrow_status='none', accepted_at=NOW() WHERE id=$3`,
+      [quote.expert_id, quote.amount, requestId]
+    );
+    if (io) {
+      io.to(`user_${quote.expert_id}`).emit('quote_approved', { requestId, amount: quote.amount, message: 'Your quote was approved!' });
+      io.to(`user_${quote.expert_id}`).emit('request_status_updated', { requestId, status: 'quote_approved' });
     }
+    await notificationController.createNotification(quote.expert_id, 'Quote Approved! 🎉', `Your quote of ₹${quote.amount} was selected. Consumer is paying now.`, 'job_update', null);
+    const rejected = await db.query(`SELECT expert_id FROM job_quotes WHERE request_id=$1 AND status='rejected'`, [requestId]);
+    for (const row of rejected.rows) {
+      if (io) io.to(`user_${row.expert_id}`).emit('quote_rejected', { requestId });
+      await notificationController.createNotification(row.expert_id, 'Quote Not Selected', 'Another expert was selected. Keep an eye out for new requests!', 'job_update', null);
+    }
+    res.json({ success: true, expertId: quote.expert_id, amount: quote.amount });
+  } catch (err) {
+    console.error('[Jobs] approveQuote failed:', err);
+    res.status(500).json({ message: 'Failed to approve quote' });
+  }
 };
 
-// @desc    Consumer raises a follow-up within 7-day post-completion window
-// @route   POST /api/jobs/:id/follow-up
-export const raiseFollowUp = async (req, res) => {
-    const { id: requestId } = req.params;
-    const { description } = req.body;
-    try {
-        const jobRes = await db.query(
-            `SELECT * FROM service_requests WHERE id = $1 AND consumer_id = $2 AND status = 'completed'`,
-            [requestId, req.user.id]
-        );
-        if (jobRes.rows.length === 0) {
-            return res.status(404).json({ message: 'Completed job not found' });
-        }
-        const job = jobRes.rows[0];
-
-        const daysSince = (Date.now() - new Date(job.completed_at).getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSince > 7) {
-            return res.status(400).json({ message: '7-day follow-up window has expired' });
-        }
-
-        await db.query(
-            `UPDATE service_requests SET status = 'in_progress', follow_up_raised = TRUE, issue_description = $1 WHERE id = $2`,
-            [description, requestId]
-        );
-
-        const io = req.app.get('socketio') || global.io;
-        if (io && job.producer_id) {
-            io.to(`user_${job.producer_id}`).emit('follow_up_raised', {
-                requestId,
-                description,
-                message: 'Consumer raised a follow-up issue on a completed job'
-            });
-        }
-
-        res.json({ success: true });
-    } catch (err) {
-        console.error('[Jobs] raiseFollowUp failed:', err);
-        res.status(500).json({ message: 'Failed to raise follow-up' });
+export const markArrived = async (req, res) => {
+  const jobId = req.params.id;
+  const io = req.app.get('socketio') || global.io;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  try {
+    if (!uuidRegex.test(jobId)) return res.json({ id: jobId, status: 'en_route' });
+    const result = await db.query(
+      `UPDATE service_requests SET status='en_route', arrived_at=NOW()
+       WHERE id=$1 AND producer_id=$2 AND status IN ('quote_approved','accepted','payment_pending')
+       RETURNING *`,
+      [jobId, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ message: 'Cannot mark arrived for this job' });
+    const row = result.rows[0];
+    if (io) {
+      io.to(`user_${row.consumer_id}`).emit('request_status_updated', { requestId: jobId, status: 'en_route' });
+      io.emit(`status_update_${jobId}`, { status: 'en_route' });
     }
+    await notificationController.createNotification(row.consumer_id, 'Expert Arrived! 🚗', 'Your service expert has arrived and is ready to begin.', 'job_update', null);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Jobs] markArrived failed:', err);
+    res.status(500).json({ message: 'Failed to mark arrived' });
+  }
+};
+
+export const consumerConfirmComplete = async (req, res) => {
+  const jobId = req.params.id;
+  const io = req.app.get('socketio') || global.io;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  try {
+    if (!uuidRegex.test(jobId)) return res.json({ success: true });
+    const result = await db.query(
+      `UPDATE service_requests SET status='completed', completed_at=NOW(), escrow_status='released', follow_up_deadline=NOW() + INTERVAL '7 days'
+       WHERE id=$1 AND consumer_id=$2 AND status='pending_confirmation'
+       RETURNING *`,
+      [jobId, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ message: 'Cannot confirm this job' });
+    const row = result.rows[0];
+    await updateExpertPoints(row.producer_id, 20, 'Job completed');
+    const fast = wasCompletedUnderTwentyFourHours(row.accepted_at || row.created_at, row.completed_at);
+    if (fast) await updateExpertPoints(row.producer_id, 10, 'Job completed under 24 hours');
+    await deleteJobVideo(jobId);
+    if (io) {
+      io.emit(`status_update_${jobId}`, { status: 'completed' });
+      io.emit('service_completed', { requestId: jobId });
+      io.to(`user_${row.producer_id}`).emit('request_status_updated', { requestId: jobId, status: 'completed' });
+      io.to(`user_${row.producer_id}`).emit('escrow_released', { requestId: jobId, amount: row.quoted_cost, message: 'Payment released!' });
+    }
+    await notificationController.createNotification(row.producer_id, '💰 Payment Released!', `Consumer confirmed. ₹${row.quoted_cost} released to your account.`, 'payment', null);
+    await notificationController.createNotification(row.consumer_id, 'Job Closed ✅', 'Payment released. You have 7 days to raise any issues.', 'job_update', null);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Jobs] consumerConfirmComplete failed:', err);
+    res.status(500).json({ message: 'Failed to confirm completion' });
+  }
+};
+
+export const raiseFollowUp = async (req, res) => {
+  const { id: requestId } = req.params;
+  const { description } = req.body;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  try {
+    if (!uuidRegex.test(requestId)) return res.json({ success: true });
+    const jobRes = await db.query(`SELECT * FROM service_requests WHERE id=$1 AND consumer_id=$2 AND status='completed'`, [requestId, req.user.id]);
+    if (jobRes.rows.length === 0) return res.status(404).json({ message: 'Completed job not found' });
+    const job = jobRes.rows[0];
+    if (job.follow_up_deadline && new Date() > new Date(job.follow_up_deadline)) return res.status(400).json({ message: '7-day follow-up window has expired' });
+    if (job.follow_up_raised) return res.status(400).json({ message: 'Follow-up already raised' });
+    await db.query(`UPDATE service_requests SET status='in_progress', follow_up_raised=TRUE, issue_description=$1 WHERE id=$2`, [description, requestId]);
+    const io = global.io;
+    if (io && job.producer_id) io.to(`user_${job.producer_id}`).emit('follow_up_raised', { requestId, description });
+    await notificationController.createNotification(job.producer_id, '⚠️ Follow-up Issue', `Consumer raised: "${description.substring(0,80)}"`, 'job_update', null);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to raise follow-up' });
+  }
 };

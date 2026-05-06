@@ -769,7 +769,8 @@ function App() {
   // [NEW] URGENCY & PREFERRED TIME STATES
   const [urgencyLevel, setUrgencyLevel] = useState('normal');
   const [preferredDate, setPreferredDate] = useState('');
-  const [preferredTimeSlot, setPreferredTimeSlot] = useState('morning');
+  const [preferredTimeSlot, setPreferredTimeSlot] = useState('anytime');
+  const [consumerBudget, setConsumerBudget] = useState('');
 
   // [NEW] QUOTES MODAL STATES
   const [showQuotesModal, setShowQuotesModal] = useState(false);
@@ -3028,6 +3029,7 @@ function App() {
         urgencyLevel,
         preferredDate: preferredDate || null,
         preferredTimeSlot,
+        consumerBudgetHint: consumerBudget || null,
       });
       const serverJob = broadcastRes.data;
       finalizeRequest(serverJob);
@@ -3053,6 +3055,81 @@ function App() {
       setDiagnosisStep(1);
       setShowDiagnosisModal(true);
       setToast({ message: 'Failed to broadcast. Check connection.', type: 'error' });
+    }
+  };
+
+  // [NEW] QUOTE SYSTEM & PHYSICAL WORKFLOW HANDLERS
+  const handleSubmitQuote = async (jobId, quoteData) => {
+    try {
+      await api.post(`/jobs/${jobId}/quote`, quoteData);
+      setToast({ message: '✅ Quote sent! Waiting for consumer approval.', type: 'success' });
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Failed to submit quote';
+      setToast({ message: msg, type: 'error' });
+      throw err;
+    }
+  };
+
+  const handleViewQuotes = async (requestId) => {
+    try {
+      const res = await api.get(`/jobs/${requestId}/quotes`);
+      setQuotesForRequest(res.data);
+      setSelectedRequestForQuotes(requestId);
+      setShowQuotesModal(true);
+    } catch {
+      setToast({ message: 'Failed to load quotes', type: 'error' });
+    }
+  };
+
+  const handleApproveQuote = async (quoteId) => {
+    try {
+      const quote = quotesForRequest.find(q => q.id === quoteId);
+      await api.post(`/jobs/${selectedRequestForQuotes}/quotes/${quoteId}/approve`);
+      setShowQuotesModal(false);
+      setToast({ message: '✅ Expert confirmed! Proceeding to payment...', type: 'success' });
+      await fetchConsumerChatsList();
+      if (quote?.amount) handlePayment(`${quote.amount}`, 'Expert Service Payment', selectedRequestForQuotes);
+    } catch {
+      setToast({ message: 'Failed to approve quote', type: 'error' });
+    }
+  };
+
+  const handleMarkArrived = async (jobId) => {
+    try {
+      await api.patch(`/jobs/${jobId}/arrive`);
+      setToast({ message: '📍 Marked as arrived! Start the job when ready.', type: 'success' });
+      fetchActiveJobs();
+    } catch {
+      setToast({ message: 'Failed to mark arrival', type: 'error' });
+    }
+  };
+
+  const handleConsumerConfirmComplete = async (requestId) => {
+    try {
+      await api.patch(`/jobs/${requestId}/confirm-complete`);
+      setToast({ message: '✅ Payment released! Thank you.', type: 'success' });
+      await fetchConsumerChatsList();
+    } catch {
+      setToast({ message: 'Failed to confirm completion', type: 'error' });
+    }
+  };
+
+  const handleRaiseFollowUp = async (requestId, description) => {
+    try {
+      await api.post(`/jobs/${requestId}/follow-up`, { description });
+      setToast({ message: 'Follow-up raised. Expert notified.', type: 'success' });
+    } catch (err) {
+      setToast({ message: err?.response?.data?.message || 'Failed to raise follow-up', type: 'error' });
+    }
+  };
+
+  const handleMarkJobComplete = async (jobId, completionSummary, partsActuallyUsed) => {
+    try {
+      await api.patch(`/jobs/${jobId}/complete-work`, { completionSummary, partsActuallyUsed });
+      setToast({ message: '✅ Submitted! Waiting for consumer confirmation.', type: 'success' });
+      fetchActiveJobs();
+    } catch {
+      setToast({ message: 'Failed to submit completion', type: 'error' });
     }
   };
 
@@ -3623,54 +3700,7 @@ function App() {
     setSelectedJobDetails(null);
   };
 
-  // [NEW] Expert submits a quote
-  const handleSubmitQuote = async (jobId, quoteData) => {
-    try {
-      await api.post(`/jobs/${jobId}/quote`, quoteData);
-      setToast({ message: 'Quote sent! Waiting for consumer approval.', type: 'success' });
-      setShowJobDetailsModal(false);
-    } catch (err) {
-      throw err; // let the modal handle the error display
-    }
-  };
 
-  // [NEW] Consumer views quotes for a request
-  const handleViewQuotes = async (requestId) => {
-    try {
-      const res = await api.get(`/jobs/${requestId}/quotes`);
-      setQuotesForRequest(res.data);
-      setSelectedRequestForQuotes(requestId);
-      setShowQuotesModal(true);
-    } catch (err) {
-      setToast({ message: 'Failed to load quotes.', type: 'error' });
-    }
-  };
-
-  // [NEW] Consumer approves an expert quote and triggers payment
-  const handleApproveQuote = async (quoteId) => {
-    try {
-      await api.post(`/jobs/${selectedRequestForQuotes}/quotes/${quoteId}/approve`);
-      setShowQuotesModal(false);
-      setToast({ message: 'Expert confirmed! Please proceed to payment.', type: 'success' });
-      await fetchConsumerChatsList();
-      const approvedQuote = quotesForRequest.find(q => q.id === quoteId);
-      if (approvedQuote) {
-        handlePayment(approvedQuote.amount, 'Expert Service Escrow Payment', selectedRequestForQuotes);
-      }
-    } catch (err) {
-      setToast({ message: 'Failed to approve quote.', type: 'error' });
-    }
-  };
-
-  // [NEW] Consumer raises a 7-day post-completion follow-up
-  const handleRaiseFollowUp = async (requestId, description) => {
-    try {
-      await api.post(`/jobs/${requestId}/follow-up`, { description });
-      setToast({ message: 'Follow-up raised. Expert has been notified.', type: 'success' });
-    } catch (err) {
-      setToast({ message: 'Failed to raise follow-up.', type: 'error' });
-    }
-  };
 
   const handleOpenChatFromActiveJob = (jobId) => {
     // jobId here is the activeJob.id which is demo-chat-${originalId} or a real UUID
@@ -3697,22 +3727,7 @@ function App() {
       .catch(() => setToast({ message: "Failed to update progress", type: "error" }));
   };
 
-  const handleMarkJobComplete = async (jobId) => {
-    if (isDemo) {
-      setActiveJobs((prev) => prev.filter((j) => j.id !== jobId));
-      setProducerDashStats((prev) => ({ ...prev, completedJobs: (prev.completedJobs || 0) + 1 }));
-      setToast({ message: "Job marked as completed", type: "success" });
-      return;
-    }
-    try {
-      await api.patch(`/jobs/${jobId}/complete-work`);
-      setActiveJobs((prev) => prev.filter((j) => j.id !== jobId));
-      await fetchProducerDashboardStats();
-      setToast({ message: "Job completed successfully", type: "success" });
-    } catch (err) {
-      setToast({ message: "Failed to complete job", type: "error" });
-    }
-  };
+
 
   const handleExpertStartWork = async () => {
     if (!activeChatId) return;
@@ -3989,7 +4004,7 @@ function App() {
   };
 
   const handlePayment = (amountStr, desc, requestId = null) => {
-    const checkoutAmount = parseInt(String(amountStr).replace(/[^0-9]/g, "")) || 5000;
+    const checkoutAmount = Number(parseFloat(String(amountStr).replace(/[^0-9.]/g, ""))) || 5000;
     const providerPrice = checkoutAmount;
     const commissionPercentage = parseFloat(import.meta.env.VITE_PLATFORM_COMMISSION_PERCENTAGE || "10");
     const commission = (providerPrice * commissionPercentage) / 100;
@@ -4487,12 +4502,12 @@ function App() {
             {/* Success State */}
             {!selectedExpert.loading && !selectedExpert.error && (
               <>
-                <div className="modal-header-premium p-6 border-b border-slate-100 flex items-center justify-between">
+                <div className="modal-header-premium p-6 border-b border-slate-100">
                   <h3 className="text-lg font-semibold text-slate-900 tracking-tight">
                     Expert Profile
                   </h3>
                   <button
-                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                    className="modal-close-btn"
                     onClick={() => setShowExpertProfileModal(false)}
                   >
                     <X size={20} />
@@ -5089,7 +5104,7 @@ function App() {
                 "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
             }}
           >
-            <div className="modal-header-premium border-b border-slate-100 p-6 flex items-center justify-between">
+            <div className="modal-header-premium border-b border-slate-100 p-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
                   <Wrench size={20} />
@@ -5104,7 +5119,7 @@ function App() {
                 </div>
               </div>
               <button
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="modal-close-btn"
                 onClick={() => setShowDiagnosisModal(false)}
               >
                 <X size={20} />
@@ -5151,19 +5166,11 @@ function App() {
                       <div className="grid grid-cols-3 gap-2">
                         {[
                           { value: 'low', label: '🟢 Low', sub: 'Within a week' },
-                          { value: 'normal', label: '🟡 Normal', sub: 'Within 2-3 days' },
+                          { value: 'normal', label: '🟡 Normal', sub: 'Within 2–3 days' },
                           { value: 'critical', label: '🔴 Critical', sub: 'Factory stopped' }
                         ].map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setUrgencyLevel(opt.value)}
-                            className={`p-3 rounded-xl border text-left transition-all ${
-                              urgencyLevel === opt.value
-                                ? 'border-teal-500 bg-teal-50 text-teal-700'
-                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
-                            }`}
-                          >
+                          <button key={opt.value} type="button" onClick={() => setUrgencyLevel(opt.value)}
+                            className={`p-3 rounded-xl border text-left transition-all ${urgencyLevel === opt.value ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'}`}>
                             <div className="text-xs font-bold">{opt.label}</div>
                             <div className="text-[10px] text-slate-500 mt-0.5">{opt.sub}</div>
                           </button>
@@ -5171,31 +5178,31 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Preferred Visit Time */}
+                    {/* Preferred Time */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-slate-700 ml-1">Preferred Date</label>
-                        <input
-                          type="date"
-                          min={new Date().toISOString().split('T')[0]}
-                          value={preferredDate}
-                          onChange={e => setPreferredDate(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none transition-all text-sm"
-                        />
+                        <input type="date" min={new Date().toISOString().split('T')[0]}
+                          value={preferredDate} onChange={e => setPreferredDate(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none text-sm" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-slate-700 ml-1">Time Slot</label>
-                        <select
-                          value={preferredTimeSlot}
-                          onChange={e => setPreferredTimeSlot(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none transition-all text-sm"
-                        >
+                        <select value={preferredTimeSlot} onChange={e => setPreferredTimeSlot(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none text-sm bg-white">
                           <option value="morning">Morning (8am–12pm)</option>
                           <option value="afternoon">Afternoon (12pm–5pm)</option>
                           <option value="evening">Evening (5pm–8pm)</option>
                           <option value="anytime">Any time</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Budget Hint */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 ml-1">Your Budget <span className="text-slate-400 font-normal">(optional — shown to experts)</span></label>
+                      <input type="text" placeholder="e.g. ₹2,000 – ₹5,000" value={consumerBudget} onChange={e => setConsumerBudget(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none text-sm" />
                     </div>
                   </div>
                   <button
@@ -5360,12 +5367,12 @@ function App() {
                 "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
             }}
           >
-            <div className="modal-header-premium border-b border-slate-100 p-6 flex items-center justify-between">
+            <div className="modal-header-premium border-b border-slate-100 p-6">
               <h3 className="text-lg font-semibold text-slate-900 tracking-tight">
                 Invoice Details
               </h3>
               <button
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="modal-close-btn"
                 onClick={() => setShowReportModal(false)}
               >
                 <X size={20} />
@@ -6546,6 +6553,7 @@ function App() {
                   setActiveTab('history');
                 }}
                 onViewQuotes={handleViewQuotes}
+                onConfirmComplete={handleConsumerConfirmComplete}
                 onRaiseFollowUp={handleRaiseFollowUp}
                 onGoToMachines={() => setActiveTab('machines')}
               />
@@ -6647,6 +6655,7 @@ function App() {
                 activeJobs={activeJobs}
                 isDemo={isDemo}
                 onProgressUpdate={handleUpdateJobProgress}
+                onMarkArrived={handleMarkArrived}
                 onMarkComplete={handleMarkJobComplete}
                 onOpenChat={(jobId) => {
                   const chat = producerChats.find(c => c.jobId === jobId || c.id === jobId);
@@ -6884,41 +6893,73 @@ function App() {
 
         {/* [NEW] Consumer Quotes Modal */}
         {showQuotesModal && (
-          <div className="fixed inset-0 z-[300] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <h3 className="text-base font-bold text-slate-900">Expert Quotes</h3>
-                <button onClick={() => setShowQuotesModal(false)} className="text-slate-400 hover:text-slate-700">
-                  <X size={20} />
-                </button>
+          <div className="fixed inset-0 z-[300] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={e => e.target === e.currentTarget && setShowQuotesModal(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Expert Quotes</h3>
+                  <p className="text-xs text-slate-500">{quotesForRequest.length}/2 quotes received</p>
+                </div>
+                <button onClick={() => setShowQuotesModal(false)} className="text-slate-400 hover:text-slate-700"><X size={20}/></button>
               </div>
-              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="p-6 space-y-5 overflow-y-auto">
                 {quotesForRequest.length === 0 ? (
-                  <p className="text-sm text-slate-500 text-center py-8">No quotes yet. Experts are reviewing your request.</p>
+                  <div className="text-center py-12">
+                    <p className="text-4xl mb-3">⏳</p>
+                    <p className="font-semibold text-slate-800">No quotes yet</p>
+                    <p className="text-sm text-slate-500 mt-1">Experts are reviewing your request. You'll be notified when a quote arrives.</p>
+                  </div>
                 ) : quotesForRequest.map(q => (
-                  <div key={q.id} className="border border-slate-200 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center justify-between">
+                  <div key={q.id} className="border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="flex items-center justify-between p-4 bg-slate-50 border-b border-slate-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600 text-sm">
-                          {q.first_name?.[0] || 'E'}
-                        </div>
+                        <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600 text-lg">{q.first_name?.[0]}</div>
                         <div>
-                          <p className="font-semibold text-slate-900 text-sm">{q.first_name}</p>
-                          <p className="text-[11px] text-slate-500">⭐ {Number(q.rating || 5).toFixed(1)} · {q.level || 'Starter'} · {q.jobs_completed || 0} jobs</p>
+                          <p className="font-bold text-slate-900 text-sm">{q.first_name}</p>
+                          <p className="text-[11px] text-slate-500">⭐ {Number(q.rating||5).toFixed(1)} · {q.level||'Starter'} · {q.jobs_completed} jobs done</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl font-bold text-slate-900">₹{Number(q.amount).toLocaleString('en-IN')}</p>
-                        {q.estimated_hours && <p className="text-[11px] text-slate-500">~{q.estimated_hours}h</p>}
+                        <p className="text-2xl font-bold text-slate-900">₹{Number(q.amount).toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-slate-400 uppercase">total</p>
                       </div>
                     </div>
-                    {q.note && <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2">"{q.note}"</p>}
-                    <button
-                      onClick={() => handleApproveQuote(q.id)}
-                      className="w-full h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-semibold transition-colors"
-                    >
-                      Approve & Pay ₹{Number(q.amount).toLocaleString('en-IN')}
-                    </button>
+                    {q.diagnosis_note && (
+                      <div className="px-4 pt-4">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Expert's Assessment</p>
+                        <p className="text-sm text-slate-700 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 italic">"{q.diagnosis_note}"</p>
+                      </div>
+                    )}
+                    {q.scope_of_work && (
+                      <div className="px-4 pt-3">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">What Will Be Done</p>
+                        <p className="text-sm text-slate-700">{q.scope_of_work}</p>
+                      </div>
+                    )}
+                    <div className="px-4 pt-3 grid grid-cols-3 gap-2">
+                      {q.estimated_hours && <div className="bg-slate-50 rounded-xl p-3 text-center"><p className="text-[9px] font-bold text-slate-400 uppercase">Duration</p><p className="text-sm font-bold text-slate-900 mt-0.5">{q.estimated_hours}h</p></div>}
+                      {q.available_date && <div className="bg-slate-50 rounded-xl p-3 text-center"><p className="text-[9px] font-bold text-slate-400 uppercase">Available</p><p className="text-xs font-bold text-slate-900 mt-0.5">{new Date(q.available_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})} {q.available_slot ? `· ${q.available_slot}`:''}</p></div>}
+                      {q.visit_type && <div className="bg-slate-50 rounded-xl p-3 text-center"><p className="text-[9px] font-bold text-slate-400 uppercase">Visit</p><p className="text-sm font-bold text-slate-900 mt-0.5 capitalize">{q.visit_type}</p></div>}
+                    </div>
+                    {(q.labour_cost || q.parts_cost) && (
+                      <div className="mx-4 mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-1">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Cost Breakdown</p>
+                        {q.labour_cost && <div className="flex justify-between text-xs"><span className="text-slate-600">Labour</span><span className="font-semibold">₹{Number(q.labour_cost).toLocaleString('en-IN')}</span></div>}
+                        {q.parts_cost && <div className="flex justify-between text-xs"><span className="text-slate-600">Parts {q.parts_included===false?'(may vary)':''}</span><span className="font-semibold">₹{Number(q.parts_cost).toLocaleString('en-IN')}</span></div>}
+                        <div className="border-t border-slate-200 pt-1 flex justify-between text-xs font-bold"><span>Total</span><span>₹{Number(q.amount).toLocaleString('en-IN')}</span></div>
+                      </div>
+                    )}
+                    <div className="p-4 space-y-2">
+                      <button onClick={() => handleApproveQuote(q.id)}
+                        className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+                        ✓ Approve & Pay ₹{Number(q.amount).toLocaleString('en-IN')}
+                      </button>
+                      <button onClick={() => { setShowQuotesModal(false); setActiveTab('messages'); }}
+                        className="w-full h-9 text-slate-500 text-xs font-medium hover:text-slate-700">
+                        💬 Ask a question first (open chat)
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

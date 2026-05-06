@@ -23,6 +23,8 @@ router.get('/radar', auth, roleCheck(['producer']), jobController.getRadarJobs);
 // @desc    Get expert dashboard statistics
 router.get('/producer-stats', auth, roleCheck(['producer']), jobController.getProducerStats);
 
+// ================== QUOTE SYSTEM ==================
+
 // @route   POST api/jobs/:id/quote
 // @desc    Expert submits a quote (replaces direct accept)
 router.post('/:id/quote', auth, roleCheck(['producer']), jobController.submitQuote);
@@ -34,6 +36,16 @@ router.get('/:id/quotes', auth, roleCheck(['consumer']), jobController.getQuotes
 // @route   POST api/jobs/:id/quotes/:quoteId/approve
 // @desc    Consumer approves a specific expert's quote
 router.post('/:id/quotes/:quoteId/approve', auth, roleCheck(['consumer']), jobController.approveQuote);
+
+// ================== PHYSICAL WORKFLOW ==================
+
+// @route   PATCH api/jobs/:id/arrive
+// @desc    Expert marks that they have arrived on site
+router.patch('/:id/arrive', auth, roleCheck(['producer']), jobController.markArrived);
+
+// @route   PATCH api/jobs/:id/confirm-complete
+// @desc    Consumer confirms job is complete and releases funds
+router.patch('/:id/confirm-complete', auth, roleCheck(['consumer']), jobController.consumerConfirmComplete);
 
 // @route   POST api/jobs/:id/follow-up
 // @desc    Consumer raises a follow-up issue within 7-day window

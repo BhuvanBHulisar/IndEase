@@ -4,7 +4,8 @@ import { cn } from './ui/base';
 import api from '../services/api';
 
 const STAGES = [
-  { id: 'accepted',   label: 'Accepted' },
+  { id: 'en_route',   label: 'En Route' },
+  { id: 'arrived',    label: 'Arrived' },
   { id: 'diagnosing', label: 'Diagnosing' },
   { id: 'repairing',  label: 'Repairing' },
   { id: 'testing',    label: 'Testing' },
@@ -45,11 +46,13 @@ function ProgressBar({ current }) {
   );
 }
 
-function JobCard({ job, onProgressUpdate, onMarkComplete, onOpenChat, isDemo }) {
-  const [stage, setStage] = useState(job.progressStage || job.progress_stage || 'accepted');
+function JobCard({ job, onProgressUpdate, onMarkComplete, onOpenChat, onMarkArrived, isDemo }) {
+  const [stage, setStage] = useState(job.progressStage || job.progress_stage || 'en_route');
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [completionSummary, setCompletionSummary] = useState('');
+  const [partsUsed, setPartsUsed] = useState('');
 
   const handleSendUpdate = async () => {
     if (!stage) return;
@@ -70,13 +73,13 @@ function JobCard({ job, onProgressUpdate, onMarkComplete, onOpenChat, isDemo }) 
   const handleComplete = async () => {
     setCompleting(true);
     try {
-      await onMarkComplete(job.id);
+      await onMarkComplete(job.id, completionSummary, partsUsed);
     } finally {
       setCompleting(false);
     }
   };
 
-  const currentStage = job.progressStage || job.progress_stage || 'accepted';
+  const currentStage = job.progressStage || job.progress_stage || 'en_route';
 
   return (
     <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-6 shadow-sm space-y-4">
@@ -141,27 +144,65 @@ function JobCard({ job, onProgressUpdate, onMarkComplete, onOpenChat, isDemo }) 
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 pt-1">
-        <button
-          onClick={() => onOpenChat(job.id)}
-          className="flex-1 h-10 rounded-xl border border-[#E5E7EB] text-slate-600 text-xs font-semibold hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
-        >
-          <MessageSquare size={14} /> Open Chat
-        </button>
-        <button
-          onClick={handleComplete}
-          disabled={completing}
-          className="flex-1 h-10 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-        >
-          <CheckCircle2 size={14} />
-          {completing ? 'Completing…' : 'Mark as Completed'}
-        </button>
-      </div>
+      {(() => {
+        const jobStatus = (job.status || job.rawStatus || '').toLowerCase();
+        if (jobStatus === 'quote_approved' || jobStatus === 'accepted' || jobStatus === 'payment_pending') {
+          return (
+            <div className="space-y-2 pt-2">
+              <button onClick={() => onMarkArrived && onMarkArrived(job.id)}
+                className="w-full h-12 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 flex items-center justify-center gap-2 shadow-md">
+                📍 I've Arrived — Start Job
+              </button>
+              <button onClick={() => onOpenChat(job.id)}
+                className="w-full h-10 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 flex items-center justify-center gap-2">
+                <MessageSquare size={14}/> Open Chat
+              </button>
+            </div>
+          );
+        }
+        if (jobStatus === 'en_route' || jobStatus === 'in_progress') {
+          return (
+            <div className="space-y-3 pt-2">
+              <details className="border border-slate-200 rounded-xl overflow-hidden group">
+                <summary className="px-4 py-3 text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 list-none flex items-center justify-between">
+                  <span>✅ Mark Job as Complete</span>
+                  <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div className="p-4 space-y-3 border-t border-slate-100">
+                  <textarea placeholder="Completion summary for consumer (what was done?)"
+                    value={completionSummary} onChange={e => setCompletionSummary(e.target.value)}
+                    rows={2} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm resize-none outline-none focus:border-emerald-500"/>
+                  <input type="text" placeholder="Parts actually used (e.g. 2x SKF bearings)"
+                    value={partsUsed} onChange={e => setPartsUsed(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-emerald-500"/>
+                  <button onClick={handleComplete} disabled={completing}
+                    className="w-full h-10 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50">
+                    {completing ? 'Submitting…' : 'Submit — Request Consumer Confirmation'}
+                  </button>
+                </div>
+              </details>
+              <button onClick={() => onOpenChat(job.id)}
+                className="w-full h-10 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 flex items-center justify-center gap-2">
+                <MessageSquare size={14}/> Open Chat
+              </button>
+            </div>
+          );
+        }
+        if (jobStatus === 'pending_confirmation') {
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center space-y-1 mt-2">
+              <p className="text-sm font-bold text-amber-800">⏳ Waiting for Consumer Confirmation</p>
+              <p className="text-xs text-amber-600">Payment will be released once they confirm.</p>
+            </div>
+          );
+        }
+        return null;
+      })()}
     </div>
   );
 }
 
-export default function ActiveJobsView({ activeJobs, onProgressUpdate, onMarkComplete, onOpenChat, isDemo }) {
+export default function ActiveJobsView({ activeJobs, onProgressUpdate, onMarkComplete, onOpenChat, onMarkArrived, isDemo }) {
   if (!activeJobs || activeJobs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
@@ -190,6 +231,7 @@ export default function ActiveJobsView({ activeJobs, onProgressUpdate, onMarkCom
             onProgressUpdate={onProgressUpdate}
             onMarkComplete={onMarkComplete}
             onOpenChat={onOpenChat}
+            onMarkArrived={onMarkArrived}
             isDemo={isDemo}
           />
         ))}

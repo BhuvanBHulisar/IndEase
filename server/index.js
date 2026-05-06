@@ -251,7 +251,53 @@ async function startServer() {
           UNIQUE(request_id, expert_id)
         )
       `);
+      
+      // [NEW] Rich quote fields — expert provides detailed information
+      await db.query(`ALTER TABLE job_quotes ADD COLUMN IF NOT EXISTS diagnosis_note TEXT`);
+      await db.query(`ALTER TABLE job_quotes ADD COLUMN IF NOT EXISTS scope_of_work TEXT`);
+      await db.query(`ALTER TABLE job_quotes ADD COLUMN IF NOT EXISTS labour_cost NUMERIC(10,2)`);
+      await db.query(`ALTER TABLE job_quotes ADD COLUMN IF NOT EXISTS parts_cost NUMERIC(10,2)`);
+      await db.query(`ALTER TABLE job_quotes ADD COLUMN IF NOT EXISTS parts_included BOOLEAN DEFAULT TRUE`);
+      await db.query(`ALTER TABLE job_quotes ADD COLUMN IF NOT EXISTS available_date DATE`);
+      await db.query(`ALTER TABLE job_quotes ADD COLUMN IF NOT EXISTS available_slot VARCHAR(20)`);
+      await db.query(`ALTER TABLE job_quotes ADD COLUMN IF NOT EXISTS visit_type VARCHAR(20) DEFAULT 'onsite'`);
       console.log('[DB] Quote workflow schema verified ✓');
+
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS job_quotes (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          request_id UUID REFERENCES service_requests(id) ON DELETE CASCADE,
+          expert_id UUID REFERENCES users(id) ON DELETE CASCADE,
+          amount NUMERIC(10,2) NOT NULL,
+          labour_cost NUMERIC(10,2),
+          parts_cost NUMERIC(10,2),
+          parts_included BOOLEAN DEFAULT TRUE,
+          estimated_hours NUMERIC(4,1),
+          diagnosis_note TEXT,
+          scope_of_work TEXT,
+          available_date DATE,
+          available_slot VARCHAR(20),
+          visit_type VARCHAR(20) DEFAULT 'onsite',
+          note TEXT,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(request_id, expert_id)
+        )
+      `);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS urgency_level VARCHAR(20) DEFAULT 'normal'`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS preferred_date DATE`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS preferred_time_slot VARCHAR(20) DEFAULT 'anytime'`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS consumer_budget_hint VARCHAR(50)`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS escrow_status VARCHAR(20) DEFAULT 'none'`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS arrived_at TIMESTAMPTZ`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS work_started_at TIMESTAMPTZ`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS pending_confirmation_at TIMESTAMPTZ`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS completion_summary TEXT`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS parts_actually_used TEXT`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS follow_up_deadline TIMESTAMPTZ`);
+      await db.query(`ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS follow_up_raised BOOLEAN DEFAULT FALSE`);
+
+      console.log('[DB] New workflow columns verified ✓');
 
       startExpertPerformanceCron();
 

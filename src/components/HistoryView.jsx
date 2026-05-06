@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   History, 
   Search, 
   Filter, 
   Download, 
+  Eye,
   ArrowUpRight, 
   MoreHorizontal,
   FileText,
@@ -24,17 +25,50 @@ import {
   cn 
 } from '../components/ui/base';
 import { SkeletonTable } from './ui/Skeleton';
+import { generateInvoicePDF } from '../utils/invoiceGenerator';
 
 export default function HistoryView({ serviceHistory = [], loading, onDownloadReport, onViewReport, onRequestService }) {
-  const getStatusLabel = (status, paymentStatus) => {
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+
+  const getStatusLabel = (status) => {
+    const map = {
+      'completed': 'Completed',
+      'payment_pending': 'Payment Pending',
+      'quote_approved': 'Active',
+      'quote_submitted': 'Quote Received',
+      'in_progress': 'In Progress',
+      'en_route': 'Expert En Route',
+      'pending_confirmation': 'Awaiting Confirmation',
+      'broadcast': 'Searching Expert',
+      'cancelled': 'Cancelled',
+    };
+    return map[(status || '').toLowerCase()] || status;
+  };
+
+  const getStatusColor = (status, paymentStatus) => {
     const normalizedStatus = (status || "").toLowerCase();
     const normalizedPayment = (paymentStatus || "").toLowerCase();
-    if (normalizedStatus === 'completed') return { label: 'Completed', color: 'green' };
-    if (normalizedPayment === 'captured' || normalizedPayment === 'paid') return { label: 'Paid', color: 'green' };
-    if (normalizedPayment === 'escrow' || normalizedPayment === 'pending') return { label: 'Payment Pending', color: 'amber' };
-    if (normalizedStatus === 'in_progress') return { label: 'In Progress', color: 'blue' };
-    if (normalizedStatus === 'accepted') return { label: 'Active', color: 'blue' };
-    return { label: status || 'Active', color: 'gray' };
+    if (normalizedStatus === 'completed') return 'green';
+    if (normalizedPayment === 'captured' || normalizedPayment === 'paid') return 'green';
+    if (normalizedPayment === 'escrow' || normalizedPayment === 'pending') return 'amber';
+    if (['quote_approved', 'in_progress', 'en_route', 'accepted'].includes(normalizedStatus)) return 'blue';
+    return 'gray';
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -101,7 +135,8 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
             </thead>
             <tbody className="divide-y divide-slate-100">
               {serviceHistory.map((record) => {
-                const statusMeta = getStatusLabel(record.status, record.paymentStatus || record.payment_status);
+                const statusLabel = getStatusLabel(record.status) || 'Active';
+                const statusColor = getStatusColor(record.status, record.paymentStatus || record.payment_status);
                 const displayAmount = record.paid_amount
                   || record.amount
                   || record.quoted_cost
@@ -139,7 +174,7 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
                             </span>
                           )}
                        </div>
-                       {statusMeta.label === 'Completed' && (
+                       {statusLabel === 'Completed' && (
                          <div className="flex items-center gap-1 text-amber-500">
                             <Star size={10} fill="currentColor" />
                             <span className="text-[10px] font-black">{record.rating || '5.0'}</span>
@@ -152,15 +187,15 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
                     <div className="flex flex-col gap-2">
                        <div className={cn(
                         "inline-flex items-center rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest border w-fit",
-                        statusMeta.color === "green"
+                        statusColor === "green"
                           ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                          : statusMeta.color === "amber"
+                          : statusColor === "amber"
                             ? "bg-amber-50 text-amber-700 border-amber-100"
-                            : statusMeta.color === "blue"
+                            : statusColor === "blue"
                               ? "bg-teal-50 text-teal-700 border-teal-100"
                               : "bg-slate-50 text-slate-700 border-slate-100"
                         )}>
-                        {statusMeta.label}
+                        {statusLabel}
                        </div>
                        <div className="flex items-center gap-1 text-slate-400">
                           <Clock size={10} />
@@ -172,7 +207,7 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
                   <td className="px-8 py-6">
                     <div className="flex flex-col gap-1">
                        <span className="text-base font-black text-slate-900">{formattedAmount}</span>
-                       {statusMeta.label === 'Completed' && (
+                       {statusLabel === 'Completed' && (
                          <div className="flex items-center gap-1 group/fee cursor-help relative">
                             <ShieldCheck size={10} className="text-emerald-500" />
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-dotted border-slate-300">View Breakdown</span>
@@ -201,6 +236,16 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
                   <td className="px-8 py-6 text-right pr-12">
                     <div className="flex items-center justify-end gap-2">
                        <button onClick={() => onViewReport?.(record)} className="w-9 h-9 rounded-xl border border-slate-100 hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all"><FileText size={16} /></button>
+                       <button
+                         onClick={() => {
+                           setSelectedRecord(record);
+                           setShowPreviewModal(true);
+                         }}
+                         title="Preview Invoice"
+                         className="w-9 h-9 rounded-xl border border-slate-100 hover:bg-white hover:shadow-sm flex items-center justify-center text-indigo-500 hover:text-indigo-600 transition-all"
+                       >
+                         <Eye size={16} />
+                       </button>
                        <button onClick={() => onDownloadReport?.(record)} className="w-9 h-9 rounded-xl border border-slate-100 hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all"><Download size={16} /></button>
                     </div>
                   </td>
@@ -225,6 +270,156 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
         </div>
         )}
       </div>
+      {showPreviewModal && selectedRecord && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(15,23,42,0.5)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }}
+          onClick={(e) => e.target === e.currentTarget && setShowPreviewModal(false)}
+        >
+          <div style={{
+            background: '#fff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '560px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.15)'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #0D9488, #0F766E)',
+              padding: '24px',
+              borderRadius: '16px 16px 0 0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start'
+            }}>
+              <div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#fff' }}>IndEase</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', marginTop: '2px' }}>
+                  Industrial Machine Service Platform
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>SERVICE INVOICE</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', marginTop: '2px' }}>
+                  #{(selectedRecord.id || '').toString().substring(0, 8).toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <span style={{
+                  background: selectedRecord.status === 'completed' ? '#D1FAE5' : '#FEF3C7',
+                  color: selectedRecord.status === 'completed' ? '#065F46' : '#92400E',
+                  padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600
+                }}>
+                  {getStatusLabel(selectedRecord.status || selectedRecord.paymentStatus || 'Pending')}
+                </span>
+                <span style={{ fontSize: '12px', color: '#9CA3AF', marginLeft: '12px' }}>
+                  {formatDate(selectedRecord.created_at || selectedRecord.date)}
+                </span>
+              </div>
+
+              <div style={{
+                background: '#F8FAFC', borderRadius: '10px',
+                border: '1px solid #E2E8F0', overflow: 'hidden', marginBottom: '16px'
+              }}>
+                {[
+                  ['Machine', selectedRecord.machine || selectedRecord.machine_name || 'Industrial Unit'],
+                  ['Expert', selectedRecord.expert || selectedRecord.expertName || 'Assigned Expert'],
+                  ['Service Type', 'Machine Repair & Maintenance'],
+                  ['Request ID', `#SR-${(selectedRecord.serviceRequestId || selectedRecord.id || '').toString().substring(0, 8).toUpperCase()}`],
+                ].map(([label, value]) => (
+                  <div key={label} style={{
+                    display: 'flex', padding: '10px 16px',
+                    borderBottom: '1px solid #E2E8F0'
+                  }}>
+                    <span style={{ width: '140px', fontSize: '13px', color: '#6B7280', fontWeight: 500 }}>{label}</span>
+                    <span style={{ fontSize: '13px', color: '#0F172A', fontWeight: 500 }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {(() => {
+                const base = Number(selectedRecord.amount || selectedRecord.quoted_cost || 0);
+                const fee = Math.round(base * 0.10);
+                const gst = Math.round((base + fee) * 0.18);
+                const total = base + fee + gst;
+                return (
+                  <div style={{
+                    border: '1px solid #E2E8F0', borderRadius: '10px',
+                    overflow: 'hidden', marginBottom: '16px'
+                  }}>
+                    {[
+                      ['Base Service Cost', base],
+                      ['Platform Fee (10%)', fee],
+                      ['GST @ 18%', gst],
+                    ].map(([label, val]) => (
+                      <div key={label} style={{
+                        display: 'flex', justifyContent: 'space-between',
+                        padding: '10px 16px', borderBottom: '1px solid #F1F5F9'
+                      }}>
+                        <span style={{ fontSize: '13px', color: '#64748B' }}>{label}</span>
+                        <span style={{ fontSize: '13px', color: '#0F172A', fontWeight: 500 }}>
+                          {'\u20b9'}{val.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    ))}
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between',
+                      padding: '14px 16px', background: '#0D9488'
+                    }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>TOTAL PAYABLE</span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>
+                        {'\u20b9'}{total.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div style={{
+                background: '#F0FDF4', border: '1px solid #BBF7D0',
+                borderRadius: '10px', padding: '12px 16px',
+                fontSize: '12px', color: '#065F46', marginBottom: '20px'
+              }}>
+                Expert receives {'\u20b9'}{Number(selectedRecord.amount || selectedRecord.quoted_cost || 0).toLocaleString('en-IN')} after platform fee deduction. Payment secured via Razorpay.
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: '10px',
+                    border: '1px solid #E2E8F0', background: '#fff',
+                    color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: '14px'
+                  }}
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPreviewModal(false);
+                    generateInvoicePDF(selectedRecord);
+                  }}
+                  style={{
+                    flex: 2, padding: '12px', borderRadius: '10px',
+                    background: '#0D9488', border: 'none',
+                    color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '14px'
+                  }}
+                >
+                  Download PDF Invoice
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

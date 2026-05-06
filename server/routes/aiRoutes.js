@@ -11,7 +11,19 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // POST /api/ai/diagnose
 router.post('/diagnose', protect, async (req, res) => {
     if (!process.env.GEMINI_API_KEY) {
-        return res.status(503).json({ error: 'AI service not configured' });
+        return res.json({
+            success: true,
+            diagnosis: {
+                faultSummary: "Mock AI: Possible system fault detected",
+                likelyFaults: ["Calibration Error", "Sensor Malfunction", "Mechanical Wear"],
+                severity: "Medium",
+                requiredExpertise: ["Diagnostics", "Repair"],
+                estimatedRepairTime: "2-4 hours",
+                urgencyReason: "Mock AI: Requires inspection to prevent further damage",
+                confidence: 85,
+                videoFindings: videoPath ? "Mock AI: Video analysis completed successfully" : null
+            }
+        });
     }
     const { machineName, machineType, machineYear, manufacturer, issueDescription, videoPath } = req.body;
 
@@ -71,7 +83,15 @@ Respond ONLY in this exact JSON format, no extra text, no markdown:
 // POST /api/ai/match-expert
 router.post('/match-expert', protect, async (req, res) => {
     if (!process.env.GEMINI_API_KEY) {
-        return res.status(503).json({ error: 'AI service not configured' });
+        return res.json({
+            success: true,
+            match: {
+                bestExpertId: null,
+                bestExpertName: "Mock AI Expert",
+                reason: "Mock AI: Best matching expert based on skills and availability.",
+                matchScore: 95
+            }
+        });
     }
     const { jobId, diagnosis } = req.body;
 
