@@ -12,7 +12,7 @@ import { SkeletonCard } from './ui/Skeleton';
 
 const JobCard = React.forwardRef(({ job, onAccept, onDecline, onJoinWaitlist, onViewDetails }, ref) => {
   const distHash = String(job.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const dist = 5 + (distHash % 45);
+  const dist = job.distance_km ?? (5 + (distHash % 45));
 
   return (
     <motion.div
@@ -59,9 +59,14 @@ const JobCard = React.forwardRef(({ job, onAccept, onDecline, onJoinWaitlist, on
             </div>
           </div>
           <div className="text-right">
-            <p className="mb-1 text-[10px] font-semibold text-slate-400">Value</p>
+            <p className="mb-1 text-[10px] font-semibold text-slate-400">
+              {job.quoted_cost ? 'Budget' : 'Value'}
+            </p>
             <span className="text-lg font-semibold text-slate-900">
-              ₹{Number(5000 + (distHash % 15000)).toLocaleString('en-IN')}
+              {job.quoted_cost
+                ? `₹${Number(job.quoted_cost).toLocaleString('en-IN')}`
+                : 'Open to Quotes'
+              }
             </span>
           </div>
         </div>

@@ -91,10 +91,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
       </div>
 
       {/* Navigation Ecosystem */}
-      <nav className="flex-1 px-4 py-6 space-y-12 overflow-y-auto no-scrollbar">
+      <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto no-scrollbar">
         {/* Main Workspace */}
         <section>
-          <div className="flex items-center justify-between px-4 mb-6">
+          <div className="flex items-center justify-between px-4 mb-2">
             <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Workspace</h4>
           </div>
           <div className="space-y-2">
@@ -143,7 +143,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, onClearData, isDemo, user,
 
         {/* Support & Configuration */}
         <section>
-          <div className="flex items-center justify-between px-4 mb-6">
+          <div className="flex items-center justify-between px-4 mb-2">
             <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">System</h4>
           </div>
           <div className="space-y-2">

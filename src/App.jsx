@@ -1247,6 +1247,15 @@ function App() {
         tax_id: taxId,
         photo_url: userPhoto,
       });
+
+      // ✅ FIX: Sync localStorage so banner re-checks correctly
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({
+        ...storedUser,
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone,
+      }));
     } catch (err) {
       alert("Failed to sync profile changes.");
     }
@@ -1459,6 +1468,14 @@ function App() {
               setFirstName(freshUser.first_name || "");
               setLastName(freshUser.last_name || "");
               setEmail(freshUser.email || "");
+              setPhone(freshUser.phone || "");
+
+              // Also update localStorage so isProfileComplete() reads correct values
+              localStorage.setItem('user', JSON.stringify({
+                ...JSON.parse(localStorage.getItem('user') || '{}'),
+                first_name: freshUser.first_name || '',
+                phone: freshUser.phone || '',
+              }));
             }
             fetchNotifications();
             // Data fetches will fire via the view/role useEffects below
@@ -1701,14 +1718,7 @@ function App() {
 
   // [NEW] COMPLETE PROFILE CHECK
   const isProfileComplete = () => {
-    // Check local storage directly for functions outside reactive tree (like modals)
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const fName = user.first_name || user.firstName || firstName;
-    const pNum = user.phone || user.phone_number || phone;
-    return !!(
-        fName && fName.trim() !== '' &&
-        pNum && pNum.trim() !== ''
-    );
+    return !!(firstName && firstName.trim() !== '' && phone && phone.trim() !== '');
   };
 
   const [showProfileIncompleteModal, setShowProfileIncompleteModal] = useState(false);
@@ -3095,6 +3105,32 @@ function App() {
     }
   };
 
+  const fetchActiveJobs = async () => {
+    try {
+      const res = await api.get('/jobs/my');
+      const myJobs = res.data || [];
+      const activeFromDB = myJobs
+        .filter(j => ['accepted', 'in_progress', 'started', 'quote_approved', 'en_route', 'payment_pending', 'pending_confirmation'].includes(j.status))
+        .map(j => ({
+          id: j.id,
+          machine_name: j.machine_name,
+          issue_description: j.issue_description,
+          client_name: j.other_party,
+          status: j.status,
+          rawStatus: j.status,
+          progressStage: ['in_progress', 'started'].includes(j.status) ? 'in_progress'
+            : j.status === 'en_route' ? 'en_route'
+            : 'accepted',
+          other_party: j.other_party,
+          created_at: j.created_at,
+          quoted_cost: j.quoted_cost,
+        }));
+      setActiveJobs(activeFromDB);
+    } catch (err) {
+      console.error('fetchActiveJobs failed:', err);
+    }
+  };
+
   const handleMarkArrived = async (jobId) => {
     try {
       await api.patch(`/jobs/${jobId}/arrive`);
@@ -3107,9 +3143,28 @@ function App() {
 
   const handleConsumerConfirmComplete = async (requestId) => {
     try {
-      await api.patch(`/jobs/${requestId}/confirm-complete`);
+      const res = await api.patch(`/jobs/${requestId}/confirm-complete`);
       setToast({ message: '✅ Payment released! Thank you.', type: 'success' });
       await fetchConsumerChatsList();
+
+      // ✅ Show rating AFTER job is confirmed complete, not after payment
+      const ratingJobId = String(requestId);
+      if (!ratedJobIds.has(ratingJobId)) {
+        // Find expert name from consumer requests or chats
+        const jobData = activeRequests.find(r => String(r.id) === ratingJobId)
+          || chats.find(c => String(c.id) === ratingJobId);
+        const expertName = jobData?.expertName || jobData?.name?.split('—')[0]?.trim() || 'Expert';
+        const amountPaid = jobData?.quoted_cost || jobData?.amount || 0;
+
+        setPostPaymentRatingContext({
+          requestId,
+          expertName,
+          amountPaid,
+          refId: res?.data?.payment_ref || '',
+        });
+        setReviewData({ rating: 0, comment: '' });
+        setShowPostPaymentRatingModal(true);
+      }
     } catch {
       setToast({ message: 'Failed to confirm completion', type: 'error' });
     }
@@ -3498,17 +3553,20 @@ function App() {
 
         // FIX 1 — populate activeJobs from DB so it survives refresh
         const activeFromDB = myJobs
-          .filter(j => ['accepted', 'in_progress', 'started', 'quote_approved', 'en_route', 'payment_pending'].includes(j.status))
+          .filter(j => ['accepted', 'in_progress', 'started', 'quote_approved', 'en_route', 'payment_pending', 'pending_confirmation'].includes(j.status))
           .map(j => ({
             id: j.id,
             machine_name: j.machine_name,
             issue_description: j.issue_description,
+            client_name: j.other_party,
             status: j.status,
+            rawStatus: j.status,
             progressStage: ['in_progress', 'started'].includes(j.status) ? 'in_progress'
               : j.status === 'en_route' ? 'en_route'
-                : 'accepted',
+              : 'accepted',
             other_party: j.other_party,
             created_at: j.created_at,
+            quoted_cost: j.quoted_cost,
           }));
         setActiveJobs(activeFromDB);
       } else {
@@ -4070,17 +4128,6 @@ function App() {
           String(c.id) === String(activeChatId) ? { ...c, status: "payment_pending" } : c
         ));
         fetchConsumerActiveRequests();
-        const ratingJobId = String(checkoutDetails.requestId || activeChatId);
-        if (!ratedJobIds.has(ratingJobId)) {
-          setPostPaymentRatingContext({
-            requestId: checkoutDetails.requestId || activeChatId,
-            expertName: "Demo Expert",
-            amountPaid: checkoutDetails.totalPayable,
-            refId: fakeRef,
-          });
-          setReviewData({ rating: 0, comment: "" });
-          setShowPostPaymentRatingModal(true);
-        }
         setToast({ message: "Payment successful (Demo)", type: "success" });
       }, 900);
       return;
@@ -4117,32 +4164,6 @@ function App() {
               description: checkoutDesc,
             });
             if (verifyRes.data.success) {
-              const currentChatForRating =
-                chats.find((c) => c.id === activeChatId) ||
-                producerChats.find((c) => c.id === activeChatId);
-              const expertNameForRating = currentChatForRating?.name?.includes(
-                "(",
-              )
-                ? currentChatForRating.name
-                    .split("(")[1]
-                    .replace(")", "")
-                    .trim()
-                : currentChatForRating?.name?.split("—")[0]?.trim() || "Expert";
-
-              setPostPaymentRatingContext({
-                requestId: checkoutDetails.requestId || activeChatId,
-                expertName: expertNameForRating,
-                amountPaid: checkoutDetails.totalPayable,
-                refId: response.razorpay_payment_id,
-              });
-              setReviewData({ rating: 0, comment: "" });
-              const ratingJobId = String(
-                checkoutDetails.requestId || activeChatId,
-              );
-              if (!ratedJobIds.has(ratingJobId)) {
-                setShowPostPaymentRatingModal(true);
-              }
-
               // Mark invoice as paid (using desc and amount as unique key for mock)
               const paidInvoiceKey = `${checkoutDesc}_${checkoutDetails.checkoutAmount}`;
               setPaidInvoices((prev) => {

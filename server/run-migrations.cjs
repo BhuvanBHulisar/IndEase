@@ -51,6 +51,14 @@ async function run() {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS longitude DECIMAL(10,7)`,
     `ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS latitude DECIMAL(10,7)`,
     `ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS longitude DECIMAL(10,7)`,
+    `ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(20)`,
+    `ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS account_number VARCHAR(20)`,
+    `ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS ifsc_code VARCHAR(11)`,
+    `ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS account_holder_name VARCHAR(255)`,
+    `ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS bank_account_name VARCHAR(255)`,
+    `ALTER TABLE producer_profiles ALTER COLUMN bank_account_number TYPE VARCHAR(20) USING bank_account_number::TEXT`,
+    `ALTER TABLE producer_profiles ALTER COLUMN account_number TYPE VARCHAR(20) USING account_number::TEXT`,
+    `ALTER TABLE producer_profiles ALTER COLUMN ifsc_code TYPE VARCHAR(11) USING ifsc_code::TEXT`
   ];
 
   for (const q of queries) {
