@@ -15,8 +15,12 @@ export const generateInvoicePDF = (record) => {
   const green = [22, 163, 74];
   const amber = [180, 117, 23];
 
-  const clean = (v) => parseInt(String(v || 0).replace(/[^0-9]/g, "")) || 0;
-  const fmt = (n) => "Rs. " + Number(n).toLocaleString("en-IN");
+  const clean = (v) => {
+    const str = String(v || 0).replace(/[₹,\s]/g, "");
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : Math.round(num);
+  };
+  const fmt = (n) => "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
   const base = clean(record.amount || record.cost);
   const consumerFee = +(base * 0.05).toFixed(2);

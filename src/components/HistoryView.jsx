@@ -71,6 +71,35 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
     }
   };
 
+  const getFinancialDisplay = (record) => {
+    const total = Number(record.amount || record.quoted_cost || 0);
+    const paid = Number(record.paid_amount || 0);
+    const remaining = total - paid;
+
+    if (!total) return <span className="text-slate-400">Pending</span>;
+
+    if (paid > 0 && remaining > 0) {
+      return (
+        <div>
+          <p className="font-bold text-slate-900">₹{total.toLocaleString('en-IN')}</p>
+          <p className="text-xs text-emerald-600">Paid: ₹{paid.toLocaleString('en-IN')}</p>
+          <p className="text-xs text-amber-600">Due: ₹{remaining.toLocaleString('en-IN')}</p>
+        </div>
+      );
+    }
+
+    if (paid >= total && total > 0) {
+      return (
+        <div>
+          <p className="font-bold text-slate-900">₹{total.toLocaleString('en-IN')}</p>
+          <p className="text-xs text-emerald-600 font-medium">✓ Fully Paid</p>
+        </div>
+      );
+    }
+
+    return <span className="font-bold text-slate-900">₹{total.toLocaleString('en-IN')}</span>;
+  };
+
   return (
     <div className="space-y-10 pb-20 max-w-[1600px] mx-auto animate-fade-in">
       {/* View Header */}
@@ -206,12 +235,9 @@ export default function HistoryView({ serviceHistory = [], loading, onDownloadRe
 
                   <td className="px-8 py-6">
                     <div className="flex flex-col gap-1">
-                       <span className="text-base font-black text-slate-900">{formattedAmount}</span>
+                       {getFinancialDisplay(record)}
                        {statusLabel === 'Completed' && (
                          <div className="flex items-center gap-1 group/fee cursor-help relative">
-                            <ShieldCheck size={10} className="text-emerald-500" />
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-dotted border-slate-300">View Breakdown</span>
-                            
                             {/* Simple hover tooltip simulation */}
                             <div className="hidden group-hover/fee:block absolute bottom-full left-0 mb-2 p-3 bg-slate-900 text-white rounded-xl shadow-xl w-48 z-20 pointer-events-none">
                                <div className="space-y-1">

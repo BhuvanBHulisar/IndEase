@@ -55,10 +55,6 @@ export default function MessagesView({
   const navigate = useNavigate();
   const [msgInput, setMsgInput] = useState('');
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
-  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
-  const [invoiceAmount, setInvoiceAmount] = useState('');
-  const [invoiceDesc, setInvoiceDesc] = useState('');
-  const [invoiceError, setInvoiceError] = useState('');
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
@@ -309,107 +305,7 @@ export default function MessagesView({
                <div ref={chatEndRef} />
             </div>
 
-            {/* Invoice Modal */}
-            {isExpertView && showInvoiceForm && (
-              <div
-                className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
-                onClick={(e) => { if (e.target === e.currentTarget) { setShowInvoiceForm(false); setInvoiceError(''); } }}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 24, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 24, scale: 0.97 }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                  className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-6 py-5 border-b border-[#E5E7EB]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
-                        <CreditCard size={17} className="text-indigo-600" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900 leading-tight">Create Invoice</h4>
-                        <p className="text-[11px] text-slate-500 font-medium">Send payment request to consumer</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { setShowInvoiceForm(false); setInvoiceError(''); }}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
 
-                  {/* Body */}
-                  <div className="px-6 py-5 space-y-4">
-                    {invoiceError && (
-                      <p className="text-red-500 text-xs font-semibold bg-red-50 border border-red-100 rounded-xl px-3 py-2">{invoiceError}</p>
-                    )}
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block">Amount</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">₹</span>
-                        <input
-                          type="number"
-                          placeholder="e.g. 4500"
-                          value={invoiceAmount}
-                          onChange={e => { setInvoiceAmount(e.target.value); setInvoiceError(''); }}
-                          className="w-full h-12 pl-9 pr-4 rounded-xl border border-[#E5E7EB] text-sm font-semibold text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block">Description</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Valve Seal Replacement"
-                        value={invoiceDesc}
-                        onChange={e => { setInvoiceDesc(e.target.value); setInvoiceError(''); }}
-                        className="w-full h-12 px-4 rounded-xl border border-[#E5E7EB] text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="px-6 pb-6 flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => { setShowInvoiceForm(false); setInvoiceError(''); }}
-                      className="flex-1 h-11 rounded-xl border border-[#E5E7EB] text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!invoiceAmount) {
-                          setInvoiceError("Please enter amount");
-                          return;
-                        }
-                        if (isNaN(invoiceAmount) || Number(invoiceAmount) <= 0) {
-                          setInvoiceError("Enter valid amount");
-                          return;
-                        }
-                        if (!invoiceDesc) {
-                          setInvoiceError("Please enter description");
-                          return;
-                        }
-                        setInvoiceError('');
-                        const payload = JSON.stringify({ amount: invoiceAmount, desc: invoiceDesc });
-                        onSendMessage(`[INVOICE]:${payload}`);
-                        setInvoiceAmount('');
-                        setInvoiceDesc('');
-                        setShowInvoiceForm(false);
-                      }}
-                      className="flex-1 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-all"
-                    >
-                      Send Invoice
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            )}
 
             {/* Appointment Modal */}
             {showAppointmentForm && (
@@ -568,25 +464,12 @@ export default function MessagesView({
                     value={msgInput}
                     onChange={e => setMsgInput(e.target.value)}
                   />
-                  {isExpertView && (
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        setShowInvoiceForm(!showInvoiceForm);
-                        setShowAppointmentForm(false);
-                      }}
-                      className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100 flex items-center justify-center transition-all shadow-sm shrink-0"
-                      title="Send Invoice"
-                    >
-                      <CreditCard size={18} />
-                    </button>
-                  )}
-                  {/* FIX 4 — Appointment button visible to BOTH consumer and expert */}
+
+                  {/* Appointment button visible to BOTH consumer and expert */}
                   <button 
                     type="button" 
                     onClick={() => {
                       setShowAppointmentForm(!showAppointmentForm);
-                      setShowInvoiceForm(false);
                     }}
                     className={`w-11 h-11 rounded-xl ${isExpertView ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-100' : 'bg-teal-50 text-teal-600 hover:bg-teal-100 border-teal-100'} border flex items-center justify-center transition-all shadow-sm shrink-0`}
                     title="Schedule Appointment"
@@ -762,66 +645,87 @@ function MessageBubble({ msg, isMine, onProcessPayment, paidInvoices = [], curre
       }
     }
     
-    // 1. Detect invoice messages
+    // Detect invoice messages — read-only payment history card
     if (typeof messageText === 'string' && messageText.startsWith('[INVOICE]:')) {
-      // 2. Parse invoice data
       const jsonStr = messageText.replace('[INVOICE]:', '').trim();
       try {
         const invoiceData = JSON.parse(jsonStr);
-        const { amount, desc, description } = invoiceData;
+        const { amount, desc, description, paidAmount, remainingAmount } = invoiceData;
+        const displayAmount = Number(amount || 0);
+        const paid = Number(paidAmount || 0);
+        const remaining = Number(remainingAmount || (displayAmount - paid));
+        const isPartial = paid > 0 && remaining > 0;
+        const isFullyPaid = paid >= displayAmount;
         const currentInvoiceKey = `${desc || description}_${amount}`;
-        const isPaid = paidInvoices.includes(currentInvoiceKey);
-        
-        // 3 & 4. Render styled invoice card
+        const isPaidFromState = paidInvoices.includes(currentInvoiceKey);
+        const isPaid = isPaidFromState || isFullyPaid;
+
         return (
-          <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[12px] p-4 my-2 shadow-sm w-full max-w-xs">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 my-1 shadow-sm w-full max-w-xs">
+            {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg ${isExpertView ? 'bg-indigo-600' : 'bg-[#0d9488]'} flex items-center justify-center text-white shadow-sm`}>
-                  <CreditCard size={16} />
+                <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white">
+                  <CreditCard size={15} />
                 </div>
-                <span className={`text-[10px] font-semibold ${isExpertView ? 'text-indigo-600' : 'text-[#0d9488]'} uppercase tracking-widest`}>Service Cost</span>
+                <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest">
+                  Service Invoice
+                </span>
               </div>
               {isPaid && (
-                <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold">PAID</Badge>
+                <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                  PAID
+                </span>
+              )}
+              {isPartial && !isPaid && (
+                <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">
+                  PARTIAL
+                </span>
               )}
             </div>
-            
-            <div className="mb-4">
-              <h3 className="text-xl font-bold text-slate-900 tracking-tight">₹{amount}</h3>
-              <p className="text-xs text-slate-500 mt-1 font-normal leading-relaxed">
-                {desc || description || "Service cost for node maintenance."}
-              </p>
+
+            {/* Amount */}
+            <div className="mb-3">
+              <p className="text-xl font-bold text-slate-900">₹{displayAmount.toLocaleString('en-IN')}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{desc || description || 'Service charge'}</p>
             </div>
-            
-            {isExpertView ? (
-              <div className="w-full h-9 rounded-[8px] font-semibold text-xs shadow-sm bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center gap-2">
-                <CheckCheck size={16} />
-                {isPaid ? "Payment Completed" : "Invoice Sent"}
-              </div>
-            ) : (
-              <button 
-                disabled={isPaid}
-                onClick={() => {
-                  console.log("Initiating payment for:", { amount, description: desc || description });
-                  onProcessPayment?.(amount, desc || description);
-                }}
-                className={cn(
-                  "w-full h-9 rounded-[8px] font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2",
-                  isPaid 
-                    ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
-                    : "bg-[#0d9488] hover:bg-teal-700 text-white"
+
+            {/* Partial payment breakdown */}
+            {(isPartial || isPaid) && paid > 0 && (
+              <div className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-3 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Paid</span>
+                  <span className="text-emerald-600 font-semibold">₹{paid.toLocaleString('en-IN')}</span>
+                </div>
+                {remaining > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Remaining</span>
+                    <span className="text-amber-600 font-semibold">₹{remaining.toLocaleString('en-IN')}</span>
+                  </div>
                 )}
-              >
-                {isPaid ? "Payment Completed" : "Pay Now"}
-              </button>
+              </div>
             )}
+
+            {/* Status footer */}
+            <div className={`w-full h-9 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold
+              ${
+                isPaid
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                  : isPartial
+                    ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                    : 'bg-slate-50 text-slate-500 border border-slate-100'
+              }`}>
+              <CheckCheck size={14} />
+              {isPaid ? 'Payment Completed' : isPartial ? `₹${remaining.toLocaleString('en-IN')} remaining` : 'Awaiting payment via quote'}
+            </div>
+
+            <p className="text-[10px] text-slate-400 mt-2 text-center">
+              Payment is processed through the quote approval flow
+            </p>
           </div>
         );
-      } catch (error) {
-        // PART 4: ERROR HANDLING
-        console.error("Failed to parse invoice JSON:", error);
-        return <p className="text-sm font-medium text-red-500 italic">Invalid invoice</p>;
+      } catch {
+        return <p className="text-sm text-red-500 italic">Invalid invoice data</p>;
       }
     }
 

@@ -4112,6 +4112,9 @@ function App() {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
+              paidAmount: checkoutDetails.checkoutAmount,
+              requestId: checkoutDetails.requestId || activeChatId,
+              description: checkoutDesc,
             });
             if (verifyRes.data.success) {
               const currentChatForRating =
@@ -4182,6 +4185,7 @@ function App() {
                 status: "Completed",
                 cost: `₹${checkoutDetails.totalPayable}`,
                 amount: checkoutDetails.totalPayable,
+                paid_amount: checkoutDetails.checkoutAmount,
                 paymentId: response.razorpay_payment_id,
               };
 

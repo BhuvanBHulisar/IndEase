@@ -300,6 +300,11 @@ async function startServer() {
 
       console.log('[DB] New workflow columns verified ✓');
 
+      // FIX 6 -- Partial payment tracking columns
+      await db.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(10,2) DEFAULT 0`);
+      await db.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS remaining_amount NUMERIC(10,2) DEFAULT 0`);
+      console.log('[DB] Partial payment columns verified');
+
       const progressTrackingSql = fs.readFileSync(
         path.join(__dirname, 'migrations', 'add_progress_tracking.sql'),
         'utf8',
