@@ -5117,129 +5117,119 @@ function App() {
 
       {showDiagnosisModal && (
         <div
-          className="modal-overlay"
-          onClick={(e) =>
-            e.target.className === "modal-overlay" &&
-            setShowDiagnosisModal(false)
-          }
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={(e) => e.target === e.currentTarget && setShowDiagnosisModal(false)}
         >
           <div
-            className="premium-modal"
-            style={{
-              maxWidth: "520px",
-              borderRadius: "16px",
-              background: "white",
-              boxShadow:
-                "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-            }}
+            className="bg-white rounded-2xl shadow-2xl flex flex-col"
+            style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', margin: '0 auto' }}
           >
-            <div className="modal-header-premium border-b border-slate-100 p-6">
+            {/* Header — fixed, does not scroll */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
-                  <Wrench size={20} />
+                <div className="w-9 h-9 bg-teal-50 rounded-xl flex items-center justify-center">
+                  <Wrench size={17} className="text-teal-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 tracking-tight">
-                    Request Service
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">
-                    {activeJobMachine?.name}
-                  </p>
+                  <h2 className="text-base font-bold text-slate-900">Request Service</h2>
+                  <p className="text-xs text-slate-500">{activeJobMachine?.name}</p>
                 </div>
               </div>
               <button
-                className="modal-close-btn"
                 onClick={() => setShowDiagnosisModal(false)}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="modal-body-premium p-8">
+            {/* Scrollable body */}
+            <div
+              className="flex-1 overflow-y-auto px-6 py-5 space-y-5"
+              style={{ minHeight: 0 }}
+            >
               {diagnosisStep === 1 && (
-                <div className="animate-fade-in space-y-6">
-                  <VideoUploadInput
-                    onUploaded={(url) => setUploadedVideoUrl(url)}
-                    onFileSelected={(file) => setVideoFile(file)}
-                  />
+                <div className="animate-fade-in space-y-5">
+                  {/* Fault Video */}
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block mb-2">Fault Video</label>
+                    <VideoUploadInput
+                      onUploaded={(url) => setUploadedVideoUrl(url)}
+                      onFileSelected={(file) => setVideoFile(file)}
+                    />
+                  </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 ml-1">
-                        Issue Description
-                      </label>
-                      <textarea
-                        rows="3"
-                        placeholder="Describe the issue with your machine..."
-                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none transition-all text-sm placeholder:text-slate-400"
-                        value={diagnosisDesc}
-                        onChange={(e) => setDiagnosisDesc(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 ml-1">
-                        Physical Location
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Front hydraulic valve, Main spindle..."
-                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none transition-all text-sm placeholder:text-slate-400"
-                        value={faultLocation}
-                        onChange={(e) => setFaultLocation(e.target.value)}
-                      />
-                    </div>
+                  {/* Issue Description */}
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block mb-2">Issue Description</label>
+                    <textarea
+                      rows={4}
+                      placeholder="Describe the issue with your machine..."
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-teal-500 outline-none text-sm resize-none transition-all"
+                      value={diagnosisDesc}
+                      onChange={(e) => setDiagnosisDesc(e.target.value)}
+                    />
+                  </div>
 
-                    {/* Urgency Level */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 ml-1">Urgency Level</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { value: 'low', label: '🟢 Low', sub: 'Within a week' },
-                          { value: 'normal', label: '🟡 Normal', sub: 'Within 2–3 days' },
-                          { value: 'critical', label: '🔴 Critical', sub: 'Factory stopped' }
-                        ].map(opt => (
-                          <button key={opt.value} type="button" onClick={() => setUrgencyLevel(opt.value)}
-                            className={`p-3 rounded-xl border text-left transition-all ${urgencyLevel === opt.value ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'}`}>
-                            <div className="text-xs font-bold">{opt.label}</div>
-                            <div className="text-[10px] text-slate-500 mt-0.5">{opt.sub}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                  {/* Physical Location */}
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block mb-2">Physical Location</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Front hydraulic valve, Main spindle..."
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-teal-500 outline-none text-sm transition-all"
+                      value={faultLocation}
+                      onChange={(e) => setFaultLocation(e.target.value)}
+                    />
+                  </div>
 
-                    {/* Preferred Time */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-slate-700 ml-1">Preferred Date</label>
-                        <input type="date" min={new Date().toISOString().split('T')[0]}
-                          value={preferredDate} onChange={e => setPreferredDate(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none text-sm" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-slate-700 ml-1">Time Slot</label>
-                        <select value={preferredTimeSlot} onChange={e => setPreferredTimeSlot(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none text-sm bg-white">
-                          <option value="morning">Morning (8am–12pm)</option>
-                          <option value="afternoon">Afternoon (12pm–5pm)</option>
-                          <option value="evening">Evening (5pm–8pm)</option>
-                          <option value="anytime">Any time</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Budget Hint */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 ml-1">Your Budget <span className="text-slate-400 font-normal">(optional — shown to experts)</span></label>
-                      <input type="text" placeholder="e.g. ₹2,000 – ₹5,000" value={consumerBudget} onChange={e => setConsumerBudget(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-teal-500 outline-none text-sm" />
+                  {/* Urgency Level */}
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block mb-2">Urgency Level</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: 'low', label: '🟢 Low', sub: 'Within a week' },
+                        { value: 'normal', label: '🟡 Normal', sub: 'Within 2–3 days' },
+                        { value: 'critical', label: '🔴 Critical', sub: 'Factory stopped' }
+                      ].map(opt => (
+                        <button key={opt.value} type="button" onClick={() => setUrgencyLevel(opt.value)}
+                          className={`p-3 rounded-xl border text-left transition-all ${urgencyLevel === opt.value ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'}`}>
+                          <div className="text-xs font-bold">{opt.label}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">{opt.sub}</div>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <button
-                    className="w-full h-12 bg-[#0d9488] text-white rounded-xl font-semibold text-sm hover:bg-teal-700 shadow-md shadow-teal-500/20 transition-all active:scale-[0.98]"
-                    onClick={handleBroadcastJob}
-                  >
-                    Submit Service Request
-                  </button>
+
+                  {/* Preferred Date + Time Slot */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700 block mb-2">Preferred Date</label>
+                      <input type="date" min={new Date().toISOString().split('T')[0]}
+                        value={preferredDate} onChange={e => setPreferredDate(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-teal-500 outline-none text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700 block mb-2">Time Slot</label>
+                      <select value={preferredTimeSlot} onChange={e => setPreferredTimeSlot(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-teal-500 outline-none text-sm bg-white">
+                        <option value="morning">Morning (8am–12pm)</option>
+                        <option value="afternoon">Afternoon (12pm–5pm)</option>
+                        <option value="evening">Evening (5pm–8pm)</option>
+                        <option value="anytime">Any time</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Budget */}
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block mb-1">
+                      Your Budget <span className="text-slate-400 font-normal text-xs ml-1">(optional — shown to experts)</span>
+                    </label>
+                    <input type="text" placeholder="e.g. ₹2,000 – ₹5,000" value={consumerBudget} onChange={e => setConsumerBudget(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-teal-500 outline-none text-sm transition-all" />
+                  </div>
                 </div>
               )}
 
@@ -5375,6 +5365,18 @@ function App() {
                 </div>
               )}
             </div>
+
+            {/* Footer — fixed at bottom, only on step 1, does not scroll */}
+            {diagnosisStep === 1 && (
+              <div className="px-6 py-4 border-t border-slate-100 shrink-0">
+                <button
+                  onClick={handleBroadcastJob}
+                  className="w-full h-12 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm"
+                >
+                  Submit Service Request
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
